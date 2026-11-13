@@ -32626,6 +32626,52 @@ body.shellgm .gmroom.soon{display:none}
 body.shellhome #tabbar{display:none !important}
 #tabbar #themeBtn{display:none !important}
 
+/* ---- Campaigns ---- */
+.camppanels{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin-bottom:22px}
+.camppanel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+.camppanel.wide{grid-column:1 / -1;margin-top:14px}
+.camppanel > b{display:block;letter-spacing:.12em;text-transform:uppercase;font-size:.85em;color:var(--hot);margin-bottom:10px}
+.campsub{color:var(--ink-dim);font-size:.9em;line-height:1.45;margin-bottom:10px}
+.camprow2{display:flex;gap:8px;flex-wrap:wrap}
+.camprow2 input,.camprow2 select{flex:1 1 160px;min-width:0;background:var(--sunk);border:1px solid var(--line);
+  color:var(--ink);border-radius:6px;padding:.55em .6em;font-size:1em}
+.camplist{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px}
+.campcard{display:flex;flex-direction:column;gap:.4em;text-align:left;background:var(--panel);border:1px solid var(--line);
+  border-radius:10px;padding:1em 1.2em;font:inherit;color:var(--ink);cursor:pointer;transition:border-color .15s,transform .12s}
+.campcard:hover{border-color:var(--hot);transform:translateY(-2px)}
+.campcard b{font-size:1.2em;letter-spacing:.06em;color:var(--hot);font-weight:600}
+.camprole{color:var(--ink-dim);font-size:.92em}
+.campcard small{color:var(--ink-faint);letter-spacing:.12em}
+.campmsg{color:var(--hot);text-align:center;margin:0 0 14px;min-height:1.2em}
+.campmsg.bad{color:var(--bad)}
+.codebox{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:var(--panel);border:1px solid var(--hot);
+  border-radius:10px;padding:12px 16px;margin-bottom:18px}
+.codebox span{color:var(--ink-dim);font-size:.85em;letter-spacing:.1em;text-transform:uppercase}
+.codebox b{font-size:1.7em;letter-spacing:.22em;color:var(--hot);font-family:ui-monospace,Consolas,monospace}
+.codebox small{flex:1 1 100%;color:var(--ink-faint)}
+.roster{display:flex;flex-direction:column;gap:8px}
+.rosterrow{display:grid;grid-template-columns:minmax(120px,1.3fr) minmax(120px,1.4fr) minmax(110px,1fr) 70px auto;gap:12px;
+  align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px 14px}
+.rname b{display:inline}.rname small{display:block;color:var(--ink-faint);font-size:.78em;overflow:hidden;text-overflow:ellipsis}
+.youtag{font-size:.7em;color:var(--good);border:1px solid var(--good);border-radius:3px;padding:0 .35em;margin-left:.3em}
+.rsum{color:var(--ink-dim);font-size:.92em}
+.hpwrap{display:flex;align-items:center;gap:8px}
+.hpbar{flex:1;height:7px;background:var(--sunk);border-radius:4px;overflow:hidden;min-width:50px}
+.hpbar i{display:block;height:100%;background:var(--good)}
+.hptxt{font-size:.82em;color:var(--ink-dim);white-space:nowrap}
+.rupd{color:var(--ink-faint);font-size:.8em}
+.ract{display:flex;gap:6px}
+.gmfoot{margin-top:24px;text-align:right}
+#viewBanner{position:fixed;left:0;right:0;bottom:0;z-index:99000;display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+  padding:10px 16px;background:var(--bar);border-top:2px solid var(--hot);color:var(--ink)}
+#viewBanner span{flex:1 1 260px}
+body.viewonly #charSel,body.viewonly #bNew,body.viewonly #bWiz,body.viewonly #shellMore,body.viewonly #bar .undogrp,
+body.viewonly #bar #saveState{display:none !important}
+@media (max-width:760px){
+  .rosterrow{grid-template-columns:1fr 1fr;row-gap:6px}
+  .ract{grid-column:1 / -1}
+}
+
 /*CLOUD-CSS:END*/</style>
 <script id="cloud-js">/*CLOUD:BEGIN*/
 /* ArchSoul cloud sync — the engine.
@@ -32897,6 +32943,82 @@ body.shellhome #tabbar{display:none !important}
       remove: async function (uid, id) {
         await init();
         await F.deleteDoc(F.doc(db, "users", uid, "characters", id));
+      },
+
+      /* Campaigns. A campaign's document id IS its invite code. */
+      camp: {
+        /* false when that code is already taken, so the caller picks another */
+        create: async function (uid, email, name, code) {
+          await init();
+          var ref = F.doc(db, "campaigns", code);
+          if ((await F.getDoc(ref)).exists()) return false;
+          var now = Date.now();
+          await F.setDoc(ref, { name: name, gm: uid, gmEmail: email, createdAt: now });
+          await F.setDoc(F.doc(db, "users", uid, "campaigns", code), { code: code, name: name, role: "gm", at: now });
+          return true;
+        },
+        get: async function (code) {
+          await init();
+          var d = await F.getDoc(F.doc(db, "campaigns", code));
+          if (!d.exists()) return null;
+          var x = d.data();
+          return { code: code, name: x.name, gm: x.gm, gmEmail: x.gmEmail, createdAt: x.createdAt };
+        },
+        mine: async function (uid) {
+          await init();
+          var snap = await F.getDocs(F.collection(db, "users", uid, "campaigns"));
+          return snap.docs.map(function (d) { var x = d.data(); return { code: d.id, name: x.name, role: x.role, charId: x.charId || "", charName: x.charName || "", at: x.at || 0 }; });
+        },
+        /* join, or change the attached character: member row, then the full sheet, then your own list */
+        attach: async function (uid, email, camp, rec, sheet) {
+          await init();
+          var code = camp.code;
+          await F.setDoc(F.doc(db, "campaigns", code, "members", uid),
+            { email: email, charId: rec.charId, charName: rec.charName, sum: rec.sum, updatedAt: rec.updatedAt });
+          await F.setDoc(F.doc(db, "campaigns", code, "sheets", uid), { data: sheet.data, updatedAt: sheet.updatedAt });
+          await F.setDoc(F.doc(db, "users", uid, "campaigns", code),
+            { code: code, name: camp.name, role: "player", charId: rec.charId, charName: rec.charName, at: Date.now() });
+        },
+        /* the attached character changed: refresh both copies */
+        refresh: async function (uid, email, code, rec, sheet) {
+          await init();
+          await F.setDoc(F.doc(db, "campaigns", code, "members", uid),
+            { email: email, charId: rec.charId, charName: rec.charName, sum: rec.sum, updatedAt: rec.updatedAt });
+          await F.setDoc(F.doc(db, "campaigns", code, "sheets", uid), { data: sheet.data, updatedAt: sheet.updatedAt });
+        },
+        members: async function (code) {
+          await init();
+          var snap = await F.getDocs(F.collection(db, "campaigns", code, "members"));
+          return snap.docs.map(function (d) { var x = d.data(); return { uid: d.id, email: x.email, charId: x.charId, charName: x.charName, sum: x.sum || {}, updatedAt: x.updatedAt || 0 }; });
+        },
+        sheet: async function (code, uid) {
+          await init();
+          var d = await F.getDoc(F.doc(db, "campaigns", code, "sheets", uid));
+          return d.exists() ? { data: d.data().data, updatedAt: d.data().updatedAt } : null;
+        },
+        /* a player leaving, or the GM removing one: the member row and the sheet */
+        dropMember: async function (code, uid) {
+          await init();
+          await F.deleteDoc(F.doc(db, "campaigns", code, "sheets", uid));
+          await F.deleteDoc(F.doc(db, "campaigns", code, "members", uid));
+        },
+        /* take a campaign off your own list (left, removed, or it no longer exists) */
+        forget: async function (uid, code) {
+          await init();
+          await F.deleteDoc(F.doc(db, "users", uid, "campaigns", code));
+        },
+        /* the GM deleting the whole campaign */
+        destroy: async function (uid, code) {
+          await init();
+          var snap = await F.getDocs(F.collection(db, "campaigns", code, "members"));
+          for (var i = 0; i < snap.docs.length; i++) {
+            var m = snap.docs[i].id;
+            await F.deleteDoc(F.doc(db, "campaigns", code, "sheets", m));
+            await F.deleteDoc(F.doc(db, "campaigns", code, "members", m));
+          }
+          await F.deleteDoc(F.doc(db, "campaigns", code));
+          await F.deleteDoc(F.doc(db, "users", uid, "campaigns", code));
+        }
       }
     };
   }
@@ -32905,6 +33027,51 @@ body.shellhome #tabbar{display:none !important}
   ArchCloud.FIREBASE_CONFIG = FIREBASE_CONFIG;
   ArchCloud.makeFirebaseAdapter = makeFirebaseAdapter;
   ArchCloud.friendlyAuthError = friendlyAuthError;
+})(typeof globalThis !== "undefined" ? globalThis : window);
+
+/* ArchSoul campaigns — the small pure pieces: invite codes and roster summaries.
+   No Firebase, no page. */
+(function (root) {
+  "use strict";
+  var A = root.ArchCloud = root.ArchCloud || {};
+
+  /* no 0, O, 1, I or L: a code read aloud or off a phone must not be ambiguous */
+  var ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+  var LEN = 8;
+
+  function randomInt(n) {
+    var c = root.crypto;
+    if (c && c.getRandomValues) {
+      var lim = 256 - (256 % n), b = new Uint8Array(1);
+      do { c.getRandomValues(b); } while (b[0] >= lim);
+      return b[0] % n;
+    }
+    return Math.floor(Math.random() * n);
+  }
+  /* 8 characters, no dash: this is the document id */
+  function genCode(rand) {
+    var r = rand || randomInt, s = "";
+    for (var i = 0; i < LEN; i++) s += ALPHABET.charAt(r(ALPHABET.length));
+    return s;
+  }
+  function fmtCode(code) { return String(code).slice(0, 4) + "-" + String(code).slice(4); }
+  /* what a person types: any case, with spaces or dashes in it */
+  function normCode(t) { return String(t == null ? "" : t).toUpperCase().replace(/[^A-Z0-9]/g, ""); }
+  function validCode(c) {
+    if (typeof c !== "string" || c.length !== LEN) return false;
+    for (var i = 0; i < c.length; i++) if (ALPHABET.indexOf(c.charAt(i)) < 0) return false;
+    return true;
+  }
+
+  /* The few facts the roster shows. hp and hpMax come from the live sheet and
+     are passed in, because only the sheet can work them out. */
+  function summaryOf(ch, hp, hpMax) {
+    var i = (ch && ch.info) || {};
+    function num(v) { v = +v; return isFinite(v) ? Math.round(v) : 0; }
+    return { cls: String(i.cls || ""), lin: String(i.lineage || ""), lvl: num(i.level), hp: num(hp), hpMax: num(hpMax) };
+  }
+
+  A.camp = { ALPHABET: ALPHABET, CODE_LEN: LEN, genCode: genCode, fmtCode: fmtCode, normCode: normCode, validCode: validCode, summaryOf: summaryOf };
 })(typeof globalThis !== "undefined" ? globalThis : window);
 
 /* ArchSoul cloud sync — the Account panel and the hook into the sheet's save().
@@ -32940,7 +33107,7 @@ body.shellhome #tabbar{display:none !important}
     if (same) return;                                /* nothing changed: do not redraw the sheet */
     var activeId = (typeof C !== "undefined" && C) ? C.id : null;
     DB.chars = list.map(function (c) { return migrate(c); });
-    if (inArenaNow()) { save(); return; }            /* the sheet is showing an Arena character */
+    if (inArenaNow() || A.viewing) { save(); return; } /* the sheet is showing an Arena character or a read-only copy */
     var ix = DB.chars.findIndex(function (c) { return c.id === activeId; });
     setActiveAt(ix < 0 ? 0 : ix);
   }
@@ -33008,13 +33175,13 @@ body.shellhome #tabbar{display:none !important}
 
   /* ---- keeping the cloud current as you play ---------------------------- */
   function schedulePush() {
-    if (!state.user || !engine || inArenaNow()) return;
+    if (!state.user || !engine || inArenaNow() || A.viewing) return;
     clearTimeout(pushT); pushT = setTimeout(pushNow, PUSH_DELAY);
   }
   async function pushNow() {
-    if (!state.user || inArenaNow()) return;
+    if (!state.user || inArenaNow() || A.viewing) return;
     var ch = (typeof C !== "undefined") ? C : null;
-    if (!ch || !ch.id) return;
+    if (!ch || !ch.id || ch._viewonly) return;
     try {
       var r = await engine.pushActive(state.user.uid, ch);
       if (r === "toolarge") sayOnce("big" + ch.id, "This character is too large to store in the cloud. It is still saved on this device.");
@@ -33138,9 +33305,332 @@ body.shellhome #tabbar{display:none !important}
   A.ui = {
     open: open, close: close,
     status: function () { return state.status; },
+    adapter: function () { return adapter; },
     onChange: function (f) { listeners.push(f); },
     _state: state
   };
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot); else boot();
+})(typeof globalThis !== "undefined" ? globalThis : window);
+
+/* ArchSoul campaigns — the screens behind the Campaigns card on Home.
+   Talks to the cloud only through ArchCloud.ui's adapter (adapter.camp). */
+(function (root) {
+  "use strict";
+  var A = root.ArchCloud = root.ArchCloud || {};
+  var H = A.camp;                        /* the pure helpers */
+  var POLL_MS = 20000, PUSH_MS = 4000;
+
+  var S = { screen: "list", code: null, mine: [], loaded: false, camp: null, members: [], gone: "",
+            msg: "", bad: false, busy: false, join: null, nameIn: "", codeIn: "", pick: "", armed: null };
+  var pollT = null, pushT = null, view = null;
+  A.viewing = false;
+
+  function $(s, r) { return (r || document).querySelector(s); }
+  function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+    return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
+  function user() { return A.ui && A.ui._state && A.ui._state.user; }
+  function camp() { var a = A.ui && A.ui.adapter && A.ui.adapter(); return a && a.camp; }
+  function rerender() { if (A.shell && A.shell.rerender) A.shell.rerender(); }
+  function say(m) { try { if (typeof toast === "function") toast(m); } catch (e) {} }
+  function setMsg(m, bad) { S.msg = m || ""; S.bad = !!bad; }
+  function errText(e) {
+    var c = e && e.code;
+    if (c === "permission-denied") return "The cloud refused that. If you were removed from this campaign, take it off your list.";
+    return "Could not reach the cloud. Check your connection and try again.";
+  }
+  function ago(ts) {
+    if (!ts) return "never";
+    var s = Math.max(0, Math.round((Date.now() - ts) / 1000));
+    if (s < 60) return "just now"; if (s < 3600) return Math.round(s / 60) + " min ago";
+    if (s < 86400) return Math.round(s / 3600) + " h ago"; return Math.round(s / 86400) + " d ago";
+  }
+  function dataOf(ch) { return JSON.stringify(ch, function (k, v) { return k.charAt(0) === "_" ? undefined : v; }); }
+
+  /* ---- what the roster shows about a character --------------------------- */
+  /* Health maximum is worked out by the sheet from whoever is open, so borrow
+     the sheet for a moment and hand it straight back. */
+  function factsOf(ch) {
+    var prev = C, hp = 0, mx = 0;
+    try { C = ch; hp = (ch.vit && +ch.vit.hpCur) || 0; mx = hpMax(); } catch (e) { mx = 0; } finally { C = prev; }
+    return H.summaryOf(ch, hp, mx);
+  }
+  function recordFor(ch) {
+    var d = dataOf(ch);
+    if (d.length > A.core.MAX_BYTES) return null;
+    var now = Date.now();
+    return { rec: { charId: ch.id, charName: ch.name || "Unnamed", sum: factsOf(ch), updatedAt: now }, sheet: { data: d, updatedAt: now } };
+  }
+
+  /* ---- loading ------------------------------------------------------------ */
+  async function loadMine() {
+    var u = user(), c = camp(); if (!u || !c) return;
+    try { S.mine = (await c.mine(u.uid)).sort(function (a, b) { return b.at - a.at; }); S.loaded = true; }
+    catch (e) { setMsg(errText(e), true); }
+    rerender();
+  }
+  async function openCamp(code) {
+    var u = user(), c = camp(); if (!u || !c) return;
+    S.screen = "campaign"; S.code = code; S.camp = null; S.members = []; S.gone = ""; S.armed = null; setMsg(""); S.busy = true; rerender();
+    await refreshCamp();
+    S.busy = false; rerender(); startPoll();
+  }
+  async function refreshCamp() {
+    var u = user(), c = camp(); if (!u || !c || !S.code) return;
+    try {
+      var k = await c.get(S.code);
+      if (!k) { S.gone = "This campaign no longer exists."; S.camp = null; return; }
+      S.camp = k;
+      try { S.members = await c.members(S.code); S.gone = ""; }
+      catch (e) {
+        if (e && e.code === "permission-denied") { S.gone = "You are no longer in this campaign."; S.members = []; } else throw e;
+      }
+      if (!S.gone && S.camp.gm !== u.uid && !S.members.some(function (m) { return m.uid === u.uid; })) S.gone = "You are no longer in this campaign.";
+    } catch (e) { setMsg(errText(e), true); }
+  }
+  function startPoll() {
+    stopPoll();
+    pollT = setInterval(async function () {
+      if (S.screen !== "campaign" || A.viewing || !$("#homeWrap.open")) return;
+      await refreshCamp(); rerender();
+    }, POLL_MS);
+  }
+  function stopPoll() { if (pollT) { clearInterval(pollT); pollT = null; } }
+
+  /* ---- actions ------------------------------------------------------------ */
+  async function doCreate() {
+    var u = user(), c = camp(), name = (S.nameIn || "").trim();
+    if (!name) { setMsg("Give the campaign a name.", true); rerender(); return; }
+    if (S.busy) return; S.busy = true; setMsg("Creating…"); rerender();
+    try {
+      var code = null;
+      for (var i = 0; i < 6 && !code; i++) { var t = H.genCode(); if (await c.create(u.uid, u.email, name, t)) code = t; }
+      if (!code) throw new Error("no code");
+      S.nameIn = ""; await loadMine(); S.busy = false; await openCamp(code);
+    } catch (e) { S.busy = false; setMsg(errText(e), true); rerender(); }
+  }
+  async function doFind() {
+    var u = user(), c = camp(), code = H.normCode(S.codeIn);
+    if (!H.validCode(code)) { setMsg("That is not a campaign code. It is 8 letters and numbers, like K7QX-M2RT.", true); rerender(); return; }
+    if (S.busy) return; S.busy = true; setMsg("Looking…"); rerender();
+    try {
+      var k = await c.get(code);
+      if (!k) setMsg("No campaign has that code.", true);
+      else if (k.gm === u.uid) setMsg("You run that campaign. Open it from your list.", true);
+      else if (S.mine.some(function (m) { return m.code === code; })) setMsg("You are already in that campaign.", true);
+      else { S.join = { camp: k }; S.pick = (DB.chars[0] || {}).id || ""; setMsg(""); }
+    } catch (e) { setMsg(errText(e), true); }
+    S.busy = false; rerender();
+  }
+  async function doAttach(k) {
+    var u = user(), c = camp(), ch = DB.chars.find(function (x) { return x.id === S.pick; });
+    if (!ch) { setMsg("Pick one of your characters.", true); rerender(); return; }
+    var r = recordFor(ch);
+    if (!r) { setMsg("That character is too large to share.", true); rerender(); return; }
+    if (S.busy) return; S.busy = true; setMsg("Joining…"); rerender();
+    try {
+      await c.attach(u.uid, u.email, k, r.rec, r.sheet);
+      S.join = null; S.codeIn = ""; await loadMine(); S.busy = false; await openCamp(k.code);
+      say("Joined " + k.name + " as " + r.rec.charName + ".");
+    } catch (e) { S.busy = false; setMsg(errText(e), true); rerender(); }
+  }
+  async function doChange() {
+    var u = user(), c = camp(), ch = DB.chars.find(function (x) { return x.id === S.pick; });
+    if (!ch || !S.camp) return;
+    var r = recordFor(ch); if (!r) { setMsg("That character is too large to share.", true); rerender(); return; }
+    S.busy = true; rerender();
+    try { await c.attach(u.uid, u.email, S.camp, r.rec, r.sheet); await loadMine(); await refreshCamp(); setMsg("Now playing " + r.rec.charName + "."); }
+    catch (e) { setMsg(errText(e), true); }
+    S.busy = false; rerender();
+  }
+  async function armed(key, fn) {
+    if (S.armed !== key) { S.armed = key; rerender(); return; }
+    S.armed = null; S.busy = true; rerender();
+    try { await fn(); } catch (e) { setMsg(errText(e), true); }
+    S.busy = false; rerender();
+  }
+  function toList() { stopPoll(); S.screen = "list"; S.code = null; S.armed = null; setMsg(""); loadMine(); rerender(); }
+
+  /* ---- the GM reads a player's sheet --------------------------------------- */
+  async function viewSheet(uid) {
+    var c = camp(); if (!c || A.viewing) return;
+    var m = S.members.find(function (x) { return x.uid === uid; });
+    S.busy = true; rerender();
+    try {
+      var sh = await c.sheet(S.code, uid);
+      if (!sh) { setMsg("That player has not shared a sheet yet.", true); S.busy = false; rerender(); return; }
+      var copy = migrate(JSON.parse(sh.data));
+      copy._viewonly = true;
+      enterView(copy, (m && m.charName) || copy.name || "Character");
+    } catch (e) { setMsg(errText(e), true); }
+    S.busy = false; rerender();
+  }
+  function enterView(copy, label) {
+    view = { prev: C, label: label };
+    A.viewing = true; C = copy; C._lastMax = null; dirtyAll();
+    document.body.classList.add("viewonly");
+    var cv = $("#canvas"); if (cv) cv.setAttribute("inert", "");
+    var b = document.createElement("div"); b.id = "viewBanner";
+    b.innerHTML = '<span>Viewing <b>' + esc(label) + '</b> — read only. Nothing you do here changes their sheet.</span>' +
+      '<button class="btn" id="viewBack">← Back to the campaign</button>';
+    document.body.appendChild(b);
+    b.querySelector("#viewBack").addEventListener("click", exitView);
+    if (A.shell && A.shell.hide) A.shell.hide();
+    try { renderTabs(); render(); } catch (e) { console.error(e); }
+    if (A.shell && A.shell._update) A.shell._update();
+  }
+  function exitView() {
+    if (!view) return;
+    C = view.prev; view = null; A.viewing = false; dirtyAll();
+    document.body.classList.remove("viewonly");
+    var cv = $("#canvas"); if (cv) cv.removeAttribute("inert");
+    var b = $("#viewBanner"); if (b) b.remove();
+    try { renderTabs(); render(); } catch (e) { console.error(e); }
+    S.screen = "campaign";
+    if (A.shell && A.shell.open) A.shell.open("campaigns");
+  }
+
+  /* ---- keeping the attached character current -------------------------------- */
+  function schedulePush() {
+    if (A.viewing || !user() || !S.loaded) return;
+    if (typeof C === "undefined" || !C || C._viewonly) return;
+    var codes = S.mine.filter(function (m) { return m.role === "player" && m.charId === C.id; });
+    if (!codes.length) return;
+    clearTimeout(pushT); pushT = setTimeout(pushNow, PUSH_MS);
+  }
+  async function pushNow() {
+    var u = user(), c = camp(); if (!u || !c || A.viewing || !C || C._viewonly) return;
+    var ch = C, r = recordFor(ch); if (!r) return;
+    var codes = S.mine.filter(function (m) { return m.role === "player" && m.charId === ch.id; });
+    for (var i = 0; i < codes.length; i++) {
+      try { await c.refresh(u.uid, u.email, codes[i].code, r.rec, r.sheet); } catch (e) { /* the campaign screen shows problems; a silent retry comes with the next save */ }
+    }
+  }
+
+  /* ---- drawing ----------------------------------------------------------------- */
+  function sumLine(s) {
+    s = s || {}; var bits = [];
+    if (s.lin) bits.push(esc(s.lin)); if (s.cls) bits.push(esc(s.cls));
+    bits.push("Level " + (s.lvl || 0)); return bits.join(" · ");
+  }
+  function hpBar(s) {
+    s = s || {}; var mx = s.hpMax || 0, pct = mx > 0 ? Math.max(0, Math.min(100, Math.round(100 * s.hp / mx))) : 0;
+    return '<span class="hpwrap"><span class="hpbar"><i style="width:' + pct + '%"></i></span><span class="hptxt">' + (s.hp || 0) + " / " + mx + "</span></span>";
+  }
+  function charOptions() {
+    return DB.chars.map(function (c) { return '<option value="' + esc(c.id) + '"' + (c.id === S.pick ? " selected" : "") + ">" + esc(c.name || "Unnamed") + "</option>"; }).join("");
+  }
+  function msgHTML() { return S.msg ? '<div class="campmsg' + (S.bad ? " bad" : "") + '">' + esc(S.msg) + "</div>" : ""; }
+
+  function html() {
+    var u = user();
+    if (!u) {
+      return '<div class="homeinner"><div class="homehead"><b>Campaigns</b><button class="btn" data-homeback>← Home</button></div>' +
+        '<div class="homenote">Campaigns live in your account, so you need to sign in first.</div>' +
+        '<div class="gatebtns"><button class="btn big" data-homesign>Sign in</button></div></div>';
+    }
+    if (S.screen === "campaign") return campaignHTML(u);
+    var list = S.mine.map(function (m) {
+      return '<button class="campcard" data-camp="open" data-code="' + esc(m.code) + '"><b>' + esc(m.name) + '</b>' +
+        '<span class="camprole">' + (m.role === "gm" ? "You are the GM" : "Playing " + esc(m.charName || "a character")) + '</span>' +
+        '<small>' + esc(H.fmtCode(m.code)) + "</small></button>";
+    }).join("");
+    var make = S.join ? joinHTML() :
+      '<div class="camppanel"><b>Create a campaign</b>' +
+        '<div class="camprow2"><input id="campName" type="text" maxlength="60" placeholder="Campaign name" value="' + esc(S.nameIn) + '">' +
+        '<button class="btn" data-camp="create"' + (S.busy ? " disabled" : "") + ">Create</button></div></div>" +
+      '<div class="camppanel"><b>Join with a code</b>' +
+        '<div class="camprow2"><input id="campCode" type="text" maxlength="14" placeholder="K7QX-M2RT" autocapitalize="characters" autocomplete="off" value="' + esc(S.codeIn) + '">' +
+        '<button class="btn" data-camp="find"' + (S.busy ? " disabled" : "") + ">Join</button></div></div>";
+    return '<div class="homeinner"><div class="homehead"><b>Campaigns</b><button class="btn" data-homeback>← Home</button></div>' +
+      msgHTML() + '<div class="camppanels">' + make + "</div>" +
+      (S.loaded ? (list ? '<div class="camplist">' + list + "</div>" : '<div class="homenote">You are not in any campaigns yet.</div>') : '<div class="homenote">Loading…</div>') +
+      "</div>";
+  }
+  function joinHTML() {
+    var k = S.join.camp;
+    return '<div class="camppanel wide"><b>Join ' + esc(k.name) + "</b>" +
+      '<div class="campsub">Run by ' + esc(k.gmEmail || "the GM") + ". Choose the character you will play. The GM can read this character’s sheet, and the other players can see its name, class, level and Health.</div>" +
+      (DB.chars.length ? '<div class="camprow2"><select id="campPick">' + charOptions() + '</select>' +
+        '<button class="btn" data-camp="attach"' + (S.busy ? " disabled" : "") + '>Join campaign</button>' +
+        '<button class="btn" data-camp="cancel">Cancel</button></div>' :
+        '<div class="campmsg bad">You have no saved characters to bring.</div><div class="camprow2"><button class="btn" data-camp="cancel">Cancel</button></div>') + "</div>";
+  }
+  function campaignHTML(u) {
+    var back = '<button class="btn" data-camp="list">← Campaigns</button>';
+    if (S.busy && !S.camp && !S.gone) return '<div class="homeinner"><div class="homehead"><b>Campaign</b>' + back + '</div><div class="homenote">Loading…</div></div>';
+    if (S.gone || !S.camp) {
+      return '<div class="homeinner"><div class="homehead"><b>Campaign</b>' + back + "</div>" + msgHTML() +
+        '<div class="homenote">' + esc(S.gone || "This campaign could not be loaded.") + "</div>" +
+        (S.gone ? '<div class="gatebtns"><button class="btn" data-camp="forget">Take it off my list</button></div>' : "") + "</div>";
+    }
+    var k = S.camp, gm = k.gm === u.uid, rows = S.members.slice().sort(function (a, b) { return String(a.charName).localeCompare(String(b.charName)); }).map(function (m) {
+      var mine = m.uid === u.uid;
+      return '<div class="rosterrow"><div class="rname"><b>' + esc(m.charName) + "</b>" + (mine ? ' <span class="youtag">you</span>' : "") +
+        "<small>" + (gm || mine ? esc(m.email) : "") + "</small></div>" +
+        '<div class="rsum">' + sumLine(m.sum) + "</div>" + hpBar(m.sum) +
+        '<div class="rupd">' + ago(m.updatedAt) + "</div>" +
+        (gm ? '<div class="ract"><button class="btn" data-camp="view" data-uid="' + esc(m.uid) + '">View sheet</button>' +
+          '<button class="btn warn" data-camp="kick" data-uid="' + esc(m.uid) + '">' + (S.armed === "kick" + m.uid ? "Really remove?" : "Remove") + "</button></div>" : "") +
+        "</div>";
+    }).join("");
+    var top = '<div class="homehead"><b>' + esc(k.name) + "</b>" +
+      '<button class="btn" data-camp="refresh">Refresh</button>' + back + "</div>";
+    var codeBox = gm ? '<div class="codebox"><span>Invite code</span><b id="campCodeTxt">' + esc(H.fmtCode(k.code)) + '</b>' +
+      '<button class="btn" data-camp="copy">Copy</button><small>Players join by entering this on the Campaigns screen.</small></div>' : "";
+    var mineRow = !gm ? '<div class="camppanel wide"><b>Your character</b><div class="camprow2"><select id="campPick">' + charOptions() + '</select>' +
+      '<button class="btn" data-camp="change"' + (S.busy ? " disabled" : "") + '>Play this one</button>' +
+      '<button class="btn warn" data-camp="leave">' + (S.armed === "leave" ? "Really leave?" : "Leave campaign") + "</button></div></div>" : "";
+    var gmFoot = gm ? '<div class="gmfoot"><button class="btn warn" data-camp="destroy">' + (S.armed === "destroy" ? "Really delete this campaign for everyone?" : "Delete campaign") + "</button></div>" : "";
+    return '<div class="homeinner">' + top + msgHTML() + codeBox + '<div class="roster">' + (rows || '<div class="homenote">No players have joined yet.</div>') + "</div>" + mineRow + gmFoot + "</div>";
+  }
+
+  /* ---- clicks and typing (everything arrives through Home's container) ---------- */
+  function wire() {
+    var h = $("#homeWrap"); if (!h || h._campWired) return; h._campWired = 1;
+    h.addEventListener("click", function (e) {
+      var b = e.target.closest("[data-camp]"); if (!b) return;
+      var a = b.getAttribute("data-camp"), u = user(), c = camp();
+      if (a === "list") toList();
+      else if (a === "open") openCamp(b.getAttribute("data-code"));
+      else if (a === "create") doCreate();
+      else if (a === "find") doFind();
+      else if (a === "attach") doAttach(S.join.camp);
+      else if (a === "cancel") { S.join = null; setMsg(""); rerender(); }
+      else if (a === "refresh") { setMsg(""); S.busy = true; rerender(); refreshCamp().then(function () { S.busy = false; rerender(); }); }
+      else if (a === "view") viewSheet(b.getAttribute("data-uid"));
+      else if (a === "change") doChange();
+      else if (a === "copy") {
+        var t = H.fmtCode(S.code);
+        try { navigator.clipboard.writeText(t).then(function () { say("Code copied: " + t); }, function () { say("Code: " + t); }); } catch (er) { say("Code: " + t); }
+      }
+      else if (a === "kick") { var id = b.getAttribute("data-uid"); armed("kick" + id, async function () { await c.dropMember(S.code, id); await refreshCamp(); }); }
+      else if (a === "leave") armed("leave", async function () { await c.dropMember(S.code, u.uid); await c.forget(u.uid, S.code); toList(); });
+      else if (a === "forget") { (async function () { try { await c.forget(u.uid, S.code); } catch (er) {} toList(); })(); }
+      else if (a === "destroy") armed("destroy", async function () { await c.destroy(u.uid, S.code); say("Campaign deleted."); toList(); });
+    });
+    h.addEventListener("input", function (e) {
+      if (e.target.id === "campName") S.nameIn = e.target.value;
+      else if (e.target.id === "campCode") S.codeIn = e.target.value;
+    });
+    h.addEventListener("change", function (e) { if (e.target.id === "campPick") S.pick = e.target.value; });
+    h.addEventListener("keydown", function (e) {
+      if (e.key !== "Enter") return;
+      if (e.target.id === "campName") doCreate(); else if (e.target.id === "campCode") doFind();
+    });
+  }
+
+  function boot() {
+    wire();
+    var origSave = root.save;
+    if (typeof origSave === "function") root.save = function () { var r = origSave.apply(this, arguments); try { schedulePush(); } catch (e) {} return r; };
+    if (A.ui && A.ui.onChange) A.ui.onChange(function () {
+      if (user()) { if (!S.loaded) loadMine(); } else { S.loaded = false; S.mine = []; S.screen = "list"; S.join = null; stopPoll(); }
+    });
+  }
+  /* the Campaigns card was opened */
+  function enter() { wire(); S.join = null; setMsg(""); if (S.screen === "campaign" && S.code) { startPoll(); refreshCamp().then(rerender); } else { S.screen = "list"; if (user()) loadMine(); } }
+
+  A.campUI = { html: html, enter: enter, leave: stopPoll, exitView: exitView, _state: S, _factsOf: factsOf };
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot); else boot();
 })(typeof globalThis !== "undefined" ? globalThis : window);
 
@@ -33283,7 +33773,7 @@ body.shellhome #tabbar{display:none !important}
         return;
       }
       if (e.target.closest("[data-homesign]")) { if (A.ui) { A.ui._state.mode = "in"; A.ui.open(); } return; }
-      if (e.target.closest("[data-homeback]")) { view = "home"; renderHome(); }
+      if (e.target.closest("[data-homeback]")) { leaveCamp(); view = "home"; renderHome(); }
     });
   }
 
@@ -33300,9 +33790,7 @@ body.shellhome #tabbar{display:none !important}
     sizeHome();
     var u = cloud().user, n = (DB && DB.chars ? DB.chars.length : 0), html = "";
     if (view === "campaigns") {
-      html = '<div class="homeinner"><div class="homehead"><b>Campaigns</b>' +
-        '<button class="btn" data-homeback>← Home</button></div>' +
-        '<div class="homenote">Creating a campaign and joining one with an invite code is the next thing being built. This is where they will live.</div></div>';
+      html = A.campUI ? A.campUI.html() : '<div class="homeinner"><div class="homenote">Campaigns are not available.</div></div>';
     } else if (gated()) {
       html = '<div class="homeinner gate"><div class="gatetitle">ArchSoul</div>' +
         '<div class="homenote">Sign in to keep your characters in your account and open them on any device. Everything works without one too.</div>' +
@@ -33326,15 +33814,16 @@ body.shellhome #tabbar{display:none !important}
       (f ? "<small>" + f + "</small>" : "") + "</button>";
   }
 
-  function closeHome() { homeOpen = false; view = "home"; renderHome(); updateAll(); }
+  function leaveCamp() { if (A.campUI && A.campUI.leave) A.campUI.leave(); }
+  function closeHome() { leaveCamp(); homeOpen = false; view = "home"; renderHome(); updateAll(); }
   function goHome() {
     closePops();
     if (gmIsOpen()) call("toggleGM", false);
     var gw = $("#gmodeWrap"); if (gw && gw.classList.contains("open")) call("gmodeOpen", false);
-    homeOpen = true; view = "home"; renderHome(); updateAll();
+    leaveCamp(); homeOpen = true; view = "home"; renderHome(); updateAll();
   }
   function go(k) {
-    if (k === "campaigns") { view = "campaigns"; renderHome(); return; }
+    if (k === "campaigns") { view = "campaigns"; if (A.campUI) A.campUI.enter(); renderHome(); return; }
     if (k === "characters") {
       if (gmIsOpen()) call("toggleGM", false);
       if (arenaIsOn()) call("setMode", "campaign");
@@ -33362,7 +33851,7 @@ body.shellhome #tabbar{display:none !important}
     var acct = $("#shellAcct");
     if (acct) { acct.textContent = acctText(); var st = A.ui ? A.ui.status() : ""; acct.classList.toggle("err", st === "error"); acct.classList.toggle("on", !!cloud().user && st === "synced"); }
     var sec = $("#shellSec");
-    if (sec) sec.textContent = homeOpen ? "Home" : gmIsOpen() ? "Monsters" : arenaIsOn() ? "Arena" : "Characters";
+    if (sec) sec.textContent = homeOpen ? "Home" : document.body.classList.contains("viewonly") ? "Viewing sheet" : gmIsOpen() ? "Monsters" : arenaIsOn() ? "Arena" : "Characters";
     document.body.classList.toggle("shellgm", gmIsOpen());
     document.body.classList.toggle("shellarena", arenaIsOn());
     if (homeOpen) renderHome();
@@ -33384,7 +33873,10 @@ body.shellhome #tabbar{display:none !important}
     setTimeout(function () { var s = $("#shellSound"); if (s && $("#sfxBtn")) { s.textContent = ""; ["#sfxBtn", "#sfxVol", "#sfxMore"].forEach(function (q) { var n = $(q); if (n) s.appendChild(n); }); } }, 900);
   }
 
-  A.shell = { goHome: goHome, go: go, _update: updateAll };
+  /* for the campaign screens: draw again, show Home on a given screen, or get out of the way */
+  function openView(v) { homeOpen = true; view = v; if (v === "campaigns" && A.campUI) A.campUI.enter(); renderHome(); updateAll(); }
+  function hideHome() { homeOpen = false; renderHome(); updateAll(); }
+  A.shell = { goHome: goHome, go: go, open: openView, hide: hideHome, rerender: function () { if (homeOpen) renderHome(); }, _update: updateAll };
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot); else boot();
 })(typeof globalThis !== "undefined" ? globalThis : window);
 
