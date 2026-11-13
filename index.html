@@ -14183,6 +14183,7 @@ PT.vitals={t:"Vitals",w:450,blocks:()=>[
       <button class="lv0btn" data-lv0cleanse style="display:none"
         title="Your Class at Level 0 — cleanse 1 Exhaustion from a target within 5ft, once per round">Cleanse</button></div>
       <div class="vbtns">
+        <button class="rb resolvebtn" data-act="cleanse" title="End of your turn — cleanse Conditions, roll durations forward, and Restore your Aura">Resolve</button>
         <button class="rb newround" data-act="newround">New Round</button>
         <button class="rb restbtn" data-act="rest">Rest</button>
         <button class="rb combat" data-combat><span data-out="combatLbl">Out of Combat</span></button></div>`}
@@ -14197,8 +14198,6 @@ PT.spirit={t:"Kindred Spirit",w:2090,wrap:"spwrap",blocks:()=>[
 
 PT.conditions={t:"Conditions",w:700,wrap:"cwrap",blocks:()=>[
   {k:"main",h:`<div class="ccond">
-    <button class="btn" data-act="cleanse" style="width:100%;margin-bottom:.4em"
-      title="End of your turn — cleanse Conditions, roll durations forward, and Restore your Aura">Resolve</button>
     <div class="corhd"><label>Corruption</label>
       <button class="corlink" data-corlink title="Tied to the Corrupted Soul Effect"></button>
       <label class="corim"><input type="checkbox" class="imb" data-imm="corruption" title="Immune to Corruption"><span>Imm</span></label>
@@ -27080,7 +27079,7 @@ PT_A.vitals={t:"Vitals",blocks:()=>{
   return src.map(b=>{
     if(b.k!=="exhaustion") return b;
     const h=b.h.replace(/<div class="vbtns">[\s\S]*?<\/div>/,
-      `<div class="vbtns"><button class="rb newround" data-act="newround">New Round</button></div>`);
+      `<div class="vbtns"><button class="rb resolvebtn" data-act="cleanse" title="End of your turn — cleanse Conditions, roll durations forward, and Restore your Aura">Resolve</button><button class="rb newround" data-act="newround">New Round</button></div>`);
     return {k:b.k,h};
   });
 }};
@@ -32552,6 +32551,8 @@ function printGo(){
 #cloudModal .crow span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #cloudModal .crow .btn{font-size:.78em;padding:.25em .6em;white-space:nowrap}
 #cloudModal .cnote{font-size:.78em;color:var(--ink-faint);margin-top:10px;line-height:1.35}
+#cloudModal .cname{display:flex;gap:6px;margin:6px 0}
+#cloudModal .cname input{flex:1;min-width:0}
 
 /* ---- slim top bar: the old buttons stay in the page, only hidden ---- */
 #bar #bDup,#bar #bDel,#bar #bTut,#bar #bPrint,#bar #bExport,#bar #bImport,
@@ -32626,6 +32627,12 @@ body.shellgm .gmroom.soon{display:none}
 body.shellhome #tabbar{display:none !important}
 #tabbar #themeBtn{display:none !important}
 
+/* Resolve: green, in Vitals, above New Round. Always shown (it used to live in Conditions, always shown). */
+.rb.resolvebtn{background:#1c3a26;border-color:#3f8a5a;color:#b6e8c6;font-weight:600}
+.rb.resolvebtn:hover{background:#25502f;color:#e0ffe9}
+.lightmode .rb.resolvebtn{background:#dff1e5;border-color:#5fa77a;color:#14502c}
+.panel:not(.incombat) .rb.resolvebtn{display:block}
+
 /* ---- Campaigns ---- */
 .camppanels{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin-bottom:22px}
 .camppanel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
@@ -32671,6 +32678,20 @@ body.viewonly #bar #saveState{display:none !important}
   .rosterrow{grid-template-columns:1fr 1fr;row-gap:6px}
   .ract{grid-column:1 / -1}
 }
+
+/* quick character builder */
+.qb .qbgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px 12px;margin:8px 0}
+.qb .qbf{display:flex;flex-direction:column;gap:2px;font-size:.88em}
+.qb .qbf span{color:var(--ink-dim)}
+.qb .qbf select,.qb .qbf input{width:100%}
+.qb .qbnone{color:var(--ink-dim);padding:.4em 0}
+.qb .qbsouls{margin:8px 0 4px}
+.qb .qbsouls em{color:var(--ink-dim);font-style:normal;margin-left:6px}
+.qb .qbatts{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:6px 12px;margin-bottom:10px}
+.qb .qbatt{display:flex;align-items:center;gap:6px}
+.qb .qbatt span{min-width:4.5em}
+.qb .qbatt b{min-width:1.6em;text-align:center}
+.qb .qbatt small{color:var(--ink-dim)}
 
 /*CLOUD-CSS:END*/</style>
 <script id="cloud-js">/*CLOUD:BEGIN*/
@@ -32910,20 +32931,35 @@ body.viewonly #bar #saveState{display:none !important}
         auth = Au.getAuth(app);
         db = F.getFirestore(app);
         Au.onAuthStateChanged(auth, function (u) {
-          var user = u ? { uid: u.uid, email: u.email } : null;
+          var user = u ? { uid: u.uid, email: u.email, name: u.displayName || "" } : null;
           listeners.forEach(function (cb) { cb(user); });
         });
       }).catch(function (e) { ready = null; throw e; });   /* a failed load can be retried */
       return ready;
     }
 
-    function userOf(cred) { return { uid: cred.user.uid, email: cred.user.email }; }
+    function userOf(cred) { return { uid: cred.user.uid, email: cred.user.email, name: cred.user.displayName || "" }; }
+    function tell() {
+      var u = auth.currentUser, user = u ? { uid: u.uid, email: u.email, name: u.displayName || "" } : null;
+      listeners.forEach(function (cb) { cb(user); });
+      return user;
+    }
     function chars(uid) { return F.collection(db, "users", uid, "characters"); }
 
     return {
       init: init,
       onAuth: function (cb) { listeners.push(cb); },
-      signUp: async function (email, pw) { await init(); return userOf(await Au.createUserWithEmailAndPassword(auth, email, pw)); },
+      signUp: async function (email, pw, name) {
+        await init();
+        var cred = await Au.createUserWithEmailAndPassword(auth, email, pw);
+        if (name) { try { await Au.updateProfile(cred.user, { displayName: name }); tell(); } catch (e) { /* the account exists; the username can be set again */ } }
+        return userOf(cred);
+      },
+      setName: async function (name) {
+        await init();
+        await Au.updateProfile(auth.currentUser, { displayName: name });
+        return tell();
+      },
       signIn: async function (email, pw) { await init(); return userOf(await Au.signInWithEmailAndPassword(auth, email, pw)); },
       signOut: async function () { await init(); await Au.signOut(auth); },
       resetPassword: async function (email) { await init(); await Au.sendPasswordResetEmail(auth, email); },
@@ -32948,12 +32984,12 @@ body.viewonly #bar #saveState{display:none !important}
       /* Campaigns. A campaign's document id IS its invite code. */
       camp: {
         /* false when that code is already taken, so the caller picks another */
-        create: async function (uid, email, name, code) {
+        create: async function (uid, gmName, name, code) {
           await init();
           var ref = F.doc(db, "campaigns", code);
           if ((await F.getDoc(ref)).exists()) return false;
           var now = Date.now();
-          await F.setDoc(ref, { name: name, gm: uid, gmEmail: email, createdAt: now });
+          await F.setDoc(ref, { name: name, gm: uid, gmName: gmName || "", createdAt: now });
           await F.setDoc(F.doc(db, "users", uid, "campaigns", code), { code: code, name: name, role: "gm", at: now });
           return true;
         },
@@ -32962,7 +32998,7 @@ body.viewonly #bar #saveState{display:none !important}
           var d = await F.getDoc(F.doc(db, "campaigns", code));
           if (!d.exists()) return null;
           var x = d.data();
-          return { code: code, name: x.name, gm: x.gm, gmEmail: x.gmEmail, createdAt: x.createdAt };
+          return { code: code, name: x.name, gm: x.gm, gmName: x.gmName || "", legacy: x.gmEmail !== undefined || x.gmName === undefined, createdAt: x.createdAt };
         },
         mine: async function (uid) {
           await init();
@@ -32970,26 +33006,37 @@ body.viewonly #bar #saveState{display:none !important}
           return snap.docs.map(function (d) { var x = d.data(); return { code: d.id, name: x.name, role: x.role, charId: x.charId || "", charName: x.charName || "", at: x.at || 0 }; });
         },
         /* join, or change the attached character: member row, then the full sheet, then your own list */
-        attach: async function (uid, email, camp, rec, sheet) {
+        attach: async function (uid, uname, camp, rec, sheet) {
           await init();
           var code = camp.code;
           await F.setDoc(F.doc(db, "campaigns", code, "members", uid),
-            { email: email, charId: rec.charId, charName: rec.charName, sum: rec.sum, updatedAt: rec.updatedAt });
+            { name: uname || "", charId: rec.charId, charName: rec.charName, sum: rec.sum, updatedAt: rec.updatedAt });
           await F.setDoc(F.doc(db, "campaigns", code, "sheets", uid), { data: sheet.data, updatedAt: sheet.updatedAt });
           await F.setDoc(F.doc(db, "users", uid, "campaigns", code),
             { code: code, name: camp.name, role: "player", charId: rec.charId, charName: rec.charName, at: Date.now() });
         },
         /* the attached character changed: refresh both copies */
-        refresh: async function (uid, email, code, rec, sheet) {
+        refresh: async function (uid, uname, code, rec, sheet) {
           await init();
           await F.setDoc(F.doc(db, "campaigns", code, "members", uid),
-            { email: email, charId: rec.charId, charName: rec.charName, sum: rec.sum, updatedAt: rec.updatedAt });
+            { name: uname || "", charId: rec.charId, charName: rec.charName, sum: rec.sum, updatedAt: rec.updatedAt });
           await F.setDoc(F.doc(db, "campaigns", code, "sheets", uid), { data: sheet.data, updatedAt: sheet.updatedAt });
         },
         members: async function (code) {
           await init();
           var snap = await F.getDocs(F.collection(db, "campaigns", code, "members"));
-          return snap.docs.map(function (d) { var x = d.data(); return { uid: d.id, email: x.email, charId: x.charId, charName: x.charName, sum: x.sum || {}, updatedAt: x.updatedAt || 0 }; });
+          return snap.docs.map(function (d) { var x = d.data(); return { uid: d.id, name: x.name || "", legacy: x.email !== undefined || x.name === undefined, charId: x.charId, charName: x.charName, sum: x.sum || {}, updatedAt: x.updatedAt || 0 }; });
+        },
+        /* rewrite the campaign's own document with the GM's username and no email (also scrubs older ones) */
+        setGmName: async function (camp, gmName) {
+          await init();
+          await F.setDoc(F.doc(db, "campaigns", camp.code), { name: camp.name, gm: camp.gm, gmName: gmName || "", createdAt: camp.createdAt });
+        },
+        /* rewrite your own roster row with your username and no email, keeping everything else as it was */
+        setMemberName: async function (code, m, uname) {
+          await init();
+          await F.setDoc(F.doc(db, "campaigns", code, "members", m.uid),
+            { name: uname || "", charId: m.charId, charName: m.charName, sum: m.sum, updatedAt: m.updatedAt });
         },
         sheet: async function (code, uid) {
           await init();
@@ -33071,7 +33118,18 @@ body.viewonly #bar #saveState{display:none !important}
     return { cls: String(i.cls || ""), lin: String(i.lineage || ""), lvl: num(i.level), hp: num(hp), hpMax: num(hpMax) };
   }
 
-  A.camp = { ALPHABET: ALPHABET, CODE_LEN: LEN, genCode: genCode, fmtCode: fmtCode, normCode: normCode, validCode: validCode, summaryOf: summaryOf };
+  /* A username: 3 to 20 characters, letters, numbers, spaces and _ . - only. */
+  function cleanName(t) { return String(t == null ? "" : t).replace(/\s+/g, " ").trim(); }
+  function nameProblem(t) {
+    var n = cleanName(t);
+    if (n.length < 3) return "A username needs at least 3 characters.";
+    if (n.length > 20) return "A username can be at most 20 characters.";
+    if (n.indexOf("@") >= 0) return "Do not put an email address in a username.";
+    if (!/^[A-Za-z0-9 _.\-]+$/.test(n)) return "Use only letters, numbers, spaces, and _ . -";
+    return "";
+  }
+
+  A.camp = { cleanName: cleanName, nameProblem: nameProblem, ALPHABET: ALPHABET, CODE_LEN: LEN, genCode: genCode, fmtCode: fmtCode, normCode: normCode, validCode: validCode, summaryOf: summaryOf };
 })(typeof globalThis !== "undefined" ? globalThis : window);
 
 /* ArchSoul cloud sync — the Account panel and the hook into the sheet's save().
@@ -33168,7 +33226,7 @@ body.viewonly #bar #saveState{display:none !important}
       setStatus("signed-out"); if (state.open) renderBody();
       return;
     }
-    try { localStorage.setItem(USER_KEY, u.email); } catch (e) {}
+    try { localStorage.setItem(USER_KEY, u.name || "1"); } catch (e) {}
     if (state.open) renderBody();
     doSync();
   }
@@ -33197,6 +33255,8 @@ body.viewonly #bar #saveState{display:none !important}
       box.innerHTML =
         '<div class="ctabs"><button class="btn' + (up ? "" : " on") + '" data-cloudtab="in">Sign in</button>' +
         '<button class="btn' + (up ? " on" : "") + '" data-cloudtab="up">Create account</button></div>' +
+        (up ? '<label for="cloudUname">Username <small>(shown to other players instead of your email)</small></label>' +
+          '<input type="text" id="cloudUname" maxlength="20" autocomplete="nickname" placeholder="3–20 letters or numbers">' : '') +
         '<label for="cloudEmail">Email</label><input type="email" id="cloudEmail" autocomplete="email" autocapitalize="none">' +
         '<label for="cloudPw">Password' + (up ? " (at least 6 characters)" : "") + '</label>' +
         '<input type="password" id="cloudPw" autocomplete="' + (up ? "new-password" : "current-password") + '">' +
@@ -33212,7 +33272,11 @@ body.viewonly #bar #saveState{display:none !important}
         '<button class="btn warn" data-cloudremove="' + esc(r.id) + '">' + (arm ? "Really remove?" : "Remove from cloud") + '</button></div>';
     }).join("");
     box.innerHTML =
-      '<div class="cwho">Signed in as <b>' + esc(state.user.email) + '</b></div>' +
+      '<div class="cwho">' + (state.user.name ? 'Signed in as <b>' + esc(state.user.name) + '</b>' : 'Signed in. <b>Choose a username</b> — other players see it instead of your email.') + '</div>' +
+      '<div class="cname"><input type="text" id="cloudUname" maxlength="20" autocomplete="nickname" placeholder="Username" value="' + esc(state.user.name || "") + '">' +
+      '<button class="btn" id="cloudNameSave">' + (state.user.name ? "Change" : "Save") + '</button></div>' +
+      '<div class="cmsg" id="cloudMsg"></div>' +
+      '<div class="cnote">Your email stays linked to this account for signing in and resetting your password. It is never shown to other players.</div>' +
       '<div class="cstat" id="cloudStatus">' + esc(statusText()) + '</div>' +
       '<div class="cact"><button class="btn" id="cloudSyncNow">Sync now</button><button class="btn" id="cloudOut">Sign out</button></div>' +
       '<div class="clist"><h4>Characters in your account</h4><div id="cloudList">' +
@@ -33226,13 +33290,25 @@ body.viewonly #bar #saveState{display:none !important}
     if (state.busy) return;
     var email = ($("#cloudEmail").value || "").trim(), pw = $("#cloudPw").value || "";
     if (!email || !pw) { setMsg("Enter your email and a password.", true); return; }
+    var uname = "";
+    if (state.mode === "up") {
+      uname = A.camp.cleanName(($("#cloudUname") || {}).value);
+      var bad = A.camp.nameProblem(uname); if (bad) { setMsg(bad, true); return; }
+    }
     state.busy = true; var go = $("#cloudGo"); if (go) go.disabled = true;
     setMsg(state.mode === "up" ? "Creating your account…" : "Signing in…");
     try {
-      if (state.mode === "up") await adapter.signUp(email, pw); else await adapter.signIn(email, pw);
+      if (state.mode === "up") await adapter.signUp(email, pw, uname); else await adapter.signIn(email, pw);
       /* success: onUser() redraws the panel */
     } catch (e) { setMsg(friendly(e), true); }
     state.busy = false; go = $("#cloudGo"); if (go) go.disabled = false;
+  }
+
+  async function doSetName() {
+    var n = A.camp.cleanName(($("#cloudUname") || {}).value), bad = A.camp.nameProblem(n);
+    if (bad) { setMsg(bad, true); return; }
+    try { await adapter.setName(n); setMsg("Username saved."); }
+    catch (e) { setMsg(friendly(e), true); }
   }
 
   async function doForgot() {
@@ -33265,11 +33341,12 @@ body.viewonly #bar #saveState{display:none !important}
       var t = e.target.closest("[data-cloudtab]"); if (t) { state.mode = t.dataset.cloudtab; renderBody(); return; }
       if (e.target.closest("#cloudGo")) { doAuth(); return; }
       if (e.target.closest("#cloudForgot")) { doForgot(); return; }
+      if (e.target.closest("#cloudNameSave")) { doSetName(); return; }
       if (e.target.closest("#cloudSyncNow")) { doSync(); return; }
       if (e.target.closest("#cloudOut")) { adapter.signOut().catch(function (er) { setStatus("error", friendly(er)); }); return; }
       var r = e.target.closest("[data-cloudremove]"); if (r) { doRemove(r.dataset.cloudremove); return; }
     });
-    d.addEventListener("keydown", function (e) { if (e.key === "Enter" && e.target.id === "cloudPw") doAuth(); });
+    d.addEventListener("keydown", function (e) { if (e.key !== "Enter") return; if (e.target.id === "cloudPw") doAuth(); else if (e.target.id === "cloudUname" && state.user) doSetName(); });
     renderBody();
     var f = $("#cloudEmail"); if (f) f.focus();
     if (state.user) doSync();
@@ -33384,8 +33461,24 @@ body.viewonly #bar #saveState{display:none !important}
       catch (e) {
         if (e && e.code === "permission-denied") { S.gone = "You are no longer in this campaign."; S.members = []; } else throw e;
       }
+      scrub(u, c);
       if (!S.gone && S.camp.gm !== u.uid && !S.members.some(function (m) { return m.uid === u.uid; })) S.gone = "You are no longer in this campaign.";
     } catch (e) { setMsg(errText(e), true); }
+  }
+  /* older rows stored an email; rewrite your own with your username instead (the GM's own campaign document too) */
+  function scrub(u, c) {
+    if (!u.name || S.gone) return;
+    try {
+      var mine = S.members.find(function (m) { return m.uid === u.uid; });
+      if (mine && (mine.legacy || mine.name !== u.name)) {
+        mine.name = u.name; mine.legacy = false;
+        c.setMemberName(S.code, mine, u.name).catch(function () {});
+      }
+      if (S.camp && S.camp.gm === u.uid && (S.camp.legacy || S.camp.gmName !== u.name)) {
+        S.camp.gmName = u.name; S.camp.legacy = false;
+        c.setGmName(S.camp, u.name).catch(function () {});
+      }
+    } catch (e) {}
   }
   function startPoll() {
     stopPoll();
@@ -33399,17 +33492,27 @@ body.viewonly #bar #saveState{display:none !important}
   /* ---- actions ------------------------------------------------------------ */
   async function doCreate() {
     var u = user(), c = camp(), name = (S.nameIn || "").trim();
+    if (!u.name) { setMsg("Choose a username first.", true); rerender(); return; }
     if (!name) { setMsg("Give the campaign a name.", true); rerender(); return; }
     if (S.busy) return; S.busy = true; setMsg("Creating…"); rerender();
     try {
       var code = null;
-      for (var i = 0; i < 6 && !code; i++) { var t = H.genCode(); if (await c.create(u.uid, u.email, name, t)) code = t; }
+      for (var i = 0; i < 6 && !code; i++) { var t = H.genCode(); if (await c.create(u.uid, u.name, name, t)) code = t; }
       if (!code) throw new Error("no code");
       S.nameIn = ""; await loadMine(); S.busy = false; await openCamp(code);
     } catch (e) { S.busy = false; setMsg(errText(e), true); rerender(); }
   }
+  async function doSetName() {
+    var n = H.cleanName(S.unameIn), bad = H.nameProblem(n), a = A.ui && A.ui.adapter && A.ui.adapter();
+    if (bad) { setMsg(bad, true); rerender(); return; }
+    S.busy = true; rerender();
+    try { await a.setName(n); S.unameIn = ""; setMsg("Username saved."); }
+    catch (e) { setMsg(errText(e), true); }
+    S.busy = false; rerender();
+  }
   async function doFind() {
     var u = user(), c = camp(), code = H.normCode(S.codeIn);
+    if (!u.name) { setMsg("Choose a username first.", true); rerender(); return; }
     if (!H.validCode(code)) { setMsg("That is not a campaign code. It is 8 letters and numbers, like K7QX-M2RT.", true); rerender(); return; }
     if (S.busy) return; S.busy = true; setMsg("Looking…"); rerender();
     try {
@@ -33428,7 +33531,7 @@ body.viewonly #bar #saveState{display:none !important}
     if (!r) { setMsg("That character is too large to share.", true); rerender(); return; }
     if (S.busy) return; S.busy = true; setMsg("Joining…"); rerender();
     try {
-      await c.attach(u.uid, u.email, k, r.rec, r.sheet);
+      await c.attach(u.uid, u.name, k, r.rec, r.sheet);
       S.join = null; S.codeIn = ""; await loadMine(); S.busy = false; await openCamp(k.code);
       say("Joined " + k.name + " as " + r.rec.charName + ".");
     } catch (e) { S.busy = false; setMsg(errText(e), true); rerender(); }
@@ -33438,7 +33541,7 @@ body.viewonly #bar #saveState{display:none !important}
     if (!ch || !S.camp) return;
     var r = recordFor(ch); if (!r) { setMsg("That character is too large to share.", true); rerender(); return; }
     S.busy = true; rerender();
-    try { await c.attach(u.uid, u.email, S.camp, r.rec, r.sheet); await loadMine(); await refreshCamp(); setMsg("Now playing " + r.rec.charName + "."); }
+    try { await c.attach(u.uid, u.name, S.camp, r.rec, r.sheet); await loadMine(); await refreshCamp(); setMsg("Now playing " + r.rec.charName + "."); }
     catch (e) { setMsg(errText(e), true); }
     S.busy = false; rerender();
   }
@@ -33448,7 +33551,7 @@ body.viewonly #bar #saveState{display:none !important}
     try { await fn(); } catch (e) { setMsg(errText(e), true); }
     S.busy = false; rerender();
   }
-  function toList() { stopPoll(); S.screen = "list"; S.code = null; S.armed = null; setMsg(""); loadMine(); rerender(); }
+  function toList() { if (A.qb) A.qb.cancel(); stopPoll(); S.screen = "list"; S.code = null; S.armed = null; setMsg(""); loadMine(); rerender(); }
 
   /* ---- the GM reads a player's sheet --------------------------------------- */
   async function viewSheet(uid) {
@@ -33502,7 +33605,7 @@ body.viewonly #bar #saveState{display:none !important}
     var ch = C, r = recordFor(ch); if (!r) return;
     var codes = S.mine.filter(function (m) { return m.role === "player" && m.charId === ch.id; });
     for (var i = 0; i < codes.length; i++) {
-      try { await c.refresh(u.uid, u.email, codes[i].code, r.rec, r.sheet); } catch (e) { /* the campaign screen shows problems; a silent retry comes with the next save */ }
+      try { await c.refresh(u.uid, u.name, codes[i].code, r.rec, r.sheet); } catch (e) { /* the campaign screen shows problems; a silent retry comes with the next save */ }
     }
   }
 
@@ -33534,7 +33637,11 @@ body.viewonly #bar #saveState{display:none !important}
         '<span class="camprole">' + (m.role === "gm" ? "You are the GM" : "Playing " + esc(m.charName || "a character")) + '</span>' +
         '<small>' + esc(H.fmtCode(m.code)) + "</small></button>";
     }).join("");
-    var make = S.join ? joinHTML() :
+    var nameBox = u.name ? "" : '<div class="camppanel wide"><b>Choose a username</b>' +
+      '<div class="campsub">Other players and the GM see this instead of your email. Your email stays linked to your account for signing in.</div>' +
+      '<div class="camprow2"><input id="campUname" type="text" maxlength="20" placeholder="Username" value="' + esc(S.unameIn || "") + '">' +
+      '<button class="btn" data-camp="setname"' + (S.busy ? " disabled" : "") + '>Save</button></div></div>';
+    var make = !u.name ? nameBox : S.join ? joinHTML() :
       '<div class="camppanel"><b>Create a campaign</b>' +
         '<div class="camprow2"><input id="campName" type="text" maxlength="60" placeholder="Campaign name" value="' + esc(S.nameIn) + '">' +
         '<button class="btn" data-camp="create"' + (S.busy ? " disabled" : "") + ">Create</button></div></div>" +
@@ -33548,12 +33655,15 @@ body.viewonly #bar #saveState{display:none !important}
   }
   function joinHTML() {
     var k = S.join.camp;
+    if (A.qb && A.qb.isOpen()) return A.qb.html();
     return '<div class="camppanel wide"><b>Join ' + esc(k.name) + "</b>" +
-      '<div class="campsub">Run by ' + esc(k.gmEmail || "the GM") + ". Choose the character you will play. The GM can read this character’s sheet, and the other players can see its name, class, level and Health.</div>" +
+      '<div class="campsub">Run by ' + esc(k.gmName || "the GM") + ". Choose the character you will play. The GM can read this character’s sheet, and the other players can see its name, class, level and Health.</div>" +
       (DB.chars.length ? '<div class="camprow2"><select id="campPick">' + charOptions() + '</select>' +
         '<button class="btn" data-camp="attach"' + (S.busy ? " disabled" : "") + '>Join campaign</button>' +
+        '<button class="btn" data-camp="newchar" title="Build a new character right here">＋ New character</button>' +
         '<button class="btn" data-camp="cancel">Cancel</button></div>' :
-        '<div class="campmsg bad">You have no saved characters to bring.</div><div class="camprow2"><button class="btn" data-camp="cancel">Cancel</button></div>') + "</div>";
+        '<div class="campmsg bad">You have no saved characters to bring.</div><div class="camprow2">' +
+        '<button class="btn" data-camp="newchar">＋ New character</button><button class="btn" data-camp="cancel">Cancel</button></div>') + "</div>";
   }
   function campaignHTML(u) {
     var back = '<button class="btn" data-camp="list">← Campaigns</button>';
@@ -33566,7 +33676,7 @@ body.viewonly #bar #saveState{display:none !important}
     var k = S.camp, gm = k.gm === u.uid, rows = S.members.slice().sort(function (a, b) { return String(a.charName).localeCompare(String(b.charName)); }).map(function (m) {
       var mine = m.uid === u.uid;
       return '<div class="rosterrow"><div class="rname"><b>' + esc(m.charName) + "</b>" + (mine ? ' <span class="youtag">you</span>' : "") +
-        "<small>" + (gm || mine ? esc(m.email) : "") + "</small></div>" +
+        "<small>" + esc(m.name || "Player") + "</small></div>" +
         '<div class="rsum">' + sumLine(m.sum) + "</div>" + hpBar(m.sum) +
         '<div class="rupd">' + ago(m.updatedAt) + "</div>" +
         (gm ? '<div class="ract"><button class="btn" data-camp="view" data-uid="' + esc(m.uid) + '">View sheet</button>' +
@@ -33586,6 +33696,7 @@ body.viewonly #bar #saveState{display:none !important}
 
   /* ---- clicks and typing (everything arrives through Home's container) ---------- */
   function wire() {
+    if (A.qb && A.qb.wire) A.qb.wire();
     var h = $("#homeWrap"); if (!h || h._campWired) return; h._campWired = 1;
     h.addEventListener("click", function (e) {
       var b = e.target.closest("[data-camp]"); if (!b) return;
@@ -33594,8 +33705,10 @@ body.viewonly #bar #saveState{display:none !important}
       else if (a === "open") openCamp(b.getAttribute("data-code"));
       else if (a === "create") doCreate();
       else if (a === "find") doFind();
+      else if (a === "setname") doSetName();
+      else if (a === "newchar") { if (A.qb && A.qb.open()) rerender(); else { setMsg((A.qb && A.qb._state.msg) || "Could not start the builder.", true); rerender(); } }
       else if (a === "attach") doAttach(S.join.camp);
-      else if (a === "cancel") { S.join = null; setMsg(""); rerender(); }
+      else if (a === "cancel") { if (A.qb) A.qb.cancel(); S.join = null; setMsg(""); rerender(); }
       else if (a === "refresh") { setMsg(""); S.busy = true; rerender(); refreshCamp().then(function () { S.busy = false; rerender(); }); }
       else if (a === "view") viewSheet(b.getAttribute("data-uid"));
       else if (a === "change") doChange();
@@ -33611,11 +33724,12 @@ body.viewonly #bar #saveState{display:none !important}
     h.addEventListener("input", function (e) {
       if (e.target.id === "campName") S.nameIn = e.target.value;
       else if (e.target.id === "campCode") S.codeIn = e.target.value;
+      else if (e.target.id === "campUname") S.unameIn = e.target.value;
     });
     h.addEventListener("change", function (e) { if (e.target.id === "campPick") S.pick = e.target.value; });
     h.addEventListener("keydown", function (e) {
       if (e.key !== "Enter") return;
-      if (e.target.id === "campName") doCreate(); else if (e.target.id === "campCode") doFind();
+      if (e.target.id === "campName") doCreate(); else if (e.target.id === "campCode") doFind(); else if (e.target.id === "campUname") doSetName();
     });
   }
 
@@ -33630,8 +33744,154 @@ body.viewonly #bar #saveState{display:none !important}
   /* the Campaigns card was opened */
   function enter() { wire(); S.join = null; setMsg(""); if (S.screen === "campaign" && S.code) { startPoll(); refreshCamp().then(rerender); } else { S.screen = "list"; if (user()) loadMine(); } }
 
-  A.campUI = { html: html, enter: enter, leave: stopPoll, exitView: exitView, _state: S, _factsOf: factsOf };
+  /* "Create and join": keep the new character, then join with it */
+  function qbCreate() { if (A.qb && S.join) A.qb.finish(function (id) { S.pick = id; doAttach(S.join.camp); }); }
+  A.campUI = { _qbCreate: qbCreate, html: html, enter: enter, leave: function () { if (A.qb) A.qb.cancel(); stopPoll(); }, exitView: exitView, _state: S, _factsOf: factsOf };
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot); else boot();
+})(typeof globalThis !== "undefined" ? globalThis : window);
+
+/* ArchSoul — the quick character builder on the campaign join screen.
+   A compact panel of drop-down menus. It builds the character with the sheet's
+   OWN setters (setLineage, setClass, setOrigin, setArchSoulAt, unlockDomain,
+   setWeapon, buyOne), so a character made here is exactly one made in the
+   walkthrough. While it is open the sheet's current character is set aside and
+   a scratch one is built; nothing is saved or uploaded until "Create". */
+(function (root) {
+  "use strict";
+  var A = root.ArchCloud = root.ArchCloud || {};
+  var Q = { open: false, prev: null, prevViewing: false, msg: "" };
+
+  function $(s, r) { return (r || document).querySelector(s); }
+  function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+    return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
+  function rerender() { if (A.shell && A.shell.rerender) A.shell.rerender(); }
+  function say(m) { try { if (typeof toast === "function") toast(m); } catch (e) {} }
+  function refreshSheet() { try { dirtyAll(); fillIn(document); renderLists(); refresh(); save(); } catch (e) { console.error(e); } }
+
+  function open() {
+    if (Q.open) return true;
+    if (typeof inArena === "function" && inArena()) { Q.msg = "Leave the Arena before building a character."; return false; }
+    if (A.viewing) return false;
+    Q.prev = C; Q.prevViewing = A.viewing;
+    Q.open = true; Q.msg = "";
+    A.viewing = true;                       /* the same guards that keep a viewed sheet out of the cloud */
+    C = migrate(blank("")); C.name = ""; C.info.name = ""; C._lastMax = null;
+    try { dirtyAll(); render(); } catch (e) { console.error(e); }
+    return true;
+  }
+  /* put the sheet back exactly as it was */
+  function restore() {
+    C = Q.prev; Q.prev = null; Q.open = false; A.viewing = Q.prevViewing;
+    if (C) { C._lastMax = null; }
+    try { dirtyAll(); renderTabs(); render(); } catch (e) { console.error(e); }
+  }
+  function cancel() { if (!Q.open) return; restore(); Q.msg = ""; }
+  /* keep the character: it joins the player's own list and becomes the open one */
+  function finish(done) {
+    if (!Q.open) return;
+    var nm = String(C.name || "").trim();
+    if (!nm) { Q.msg = "Give your character a name."; rerender(); return; }
+    var ch = C; ch.name = nm; ch.info.name = nm;
+    restore();
+    DB.chars.push(ch);
+    setActiveAt(DB.chars.length - 1);
+    if (done) done(ch.id);
+  }
+
+  /* ---- what the menus offer, all read from the sheet --------------------- */
+  function opt(v, label, cur) { return '<option value="' + esc(v) + '"' + (v === cur ? " selected" : "") + ">" + esc(label) + "</option>"; }
+  function sel(key, idx, cur, items, blank) {
+    return '<select data-qb="' + key + '" data-i="' + idx + '">' + opt("", blank || "— choose —", cur || "") +
+      items.map(function (x) { return opt(x[0], x[1], cur || ""); }).join("") + "</select>";
+  }
+  function field(label, inner) { return '<label class="qbf"><span>' + esc(label) + "</span>" + inner + "</label>"; }
+
+  function html() {
+    var i = C.info || {}, f = [];
+    f.push(field("Name", '<input type="text" data-qbname maxlength="40" placeholder="Character name" value="' + esc(C.name || "") + '">'));
+    f.push(field("Lineage", sel("lin", 0, i.lineage, LINEAGES.map(function (L) { return [L.name, L.name]; }))));
+    if (i.lineage && RACES[i.lineage]) {
+      var R = RACES[i.lineage];
+      f.push(field("Race" + (R.required ? "" : " (optional)"), sel("race", 0, C.race, R.races.map(function (x) { return [x.name, x.name]; }), R.required ? "— choose —" : "— none —")));
+    }
+    f.push(field("Class", sel("cls", 0, i.cls, CLASSES.map(function (K) { return [K.name, K.name]; }))));
+    f.push(field("Origin", sel("org", 0, i.origin, ORIGINS.map(function (O) { return [O.name, O.name]; }))));
+
+    var want = crAsWant(), as = (C.as || []);
+    for (var s = 0; s < want; s++) {
+      f.push(field(want > 1 ? "ArchSoul " + (s + 1) : "ArchSoul", sel("as", s, (as[s] || {}).n, asList().map(function (r) { return [r[0], r[0]]; }))));
+    }
+    var held = crDomHeld(), owed = crDomOwed();
+    var openDoms = []; (C.as || []).forEach(function (a) { if (a && a.n) { var d = []; try { d = domOf(a.n) || []; } catch (e) {} d.forEach(function (k) { if (openDoms.indexOf(k) < 0) openDoms.push(k); }); } });
+    if (!openDoms.length) f.push(field("Domain", '<select disabled><option>Choose an ArchSoul first</option></select>'));
+    else for (var d = 0; d < held.length + owed; d++) {
+      f.push(field(held.length + owed > 1 ? "Domain " + (d + 1) : "Domain", sel("dom", d, held[d], openDoms.map(function (k) { return [k, DOMNAME[k] || k]; }))));
+    }
+    var g = crWeaponGrant();
+    if (!crOrg()) f.push(field("Weapon", '<select disabled><option>Choose an Origin first</option></select>'));
+    else if (g && g.n) {
+      var wl = WEAPONS.filter(function (w) { return g.cats.indexOf(w.cat) >= 0; }).map(function (w) { return [w.name, w.name + " — " + w.cat]; });
+      for (var w = 0; w < g.n; w++) f.push(field(g.n > 1 ? "Weapon " + (w + 1) : "Weapon", sel("wpn", w, C.weapons[["primary", "secondary"][w]].name, wl)));
+    } else f.push(field("Weapon", '<div class="qbnone">' + esc(crOrg().name) + " grants no starting Weapon.</div>"));
+
+    var att = ATTRS.map(function (a) {
+      var v = +C.attrs[a].v || 0, cap = capOf(a), cost = soulCost(v, a), can = v < cap && (+i.souls || 0) >= cost;
+      return '<div class="qbatt"><span>' + esc(AL[a]) + '</span><button class="btn" data-qb="sell" data-a="' + a + '"' + (v <= 0 ? " disabled" : "") + '>−</button><b>' + v +
+        '</b><button class="btn" data-qb="buy" data-a="' + a + '"' + (can ? "" : " disabled") + '>＋</button><small>' + (v >= cap ? "at Cap" : cost + " Soul" + (cost > 1 ? "s" : "")) + "</small></div>";
+    }).join("");
+    return '<div class="camppanel wide qb"><b>New character</b>' +
+      '<div class="campsub">Choose from the menus. This builds the same character as the full creation screen, and you can change anything on the sheet afterwards.</div>' +
+      (Q.msg ? '<div class="campmsg bad">' + esc(Q.msg) + "</div>" : "") +
+      '<div class="qbgrid">' + f.join("") + "</div>" +
+      '<div class="qbsouls"><b>Attributes</b> <em>' + (+i.souls || 0) + ' Souls left</em></div><div class="qbatts">' + att + "</div>" +
+      '<div class="camprow2"><button class="btn" data-qb="create">Create and join</button><button class="btn" data-qb="cancel">Cancel</button></div></div>';
+  }
+
+  /* ---- choices -------------------------------------------------------------- */
+  function choose(key, idx, val) {
+    Q.msg = "";
+    if (key === "lin") { if (val) setLineage(LINEAGES.find(function (l) { return l.name === val; })); else if (C.info.lineage) clearLineage(); }
+    else if (key === "race") setRace(val);
+    else if (key === "cls") { if (val) setClass(CLASSES.find(function (k) { return k.name === val; })); else if (C.info.cls) crPick("cls", C.info.cls); }
+    else if (key === "org") { if (val) setOrigin(ORIGINS.find(function (o) { return o.name === val; })); else if (C.info.origin) clearOrigin(); }
+    else if (key === "as") { if (val) setArchSoulAt(idx, val); else if ((C.as[idx] || {}).n) clearArchSoulAt(idx); }
+    else if (key === "dom") {
+      var old = crDomHeld()[idx];
+      if (old && old !== val) crPick("dom", old);
+      if (val && !(C.domUnlocked || {})[val]) { if (!crDomOwed()) Q.msg = "No Domain choices left at this Level."; else crPick("dom", val); }
+    }
+    else if (key === "wpn") {
+      var slot = ["primary", "secondary"][idx];
+      if (val) { var m = setWeapon(slot, val); if (m) Q.msg = String(m); } else if ((C.weapons[slot].name || "").trim()) clearWeapon(slot);
+    }
+    rerender();
+  }
+  function stepAttr(kind, a) {
+    if (kind === "buy") { var r = buyOne(a); if (r === "cap") Q.msg = AL[a] + " is at its Cap."; else if (r === "poor") Q.msg = "Not enough Souls."; else refreshSheet(); }
+    else if (sellOne(a) === "ok") refreshSheet();
+    rerender();
+  }
+
+  function wire() {
+    var h = $("#homeWrap"); if (!h || h._qbWired) return; h._qbWired = 1;
+    h.addEventListener("change", function (e) {
+      var s = e.target.closest && e.target.closest("select[data-qb]"); if (!s || !Q.open) return;
+      choose(s.getAttribute("data-qb"), +s.getAttribute("data-i") || 0, s.value);
+    });
+    h.addEventListener("input", function (e) {
+      if (e.target.hasAttribute && e.target.hasAttribute("data-qbname") && Q.open) { C.name = e.target.value; C.info.name = e.target.value; }
+    });
+    h.addEventListener("click", function (e) {
+      var b = e.target.closest && e.target.closest("button[data-qb]"); if (!b || !Q.open) return;
+      var k = b.getAttribute("data-qb");
+      if (k === "buy" || k === "sell") stepAttr(k, b.getAttribute("data-a"));
+      else if (k === "cancel") { cancel(); rerender(); }
+      else if (k === "create" && A.campUI && A.campUI._qbCreate) A.campUI._qbCreate();
+    }, true);
+  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", wire); else wire();
+
+  A.qb = { open: open, cancel: cancel, finish: finish, html: html, isOpen: function () { return Q.open; }, wire: wire, _state: Q };
 })(typeof globalThis !== "undefined" ? globalThis : window);
 
 /* ArchSoul shell — the Home screen, the slim top bar and the one Settings gear.
@@ -33798,7 +34058,7 @@ body.viewonly #bar #saveState{display:none !important}
         '<button class="btn big" data-gate="up">Create account</button></div>' +
         '<button class="linkbtn" data-gate="guest">Continue without an account</button></div>';
     } else {
-      var who = u ? 'Signed in as <b>' + esc(u.email) + '</b>' :
+      var who = u ? 'Signed in as <b>' + esc(u.name || "(set a username)") + '</b>' :
         (ls(USER_KEY) ? "Signing you in…" : 'Playing without an account — your characters stay on this device. <button class="linkbtn" data-homesign>Sign in</button>');
       html = '<div class="homeinner"><div class="homewho">' + who + '</div><div class="homegrid">' +
         card("characters", "Characters", "Build, level and play your characters.", n + " saved here") +
@@ -33844,7 +34104,7 @@ body.viewonly #bar #saveState{display:none !important}
   function acctText() {
     var s = A.ui ? A.ui.status() : "signed-out", u = cloud().user;
     if (!u) return "Sign in";
-    var nm = String(u.email || "").split("@")[0]; if (nm.length > 14) nm = nm.slice(0, 13) + "…";
+    var nm = u.name || "Set username"; if (nm.length > 14) nm = nm.slice(0, 13) + "…";
     return (s === "syncing" ? "↻ " : s === "error" ? "⚠ " : "☁ ") + nm;
   }
   function updateAll() {
