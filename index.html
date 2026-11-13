@@ -32693,6 +32693,58 @@ body.viewonly #bar #saveState{display:none !important}
 .qb .qbatt b{min-width:1.6em;text-align:center}
 .qb .qbatt small{color:var(--ink-dim)}
 
+/* combat */
+.cbpanel .cbrows{margin:8px 0}
+.cbrow{display:grid;grid-template-columns:1.4em 1fr 5.5em auto auto;gap:8px;align-items:center;padding:3px 6px;border-radius:4px}
+.cbrow.cur{background:rgba(120,200,140,.16);outline:1px solid #3f8a5a}
+.cbrow .cbname small{color:var(--ink-dim);margin-left:4px}
+.cbrow .cbinit{width:100%}
+.cbadd select{flex:1;min-width:0}.cbadd input{width:4em}
+.cbnext{min-width:16em;display:inline-flex;align-items:center;gap:8px;justify-content:center}
+.cbnext[disabled]{opacity:.6;cursor:default}
+.cbspin{width:14px;height:14px;border:2px solid var(--ink-dim);border-top-color:transparent;border-radius:50%;animation:cbspin .9s linear infinite;display:inline-block}
+@keyframes cbspin{to{transform:rotate(360deg)}}
+#turnBar{position:fixed;left:50%;transform:translateX(-50%);top:44px;z-index:900;display:flex;flex-wrap:wrap;gap:6px;align-items:center;max-width:94vw;padding:5px 10px;border-radius:6px;background:#1a1d24ee;border:1px solid #3a4150;font-size:.85em}
+#turnBar.mine{border-color:#3f8a5a;box-shadow:0 0 10px #3f8a5a88}
+#turnBar .tbhd{color:var(--ink-dim)}
+#turnBar .tbchip{padding:1px 8px;border-radius:10px;background:#262b36}
+#turnBar .tbchip.mo{background:#3a2326}
+#turnBar .tbchip.on{background:#3f8a5a;color:#fff;font-weight:600}
+#turnBar .tbyou{color:#b6e8c6}
+.cbpanel .camprow2{margin-top:8px}
+.cbpanel .cbadd input[data-cbn]{flex:0 0 4.5em;width:4.5em}
+.cbpanel .cbadd .btn{flex:0 0 auto}
+
+/* strikes */
+.stqueue,.stform{margin:10px 0;padding:8px;border:1px solid #3a4150;border-radius:6px}
+.stq{margin:6px 0;line-height:1.5}
+.stform input,.stform select{min-width:0}
+.cbhp{width:4.5em;margin-left:6px}
+.cblog{margin:8px 0;padding:6px 8px;border-left:3px solid #3f8a5a;color:var(--ink-dim);font-size:.9em}
+#turnBar .tblog{flex-basis:100%;font-size:.9em;color:var(--ink-dim)}
+#turnBar .tbhw{padding:1px 8px;border-radius:10px;background:#3a2326;font-size:.9em}
+#turnBar .tbstrike{margin-left:6px}
+#strikePanel{position:fixed;left:50%;transform:translateX(-50%);top:92px;z-index:910;width:min(440px,94vw)}
+#strikePanel .stpanel{display:flex;flex-direction:column;gap:6px;padding:12px;background:#1a1d24f5;border:1px solid #3f8a5a;border-radius:8px}
+#strikePanel .stdice{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+#strikePanel input,#strikePanel select{min-width:0;width:100%}
+#strikePanel .stbtns{display:flex;gap:8px}
+#incoming{position:fixed;inset:0;z-index:950;display:flex;align-items:center;justify-content:center;background:#000a}
+#incoming .inbox{background:#1a1d24;border:1px solid #8a3f3f;border-radius:8px;padding:16px 20px;max-width:90vw;width:420px}
+
+/* order controls, legendary, reveal, player prompts */
+.cbxtra{display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin:-2px 0 8px 22px;font-size:.85em}
+.cbxtra .btn.sm{padding:1px 7px;font-size:.85em}
+.cbxtra .btn.on{border-color:#3f8a5a;color:#8fd3a8}
+.cbxtra .cnchip{border-color:#8a6f3f}
+.cbpool input{width:4em;margin-left:4px}
+.cblegend{margin:8px 0;padding:6px 8px;border:1px solid #8a6f3f;border-radius:6px}
+.cblegend .lg{display:inline-flex;gap:6px;align-items:center;margin-left:10px}
+#turnBar .tbsor,#turnBar .tbmana,#turnBar .tbdeath{margin-left:6px}
+#turnBar .tbsor{border-color:#3f8a5a}
+.stpanel label{display:flex;gap:6px;align-items:center}
+.stpanel select[multiple],.stform select[multiple]{min-height:4.6em}
+
 /*CLOUD-CSS:END*/</style>
 <script id="cloud-js">/*CLOUD:BEGIN*/
 /* ArchSoul cloud sync — the engine.
@@ -32981,6 +33033,65 @@ body.viewonly #bar #saveState{display:none !important}
         await F.deleteDoc(F.doc(db, "users", uid, "characters", id));
       },
 
+      /* Live combat. The GM writes the encounter; each player writes only their own roll and their own "I am done". */
+      combat: {
+        get: async function (code) {
+          await init();
+          var d = await F.getDoc(F.doc(db, "campaigns", code, "encounter", "current"));
+          return d.exists() ? d.data() : null;
+        },
+        set: async function (code, enc) {
+          await init();
+          await F.setDoc(F.doc(db, "campaigns", code, "encounter", "current"),
+            { status: enc.status, round: enc.round, turn: enc.turn, rollId: enc.rollId, order: enc.order, log: enc.log || [], updatedAt: enc.updatedAt });
+        },
+        rolls: async function (code) {
+          await init();
+          var s = await F.getDocs(F.collection(db, "campaigns", code, "rolls"));
+          return s.docs.map(function (d) { var x = d.data(); return { uid: d.id, rollId: x.rollId, total: x.total, note: x.note || "" }; });
+        },
+        postRoll: async function (code, uid, r) {
+          await init();
+          await F.setDoc(F.doc(db, "campaigns", code, "rolls", uid), { rollId: r.rollId, total: r.total, note: r.note || "", at: Date.now() });
+        },
+        turns: async function (code) {
+          await init();
+          var s = await F.getDocs(F.collection(db, "campaigns", code, "turns"));
+          return s.docs.map(function (d) { var x = d.data(); return { uid: d.id, round: x.round, turn: x.turn }; });
+        },
+        /* A strike: someone using an ability on someone. Posted by the attacker, applied by the target's own client. */
+        postStrike: async function (code, s) {
+          await init();
+          var id = s.id, d = {};
+          ["from","fromName","toId","toUid","toName","acc","crit","fumble","phys","soul","fx","tru","label","round","at","status","result","evAttr","evDiff","evMode","noAcc","conds"].forEach(function (k) { d[k] = s[k] === undefined ? "" : s[k]; });
+          await F.setDoc(F.doc(db, "campaigns", code, "strikes", id), d);
+        },
+        /* strikes waiting for me, or (uid "") waiting on a creature for the GM */
+        waiting: async function (code, toUid) {
+          await init();
+          var s = await F.getDocs(F.query(F.collection(db, "campaigns", code, "strikes"), F.where("toUid", "==", toUid), F.where("status", "==", "posted")));
+          return s.docs.map(function (d) { var x = d.data(); x.id = d.id; return x; });
+        },
+        strike: async function (code, id) {
+          await init();
+          var d = await F.getDoc(F.doc(db, "campaigns", code, "strikes", id));
+          if (!d.exists()) return null; var x = d.data(); x.id = id; return x;
+        },
+        resolveStrike: async function (code, id, r) {
+          await init();
+          await F.updateDoc(F.doc(db, "campaigns", code, "strikes", id), { status: r.status, result: r.result || "" });
+        },
+        clearStrikes: async function (code) {
+          await init();
+          var s = await F.getDocs(F.collection(db, "campaigns", code, "strikes"));
+          for (var i = 0; i < s.docs.length; i++) await F.deleteDoc(F.doc(db, "campaigns", code, "strikes", s.docs[i].id));
+        },
+        postTurn: async function (code, uid, t) {
+          await init();
+          await F.setDoc(F.doc(db, "campaigns", code, "turns", uid), { round: t.round, turn: t.turn, at: Date.now() });
+        }
+      },
+
       /* Campaigns. A campaign's document id IS its invite code. */
       camp: {
         /* false when that code is already taken, so the caller picks another */
@@ -33054,7 +33165,7 @@ body.viewonly #bar #saveState{display:none !important}
           await init();
           await F.deleteDoc(F.doc(db, "users", uid, "campaigns", code));
         },
-        /* the GM deleting the whole campaign */
+        /* the GM deleting the whole campaign (the combat documents go with it) */
         destroy: async function (uid, code) {
           await init();
           var snap = await F.getDocs(F.collection(db, "campaigns", code, "members"));
@@ -33062,6 +33173,11 @@ body.viewonly #bar #saveState{display:none !important}
             var m = snap.docs[i].id;
             await F.deleteDoc(F.doc(db, "campaigns", code, "sheets", m));
             await F.deleteDoc(F.doc(db, "campaigns", code, "members", m));
+          }
+          var extra = ["rolls", "turns", "encounter", "strikes"];
+          for (var j = 0; j < extra.length; j++) {
+            var es = await F.getDocs(F.collection(db, "campaigns", code, extra[j]));
+            for (var q = 0; q < es.docs.length; q++) await F.deleteDoc(F.doc(db, "campaigns", code, extra[j], es.docs[q].id));
           }
           await F.deleteDoc(F.doc(db, "campaigns", code));
           await F.deleteDoc(F.doc(db, "users", uid, "campaigns", code));
@@ -33450,6 +33566,7 @@ body.viewonly #bar #saveState{display:none !important}
     S.screen = "campaign"; S.code = code; S.camp = null; S.members = []; S.gone = ""; S.armed = null; setMsg(""); S.busy = true; rerender();
     await refreshCamp();
     S.busy = false; rerender(); startPoll();
+    if (A.combat) { if (S.camp && S.camp.gm === u.uid) A.combat.gmEnter(code); else A.combat.leave(); }
   }
   async function refreshCamp() {
     var u = user(), c = camp(); if (!u || !c || !S.code) return;
@@ -33551,7 +33668,7 @@ body.viewonly #bar #saveState{display:none !important}
     try { await fn(); } catch (e) { setMsg(errText(e), true); }
     S.busy = false; rerender();
   }
-  function toList() { if (A.qb) A.qb.cancel(); stopPoll(); S.screen = "list"; S.code = null; S.armed = null; setMsg(""); loadMine(); rerender(); }
+  function toList() { if (A.qb) A.qb.cancel(); if (A.combat) A.combat.leave(); stopPoll(); S.screen = "list"; S.code = null; S.armed = null; setMsg(""); loadMine(); rerender(); }
 
   /* ---- the GM reads a player's sheet --------------------------------------- */
   async function viewSheet(uid) {
@@ -33691,12 +33808,14 @@ body.viewonly #bar #saveState{display:none !important}
       '<button class="btn" data-camp="change"' + (S.busy ? " disabled" : "") + '>Play this one</button>' +
       '<button class="btn warn" data-camp="leave">' + (S.armed === "leave" ? "Really leave?" : "Leave campaign") + "</button></div></div>" : "";
     var gmFoot = gm ? '<div class="gmfoot"><button class="btn warn" data-camp="destroy">' + (S.armed === "destroy" ? "Really delete this campaign for everyone?" : "Delete campaign") + "</button></div>" : "";
-    return '<div class="homeinner">' + top + msgHTML() + codeBox + '<div class="roster">' + (rows || '<div class="homenote">No players have joined yet.</div>') + "</div>" + mineRow + gmFoot + "</div>";
+    var combat = gm && A.combat ? A.combat.gmHTML() : "";
+    return '<div class="homeinner">' + top + msgHTML() + codeBox + combat + '<div class="roster">' + (rows || '<div class="homenote">No players have joined yet.</div>') + "</div>" + mineRow + gmFoot + "</div>";
   }
 
   /* ---- clicks and typing (everything arrives through Home's container) ---------- */
   function wire() {
     if (A.qb && A.qb.wire) A.qb.wire();
+    if (A.combat && A.combat.wire) A.combat.wire();
     var h = $("#homeWrap"); if (!h || h._campWired) return; h._campWired = 1;
     h.addEventListener("click", function (e) {
       var b = e.target.closest("[data-camp]"); if (!b) return;
@@ -33746,7 +33865,7 @@ body.viewonly #bar #saveState{display:none !important}
 
   /* "Create and join": keep the new character, then join with it */
   function qbCreate() { if (A.qb && S.join) A.qb.finish(function (id) { S.pick = id; doAttach(S.join.camp); }); }
-  A.campUI = { _qbCreate: qbCreate, html: html, enter: enter, leave: function () { if (A.qb) A.qb.cancel(); stopPoll(); }, exitView: exitView, _state: S, _factsOf: factsOf };
+  A.campUI = { _qbCreate: qbCreate, html: html, enter: enter, leave: function () { if (A.qb) A.qb.cancel(); if (A.combat) A.combat.leave(); stopPoll(); }, exitView: exitView, _state: S, _factsOf: factsOf };
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot); else boot();
 })(typeof globalThis !== "undefined" ? globalThis : window);
 
@@ -33892,6 +34011,655 @@ body.viewonly #bar #saveState{display:none !important}
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", wire); else wire();
 
   A.qb = { open: open, cancel: cancel, finish: finish, html: html, isOpen: function () { return Q.open; }, wire: wire, _state: Q };
+})(typeof globalThis !== "undefined" ? globalThis : window);
+
+/* ArchSoul — live combat, step one: the encounter, the initiative order, and whose turn it is.
+   The GM owns the encounter document. Each player's own device rolls its own Initiative and
+   posts it, and posts "I am done" when they press Resolve. Nothing here changes anyone's sheet. */
+(function (root) {
+  "use strict";
+  var A = root.ArchCloud = root.ArchCloud || {};
+  var GM_POLL = 3000, PL_POLL = 4000;
+
+  /* ---- GM side ------------------------------------------------------------ */
+  var G = { code: null, enc: null, rolls: [], turns: [], pick: "", n: 1, msg: "", busy: false, priv: {} };
+  var gmT = null;
+
+  function $(s, r) { return (r || document).querySelector(s); }
+  function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+    return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
+  function user() { return A.ui && A.ui._state && A.ui._state.user; }
+  function api() { var a = A.ui && A.ui.adapter && A.ui.adapter(); return a && a.combat; }
+  function rerender() { if (A.shell && A.shell.rerender) A.shell.rerender(); }
+  function say(m) { try { if (typeof toast === "function") toast(m); } catch (e) {} }
+  function rid() { return Math.random().toString(36).slice(2, 10); }
+  function d20roll() { return 1 + Math.floor(Math.random() * 20); }
+  function camp() { return A.campUI && A.campUI._state; }
+
+  function clean(enc) {
+    return { status: enc.status, round: enc.round | 0, turn: enc.turn | 0, rollId: enc.rollId || "", updatedAt: Date.now(),
+      order: enc.order.map(function (o) {
+        return { id: o.id, kind: o.kind, name: String(o.name || ""), uid: o.uid || "", init: (typeof o.init === "number" && isFinite(o.init)) ? o.init : null, hide: !!o.hide, hw: o.hw || "", kn: o.kn || {}, cn: (o.cn || []).slice(0, 8) };
+      }), log: (enc.log || []).slice(-8) };
+  }
+  /* creature Health is the GM's alone: kept on this device, never in the encounter document. Players see only a word. */
+  function privKey() { return "archsoul-encpriv-" + G.code; }
+  function privLoad() { try { G.priv = JSON.parse(localStorage.getItem(privKey()) || "{}") || {}; } catch (e) { G.priv = {}; } }
+  function privSave() { try { localStorage.setItem(privKey(), JSON.stringify(G.priv)); } catch (e) {} }
+  function hwOf(p) { if (!p) return ""; if (p.hp <= 0) return "down"; if (p.hp >= p.max) return "unhurt"; return p.hp / p.max <= 0.25 ? "near death" : "wounded"; }
+  function refreshHw(o) { o.hw = hwOf(G.priv[o.id]); privSave(); }
+  function log(line) { G.enc.log = (G.enc.log || []).concat([String(line).slice(0, 200)]).slice(-8); }
+  async function push() { var c = api(); if (!c || !G.enc) return; await c.set(G.code, clean(G.enc)); }
+  async function guard(fn) {
+    if (G.busy) return; G.busy = true; G.msg = "";
+    try { await fn(); } catch (e) { G.msg = "Could not reach the cloud. Try again."; }
+    G.busy = false; rerender();
+  }
+
+  /* Initiative order: highest first; on a tie, the players share it and the enemies go after */
+  function sortOrder(list) {
+    return list.map(function (o, i) { return [o, i]; }).sort(function (a, b) {
+      var x = a[0], y = b[0], xi = x.init == null ? -1e9 : x.init, yi = y.init == null ? -1e9 : y.init;
+      if (yi !== xi) return yi - xi;
+      if (x.kind !== y.kind) return x.kind === "player" ? -1 : 1;
+      return a[1] - b[1];
+    }).map(function (p) { return p[0]; });
+  }
+
+  async function gmEnter(code) {
+    var c = api(); G.code = code; G.enc = null; G.rolls = []; G.turns = []; G.msg = ""; privLoad();
+    if (!c) return;
+    try { var e = await c.get(code); G.enc = e && e.status !== "ended" ? e : null; } catch (er) {}
+    startGmPoll(); rerender();
+  }
+  function gmLeave() { stopGmPoll(); G.code = null; G.enc = null; }
+  function startGmPoll() {
+    stopGmPoll();
+    gmT = setInterval(async function () {
+      var c = api(); if (!c || !G.code || !G.enc || document.hidden) return;
+      var st = camp(); if (!st || st.screen !== "campaign" || !$("#homeWrap.open")) return;
+      try {
+        if (G.enc.status === "rolling") {
+          G.rolls = await c.rolls(G.code); mergeRolls(); rerender();
+        } else if (G.enc.status === "active") {
+          if (waiting()) { G.turns = await c.turns(G.code); rerender(); }
+          if (A.strike) await A.strike.gmPoll();
+        }
+      } catch (e) {}
+    }, GM_POLL);
+  }
+  function stopGmPoll() { if (gmT) { clearInterval(gmT); gmT = null; } }
+  function mergeRolls() {
+    G.enc.order.forEach(function (o) {
+      if (o.kind !== "player" || o.manual) return;
+      var r = G.rolls.find(function (x) { return x.uid === o.uid && x.rollId === G.enc.rollId; });
+      if (r) o.init = r.total;
+    });
+  }
+  function cur() { var e = G.enc; return e && e.status === "active" ? e.order[e.turn] : null; }
+  function waiting() {
+    var o = cur(); if (!o || o.kind !== "player") return false;
+    return !G.turns.some(function (t) { return t.uid === o.uid && t.round === G.enc.round && t.turn === G.enc.turn; });
+  }
+
+  function start() {
+    var st = camp(); if (!st) return;
+    guard(async function () {
+      var order = st.members.map(function (m) { return { id: "p" + m.uid, kind: "player", uid: m.uid, name: m.charName || "Player", init: null, hide: false }; });
+      G.enc = { status: "rolling", round: 0, turn: 0, rollId: rid(), order: order };
+      G.rolls = []; G.turns = []; await push();
+    });
+  }
+  function begin() {
+    guard(async function () {
+      G.enc.order = sortOrder(G.enc.order); G.enc.status = "active"; G.enc.round = 1; G.enc.turn = 0; G.turns = [];
+      await push();
+    });
+  }
+  function bump(e) {
+    e.turn += 1;
+    if (e.turn >= e.order.length) {
+      e.turn = 0; e.round += 1;
+      e.order.forEach(function (o) { var p = G.priv[o.id], b = o.blockId && (typeof sbAll === "function" ? sbAll().find(function (x) { return x.id === o.blockId; }) : null); if (p && b) p.leg = Math.max(0, +b.legCount || 0); });
+      privSave();
+    }
+  }
+  function moveEntry(id, d) {
+    var e = G.enc, i = e.order.findIndex(function (o) { return o.id === id; }), j = i + d; if (i < 0 || j < 0 || j >= e.order.length) return;
+    var t = e.order[i]; e.order[i] = e.order[j]; e.order[j] = t;
+    if (e.status === "active") { if (e.turn === i) e.turn = j; else if (e.turn === j) e.turn = i; }
+    guard(push);
+  }
+  /* Delay: the acting combatant lets the next one go first and takes their place in the order */
+  function delayTurn() { var e = G.enc; if (!e || e.status !== "active" || e.turn >= e.order.length - 1) return; var t = e.order[e.turn]; e.order[e.turn] = e.order[e.turn + 1]; e.order[e.turn + 1] = t; log((t.name) + " delays."); guard(push); }
+  /* Reverse Order (Rewrite): the whole order flips and the turn follows the same combatant */
+  function reverseOrder() { var e = G.enc; if (!e || e.status !== "active") return; e.order.reverse(); e.turn = e.order.length - 1 - e.turn; log("The order is reversed."); guard(push); }
+  function reveal(id, k) {
+    var o = G.enc.order.find(function (x) { return x.id === id; }), b = o && blockOf(o); if (!o || !b) return;
+    o.kn = o.kn || {}; if (o.kn[k] != null) { delete o.kn[k]; } else { var st = sbStats(b); o.kn[k] = k === "armor" ? Math.round(+st.armor || 0) : k === "res" ? Math.round(+sbSubVal(b, "resistance") || 0) : k === "prot" ? Math.round(+sbSubVal(b, "protection") || 0) : Math.round(+sbSubVal(b, "evade") || 0); }
+    guard(push);
+  }
+  function blockOf(o) { return (typeof sbAll === "function" ? sbAll() : []).find(function (x) { return x.id === o.blockId; }); }
+  function next() {
+    if (waiting()) return;
+    guard(async function () {
+      bump(G.enc);
+      await push();
+    });
+  }
+  function skip() { guard(async function () { bump(G.enc); await push(); }); }
+  function end() {
+    guard(async function () { G.enc.status = "ended"; await push(); try { await api().clearStrikes(G.code); } catch (e) {} if (A.strike) A.strike.reset(); G.enc = null; G.rolls = []; G.turns = []; G.priv = {}; privSave(); });
+  }
+  /* a creature's Initiative is its Speed Check, as a character's is (initAuto = Speed Check + bonuses) */
+  function initBonusOf(b) { try { return +sbChecks(b).speed || 0; } catch (e) { return 0; } }
+  function addMonster() {
+    var all = (typeof sbAll === "function") ? sbAll() : [], b = all.find(function (x) { return x.id === G.pick; }) || all[0];
+    if (!b || !G.enc) return;
+    var n = Math.max(1, Math.min(20, +G.n || 1)), base = b.name || "Creature";
+    var have = G.enc.order.filter(function (o) { return o.kind === "monster" && o.base === base; }).length;
+    for (var i = 0; i < n; i++) {
+      var num = have + i + 1;
+      var ent = { id: "m" + rid(), kind: "monster", base: base, blockId: b.id, name: (n > 1 || have) ? base + " " + num : base, init: d20roll() + initBonusOf(b), hide: false };
+      var hp = 0; try { hp = Math.max(1, Math.round(+sbStats(b).health || 1)); } catch (e) { hp = 1; }
+      var shared = false; try { shared = /Shared Action Pool/i.test(JSON.stringify(b.feats || [])); } catch (e) {}
+      G.priv[ent.id] = { hp: hp, max: hp, leg: Math.max(0, +b.legCount || 0) }; refreshHw(ent);
+      if (shared) { ent.grp = base; if (!G.priv["pool:" + base]) G.priv["pool:" + base] = { n: 0 }; privSave(); }
+      G.enc.order.push(ent);
+    }
+    if (G.enc.status === "active") { var curId = (cur() || {}).id; G.enc.order = sortOrder(G.enc.order); G.enc.turn = Math.max(0, G.enc.order.findIndex(function (o) { return o.id === curId; })); }
+    guard(push);
+  }
+  function removeEntry(id) {
+    var e = G.enc, i = e.order.findIndex(function (o) { return o.id === id; }); if (i < 0) return;
+    if (e.status === "active") { if (i < e.turn) e.turn -= 1; }
+    e.order.splice(i, 1);
+    if (e.status === "active" && e.turn >= e.order.length) { e.turn = 0; e.round += 1; }
+    guard(push);
+  }
+  function editInit(id, v) {
+    var o = G.enc.order.find(function (x) { return x.id === id; }); if (!o) return;
+    var n = parseFloat(v); o.init = isFinite(n) ? n : null; o.manual = true;
+    if (G.enc.status === "active") { var curId = (cur() || {}).id; G.enc.order = sortOrder(G.enc.order); G.enc.turn = Math.max(0, G.enc.order.findIndex(function (x) { return x.id === curId; })); guard(push); }
+    else rerender();
+  }
+
+  function xtra(o) {
+    var p = G.priv[o.id], h = '<button class="btn sm" data-cb="up" data-id="' + esc(o.id) + '" title="Move up">▲</button><button class="btn sm" data-cb="dn" data-id="' + esc(o.id) + '" title="Move down">▼</button>';
+    if (o.kind === "monster") {
+      var kn = o.kn || {};
+      [["armor", "Armor"], ["res", "Resist."], ["prot", "Protect."], ["evade", "Evade"]].forEach(function (r) { h += '<button class="btn sm' + (kn[r[0]] != null ? " on" : "") + '" data-cb="reveal" data-id="' + esc(o.id) + '" data-k="' + r[0] + '" title="Players learn its ' + r[1] + '">' + (kn[r[0]] != null ? "✓ " : "") + r[1] + "</button>"; });
+      (o.cn || []).forEach(function (k) { h += '<button class="btn sm cnchip" data-cb="rmcond" data-id="' + esc(o.id) + '" data-k="' + esc(k) + '" title="Remove this Condition">' + esc(k) + " ✕</button>"; });
+      if (o.grp && G.priv["pool:" + o.grp]) h += '<label class="cbpool" title="Shared Action pool (only you see this)">Pool <input type="number" data-cbpool="' + esc(o.grp) + '" value="' + G.priv["pool:" + o.grp].n + '"></label>';
+    }
+    return '<div class="cbxtra">' + h + "</div>";
+  }
+  function legendHTML() {
+    var e = G.enc; if (!e || e.status !== "active") return "";
+    var L = e.order.filter(function (o) { var p = G.priv[o.id], b = o.kind === "monster" && blockOf(o); return p && b && (+b.legCount || 0) > 0 && (G.priv[o.id].hp > 0); });
+    if (!L.length) return "";
+    return '<div class="cblegend"><b>Legendary Actions</b> <small>(after any other turn, a creature may use one)</small>' + L.map(function (o) { var p = G.priv[o.id]; return '<span class="lg">' + esc(o.name) + ": " + (p.leg | 0) + ' left <button class="btn sm" data-cb="leg" data-id="' + esc(o.id) + '"' + ((p.leg | 0) > 0 ? "" : " disabled") + ">Use</button></span>"; }).join("") + "</div>";
+  }
+  function orderRows() {
+    var e = G.enc, act = e.status === "active";
+    return e.order.map(function (o, i) {
+      var isCur = act && i === e.turn;
+      return '<div class="cbrow' + (isCur ? " cur" : "") + (o.kind === "player" ? " pl" : " mo") + '">' +
+        '<span class="cbmark">' + (isCur ? "▶" : "") + '</span>' +
+        '<span class="cbname">' + esc(o.name) + (o.kind === "monster" ? ' <small>creature</small>' + (G.priv[o.id] ? ' <input class="cbhp" type="number" data-cbhp="' + esc(o.id) + '" value="' + G.priv[o.id].hp + '" title="Health (only you see this): ' + esc(o.hw || "") + ' of ' + G.priv[o.id].max + '">' : "") : "") + '</span>' +
+        '<input class="cbinit" type="number" data-cbinit="' + esc(o.id) + '" value="' + (o.init == null ? "" : o.init) + '" placeholder="' + (o.kind === "player" && e.status === "rolling" ? "rolling…" : "—") + '">' +
+        (o.kind === "monster" ? '<button class="btn" data-cb="hide" data-id="' + esc(o.id) + '" title="Players see ??? instead of its name">' + (o.hide ? "Hidden" : "Shown") + '</button>' : "<span></span>") +
+        '<button class="btn warn" data-cb="rm" data-id="' + esc(o.id) + '" title="Remove from the order">✕</button></div>' + xtra(o);
+    }).join("");
+  }
+  function addBar() {
+    var all = (typeof sbAll === "function") ? sbAll() : [];
+    if (!all.length) return '<div class="homenote">No creatures in the Book of Life yet. Add Stat Blocks there, then add them here.</div>';
+    return '<div class="camprow2 cbadd"><select data-cbpick>' + all.map(function (b) { return '<option value="' + esc(b.id) + '"' + (b.id === G.pick ? " selected" : "") + ">" + esc(b.name) + "</option>"; }).join("") + "</select>" +
+      '<input type="number" min="1" max="20" data-cbn value="' + esc(G.n) + '" title="How many">' +
+      '<button class="btn" data-cb="addm">＋ Monster</button></div>';
+  }
+
+  function gmHTML() {
+    var e = G.enc, msg = G.msg ? '<div class="campmsg bad">' + esc(G.msg) + "</div>" : "";
+    if (!e) return '<div class="camppanel wide cbpanel"><b>Combat</b>' + msg + '<div class="camprow2"><button class="btn" data-cb="start"' + (G.busy ? " disabled" : "") + '>Start combat</button>' +
+      '<small>Every player rolls Initiative on their own device; creatures roll d20 + their Speed Check.</small></div></div>';
+    if (e.status === "rolling") {
+      var got = e.order.filter(function (o) { return o.kind === "player" && o.init != null; }).length, tot = e.order.filter(function (o) { return o.kind === "player"; }).length;
+      return '<div class="camppanel wide cbpanel"><b>Combat — rolling Initiative</b> <em>' + got + " of " + tot + ' players in</em>' + msg +
+        '<div class="cbrows">' + orderRows() + "</div>" + addBar() +
+        '<div class="camprow2"><button class="btn" data-cb="begin"' + (G.busy ? " disabled" : "") + '>Begin combat</button><button class="btn warn" data-cb="end">Cancel</button></div></div>';
+    }
+    var w = waiting(), o = cur();
+    var nextBtn = w
+      ? '<button class="btn cbnext" disabled><span class="cbspin"></span>Waiting for player decision</button><button class="linkbtn" data-cb="skip" title="Skip this player">skip</button>'
+      : '<button class="btn cbnext"' + (G.busy ? " disabled" : "") + ' data-cb="next">Next ▸</button>';
+    return '<div class="camppanel wide cbpanel"><b>Combat — Round ' + e.round + "</b> <em>" + esc(o ? o.name + "’s turn" : "") + "</em>" + msg +
+      '<div class="cbrows">' + orderRows() + "</div>" + '<div class="camprow2">' + nextBtn + '<button class="btn" data-cb="delay" title="The acting combatant lets the next one go first">Delay</button><button class="btn" data-cb="reverse" title="Flip the whole order">Reverse Order</button></div>' + legendHTML() + addBar() +
+      (A.strike ? A.strike.gmHTML() : "") + logHTML() +
+      '<div class="camprow2"><button class="btn warn" data-cb="end">End combat</button></div></div>';
+  }
+  function logHTML() { var l = (G.enc && G.enc.log) || []; return l.length ? '<div class="cblog">' + l.slice().reverse().map(function (x) { return "<div>" + esc(x) + "</div>"; }).join("") + "</div>" : ""; }
+
+  /* ---- player side -------------------------------------------------------------- */
+  var E = {}, rolled = {}, plT = null;
+
+  async function rollMine(code, mine, enc) {
+    var c = api(), u = user(); if (!c || !u) return;
+    var ch = (typeof DB !== "undefined") ? DB.chars.find(function (x) { return x.id === mine.charId; }) : null;
+    if (!ch) return;
+    var total = 0, note = "";
+    var prev = C;
+    try { C = ch; var r = d20(), iv = initVal(); total = r.val + iv; note = r.note + " + " + iv; } finally { C = prev; }
+    rolled[code] = enc.rollId;
+    try { await c.postRoll(code, u.uid, { rollId: enc.rollId, total: total, note: note }); say("Initiative: " + total); }
+    catch (e) { delete rolled[code]; }
+  }
+  async function pollPlayer() {
+    var c = api(), u = user(), st = camp(); if (!c || !u || !st || !st.loaded || document.hidden) return;
+    var mine = st.mine.filter(function (m) { return m.role === "player"; });
+    for (var i = 0; i < mine.length; i++) {
+      try {
+        var enc = await c.get(mine[i].code);
+        E[mine[i].code] = enc && enc.status !== "ended" ? enc : null;
+        if (enc && enc.status === "rolling" && rolled[mine[i].code] !== enc.rollId) await rollMine(mine[i].code, mine[i], enc);
+        if (enc && enc.status === "active" && A.strike) await A.strike.playerPoll(mine[i].code, user().uid);
+      } catch (e) {}
+    }
+    drawBar();
+  }
+  function startPlayerPoll() { if (plT) return; plT = setInterval(pollPlayer, PL_POLL); setTimeout(pollPlayer, 1500); }
+
+  function activeFor() {
+    var u = user(); if (!u) return null;
+    for (var code in E) { var enc = E[code]; if (enc && (enc.status === "active" || enc.status === "rolling")) return { code: code, enc: enc }; }
+    return null;
+  }
+  function drawBar() {
+    var a = activeFor(), bar = $("#turnBar");
+    if (!a) { if (bar) bar.remove(); return; }
+    var u = user(), enc = a.enc, active = enc.status === "active";
+    if (!bar) { bar = document.createElement("div"); bar.id = "turnBar"; document.body.appendChild(bar); }
+    var cur = active ? enc.order[enc.turn] : null, mineNow = !!(cur && cur.uid && u && cur.uid === u.uid);
+    bar.className = mineNow ? "mine" : "";
+    bar.innerHTML = '<span class="tbhd">' + (active ? "Round " + enc.round : "Rolling Initiative…") + "</span>" +
+      enc.order.map(function (o, i) {
+        var nm = o.kind === "monster" && o.hide ? "???" : o.name, on = active && i === enc.turn;
+        return '<span class="tbchip' + (on ? " on" : "") + (o.kind === "monster" ? " mo" : "") + '">' + esc(nm) + "</span>";
+      }).join("") + (mineNow ? '<b class="tbyou">Your turn — press Resolve when you are done</b>' : "") +
+      (active ? '<button class="btn tbstrike" data-st="open">⚔ Use on…</button>' : "") +
+      (active ? enc.order.filter(function (o) { return o.kind === "monster" && o.hw; }).map(function (o) { return '<span class="tbhw">' + esc(o.hide ? "???" : o.name) + ": " + esc(o.hw) + "</span>"; }).join("") : "") +
+      ((enc.log || []).length ? '<div class="tblog">' + enc.log.slice().reverse().slice(0, 4).map(function (x) { return "<div>" + esc(x) + "</div>"; }).join("") + "</div>" : "");
+    if (active) bar.innerHTML += myPrompts(a, cur, mineNow) + knowns(enc);
+    if (A.strike) A.strike.drawPanel();
+  }
+  var sor = {}, manaDone = {};
+  function mineRec(code) { var st = camp(); return st && st.mine.find(function (m) { return m.code === code && m.role === "player"; }); }
+  function activate(code) { var m = mineRec(code); if (!m) return false; var i = DB.chars.findIndex(function (x) { return x.id === m.charId; }); if (i < 0) return false; if (C.id !== m.charId) setActiveAt(i); return true; }
+  function asMine(code, fn) { var m = mineRec(code), ch = m && DB.chars.find(function (x) { return x.id === m.charId; }); if (!ch) return null; var prev = C; C = ch; try { return fn(); } finally { C = prev; } }
+  /* the prompts only the player can act on, because only their device holds their sheet */
+  function myPrompts(a, cur, mineNow) {
+    var enc = a.enc, code = a.code, h = "", key = enc.round + ":" + enc.turn;
+    if (sor[code] !== enc.round) h += '<button class="btn tbsor" data-cbx="sor">Start of Round — New Round</button>';
+    var mu = asMine(code, function () { return (typeof manaUpkeep === "function") ? manaUpkeep() : null; });
+    if (mu && manaDone[code] !== key) h += '<button class="btn tbmana" data-cbx="mana">Maintain ' + esc(mu.sp.name || "Spell") + " — " + mu.cost + "</button>";
+    var down = asMine(code, function () { return (+C.vit.hpCur || 0) < 0; });
+    if (down && mineNow) h += '<button class="btn warn tbdeath" data-cbx="death">Roll Death Save</button>';
+    return h;
+  }
+  function knowns(enc) {
+    return enc.order.filter(function (o) { return o.kind === "monster" && (Object.keys(o.kn || {}).length || (o.cn || []).length); }).map(function (o) {
+      var k = o.kn || {}, bits = [];
+      if (k.armor != null) bits.push("Armor " + k.armor); if (k.res != null) bits.push("Resistance " + k.res); if (k.prot != null) bits.push("Protection " + k.prot); if (k.evade != null) bits.push("Evade " + k.evade);
+      (o.cn || []).forEach(function (c) { bits.push(c); });
+      return '<span class="tbhw">' + esc(o.hide ? "???" : o.name) + ": " + esc(bits.join(" · ")) + "</span>";
+    }).join("");
+  }
+  function bx(e) {
+    var b = e.target.closest && e.target.closest("[data-cbx]"); if (!b) return; var k = b.getAttribute("data-cbx"), a = activeFor(); if (!a) return;
+    if (!activate(a.code)) { say("Your attached character could not be opened."); return; }
+    if (k === "sor") { sor[a.code] = a.enc.round; if (typeof newRound === "function") newRound(); }
+    else if (k === "mana") { manaDone[a.code] = a.enc.round + ":" + a.enc.turn; if (typeof manaPay === "function") manaPay(); }
+    else if (k === "death") { if (typeof ACT !== "undefined" && ACT.death) ACT.death(); }
+    drawBar();
+  }
+  /* the player pressed Resolve: if it is their turn, tell the GM */
+  async function onResolve() {
+    var u = user(), c = api(); if (!u || !c) return;
+    for (var code in E) {
+      var enc = E[code]; if (!enc || enc.status !== "active") continue;
+      var cur = enc.order[enc.turn]; if (!cur || cur.uid !== u.uid) continue;
+      try { await c.postTurn(code, u.uid, { round: enc.round, turn: enc.turn }); say("Turn ended."); } catch (e) { say("Could not tell the GM your turn is over."); }
+    }
+  }
+
+  /* ---- wiring ---------------------------------------------------------------------- */
+  function wire() {
+    var h = $("#homeWrap"); if (!h || h._cbWired) return; h._cbWired = 1;
+    h.addEventListener("click", function (e) {
+      var b = e.target.closest && e.target.closest("[data-cb]"); if (!b) return;
+      var a = b.getAttribute("data-cb");
+      if (a === "start") start(); else if (a === "begin") begin(); else if (a === "next") next();
+      else if (a === "skip") skip(); else if (a === "end") end(); else if (a === "addm") addMonster();
+      else if (a === "rm") removeEntry(b.getAttribute("data-id"));
+      else if (a === "up") moveEntry(b.getAttribute("data-id"), -1); else if (a === "dn") moveEntry(b.getAttribute("data-id"), 1);
+      else if (a === "delay") delayTurn(); else if (a === "reverse") reverseOrder();
+      else if (a === "reveal") reveal(b.getAttribute("data-id"), b.getAttribute("data-k"));
+      else if (a === "rmcond") { var oc = G.enc.order.find(function (x) { return x.id === b.getAttribute("data-id"); }); if (oc) { oc.cn = (oc.cn || []).filter(function (k) { return k !== b.getAttribute("data-k"); }); guard(push); } }
+      else if (a === "leg") { var pl = G.priv[b.getAttribute("data-id")], ol = G.enc.order.find(function (x) { return x.id === b.getAttribute("data-id"); }); if (pl && pl.leg > 0) { pl.leg -= 1; privSave(); log(ol.name + " uses a Legendary Action."); guard(push); } }
+      else if (a === "hide") { var o = G.enc.order.find(function (x) { return x.id === b.getAttribute("data-id"); }); if (o) { o.hide = !o.hide; guard(push); } }
+    });
+    h.addEventListener("change", function (e) {
+      var t = e.target;
+      if (t.hasAttribute && t.hasAttribute("data-cbinit")) editInit(t.getAttribute("data-cbinit"), t.value);
+      else if (t.hasAttribute && t.hasAttribute("data-cbhp")) { var id = t.getAttribute("data-cbhp"), p = G.priv[id], o = G.enc.order.find(function (x) { return x.id === id; }); if (p && o) { p.hp = Math.max(0, Math.min(p.max, parseFloat(t.value) || 0)); refreshHw(o); guard(push); } }
+      else if (t.hasAttribute && t.hasAttribute("data-cbpool")) { var gp = G.priv["pool:" + t.getAttribute("data-cbpool")]; if (gp) { gp.n = parseFloat(t.value) || 0; privSave(); } }
+      else if (t.hasAttribute && t.hasAttribute("data-cbpick")) G.pick = t.value;
+      else if (t.hasAttribute && t.hasAttribute("data-cbn")) G.n = t.value;
+    });
+  }
+  function boot() {
+    document.addEventListener("click", function (e) { if (e.target.closest && e.target.closest('[data-act="cleanse"]')) onResolve(); bx(e); });
+    if (A.ui && A.ui.onChange) A.ui.onChange(function () { if (user()) startPlayerPoll(); else { E = {}; drawBar(); } });
+    if (user()) startPlayerPoll();
+  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot); else boot();
+
+  A.combat = { gmHTML: gmHTML, gmEnter: gmEnter, leave: gmLeave, wire: wire, onResolve: onResolve, _initBonusOf: initBonusOf, _api: { G: G, privSave: privSave, push: function () { return push(); }, guard: guard, cur: cur, log: log, refreshHw: refreshHw }, _G: G, _E: E, _poll: pollPlayer, _sort: sortOrder };
+})(typeof globalThis !== "undefined" ? globalThis : window);
+
+/* ArchSoul — live combat, step two: using an ability on someone.
+   The attacker rolls (Accuracy, then damage by type) with the sheet's own rules and posts a Strike.
+   The target's own device applies it: a player through the sheet's dmgCalc against their own Armor,
+   Resistance and Protection; a creature through the GM, who alone holds its numbers. */
+(function (root) {
+  "use strict";
+  var A = root.ArchCloud = root.ArchCloud || {};
+  var S = { open: false, queue: [], sent: [], incoming: null, busy: false, msg: "", form: { target: "", phys: "", soul: "", tru: "", fx: "", label: "", addD: true, addL: true, evAttr: "", evDiff: "", evFrom: "", evMode: "half", noAcc: false, conds: [] },
+            gform: { from: "", to: "", phys: "", soul: "", tru: "", fx: "", label: "", evAttr: "", evDiff: "", evMode: "half", noAcc: false, conds: [] }, undo: [] };
+
+  function $(s, r) { return (r || document).querySelector(s); }
+  function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
+  function user() { return A.ui && A.ui._state && A.ui._state.user; }
+  function api() { var a = A.ui && A.ui.adapter && A.ui.adapter(); return a && a.combat; }
+  function rerender() { if (A.shell && A.shell.rerender) A.shell.rerender(); }
+  function say(m) { try { if (typeof toast === "function") toast(m); } catch (e) {} }
+  function rid() { return "s" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+  function fxList() { return (typeof SOULFX !== "undefined" ? SOULFX : []); }
+  function fxOptions(cur) {
+    return '<option value="">No Soul Effect (Soul − Protection)</option>' +
+      fxList().map(function (p) { return '<option value="' + esc(p[0]) + '"' + (p[0] === cur ? " selected" : "") + ">" + esc(p[1]) + "</option>"; }).join("") +
+      '<option value="heal"' + (cur === "heal" ? " selected" : "") + ">Restore — heals the target</option>";
+  }
+  function fxName(k) { var f = fxList().find(function (p) { return p[0] === k; }); return k === "heal" ? "Restore" : (f ? f[1] : ""); }
+  var ATT = [["power", "Power"], ["vigor", "Vigor"], ["arcane", "Arcane"], ["agility", "Agility"]];
+  function attName(k) { var a = ATT.find(function (x) { return x[0] === k; }); return a ? a[1] : ""; }
+  function attOptions(cur, none) { return '<option value="">' + none + "</option>" + ATT.map(function (a) { return '<option value="' + a[0] + '"' + (a[0] === cur ? " selected" : "") + ">" + a[1] + "</option>"; }).join(""); }
+  function condList() { return (typeof CONDITIONS !== "undefined" ? CONDITIONS : []); }
+  function condName(k) { var c = condList().find(function (x) { return x[0] === k; }); return c ? c[1] : k; }
+  function condOptions(cur) { return condList().map(function (c) { return '<option value="' + c[0] + '"' + ((cur || []).indexOf(c[0]) >= 0 ? " selected" : "") + ">" + esc(c[1]) + "</option>"; }).join(""); }
+  function condsOf(s) { return String(s.conds || "").split(",").filter(Boolean); }
+  /* the three things an Evade can do on a success: halve the damage (Conditions still land), negate everything, or negate only the Conditions */
+  function plan(s, evOk) {
+    var mode = s.evMode || "half", dmg = { phys: s.phys, soul: s.soul, tru: s.tru, fx: s.fx }, conds = condsOf(s);
+    if (evOk) { if (mode === "all") { dmg = { phys: 0, soul: 0, tru: 0, fx: "" }; conds = []; } else if (mode === "cond") conds = []; else dmg = halve(s); }
+    return { dmg: dmg, conds: conds };
+  }
+  function evModeOptions(cur) { return [["half", "Success: half damage"], ["all", "Success: negates damage and Conditions"], ["cond", "Success: negates Conditions only"]].map(function (m) { return '<option value="' + m[0] + '"' + (m[0] === cur ? " selected" : "") + ">" + m[1] + "</option>"; }).join(""); }
+  /* "half damage on a success" — rounded down, per type, before Resistance/Protection */
+  function halve(s) { return { phys: Math.floor((+s.phys || 0) / 2), soul: Math.floor((+s.soul || 0) / 2), tru: Math.floor((+s.tru || 0) / 2), fx: s.fx }; }
+  function num(v) { v = +v; return isFinite(v) ? v : 0; }
+
+  /* run something as the player's attached character (the sheet's functions all read the open one) */
+  function asChar(id, fn) {
+    var ch = DB.chars.find(function (x) { return x.id === id; }); if (!ch) return null;
+    var prev = C; C = ch; try { return fn(ch); } finally { C = prev; }
+  }
+  function myMine(code) { var st = A.campUI && A.campUI._state; return st && st.mine.find(function (m) { return m.code === code && m.role === "player"; }); }
+
+  /* ---- rolling a strike: Accuracy, then damage, the way the sheet's own panels do ---- */
+  function rollPlayerStrike(f, charId) {
+    return asChar(charId, function () {
+      var heal = f.fx === "heal", st = computeStats(), out = { acc: -1, crit: false, fumble: false, phys: 0, soul: 0, tru: 0 };
+      var ev = !!f.evAttr && !heal;
+      if (!heal && !f.noAcc) { var r = d20(); out.crit = critOf(r); out.fumble = r.nat === 1; out.acc = r.val + st.accuracy; }
+      var mult = 1 + ((+C.vit.critBonus || 50) / 100), first = true;
+      [["phys", f.phys], ["soul", f.soul], ["tru", f.tru]].forEach(function (p) {
+        var s = String(p[1] || "").trim(), v = 0;
+        if (s) { v = rollDice(s).total; if (first && f.addD) v += st.damage; first = false; }
+        if (p[0] === "tru" && f.addL && s) v += (+C.sub.lethality || 0);
+        if (out.crit && s) v = Math.ceil(v * mult);
+        out[p[0]] = Math.max(0, Math.round(v));
+      });
+      if (ev) { out.evAttr = f.evAttr; out.evMode = f.evMode || "half"; out.evDiff = Math.max(0, Math.round(+f.evDiff || (f.evFrom ? attrVals()[f.evFrom] : 0) || 0)); }
+      return out;
+    });
+  }
+  function hitOf(acc, crit, fumble, armor) { return !fumble && (crit || acc >= armor); }
+  function evasion(s) { return !!s.evAttr && s.fx !== "heal"; }
+
+  /* ================= GM side ================= */
+  function E() { return A.combat && A.combat._api; }
+  function blockOf(o) { var all = (typeof sbAll === "function") ? sbAll() : []; return all.find(function (b) { return b.id === o.blockId; }); }
+
+  async function gmPoll() {
+    var c = api(), g = E(); if (!c || !g || !g.G.code || !g.G.enc || g.G.enc.status !== "active") return;
+    S.queue = await c.waiting(g.G.code, "");
+    var changed = false, keep = [];
+    for (var i = 0; i < S.sent.length; i++) {
+      var s = await c.strike(g.G.code, S.sent[i]);
+      if (s && s.status !== "posted") { g.log(s.result || (s.fromName + " → " + s.toName)); changed = true; } else keep.push(S.sent[i]);
+    }
+    S.sent = keep;
+    if (changed) await g.push();
+    rerender();
+  }
+
+  function creatureDamage(b, s) {
+    var res = num(sbSubVal(b, "resistance")), prot = num(sbSubVal(b, "protection")), lines = [], dealt = 0, heal = 0;
+    if (s.phys) { var g = Math.max(0, s.phys - res); dealt += g; lines.push("Physical " + s.phys + " − Resistance " + res + " = " + g); }
+    if (s.soul) {
+      if (s.fx === "heal") { heal += s.soul; lines.push("Restore " + s.soul); }
+      else { var g2 = Math.max(0, s.soul - prot); dealt += g2; lines.push((s.fx ? fxName(s.fx) + " " : "") + "Soul " + s.soul + " − Protection " + prot + " = " + g2); }
+    }
+    if (s.tru) { dealt += s.tru; lines.push("True " + s.tru); }
+    return { dealt: dealt, heal: heal, lines: lines };
+  }
+  async function resolveCreature(id) {
+    var g = E(), c = api(); if (!g || !c) return;
+    var s = S.queue.find(function (x) { return x.id === id; }); if (!s) return;
+    var o = g.G.enc.order.find(function (x) { return x.id === s.toId; }), b = o && blockOf(o), pv = o && g.G.priv[o.id];
+    var line, status;
+    if (!o || !b) { status = "missed"; line = s.fromName + " strikes at something that is no longer here."; }
+    else {
+      var armor = num(sbStats(b).armor), heal = s.fx === "heal", ev = evasion(s), evOk = false, evTxt = "";
+      if (heal || s.noAcc || hitOf(num(s.acc), !!s.crit, !!s.fumble, armor)) {
+        if (ev) {
+          var er = 1 + Math.floor(Math.random() * 20), et = er + num(sbSubVal(b, "evade")) + num(sbAttr(b, s.evAttr));
+          evOk = er === 20 || et >= num(s.evDiff);
+          evTxt = " (" + o.name + " Evades with " + attName(s.evAttr) + ": " + et + " vs " + num(s.evDiff) + (evOk ? " — succeeds" : " — fails") + ")";
+        }
+        var pl = plan(s, evOk), d = creatureDamage(b, pl.dmg), before = pv ? pv.hp : 0, cb = (o.cn || []).slice();
+        if (pv) { pv.hp = Math.max(0, Math.min(pv.max, pv.hp - d.dealt + d.heal)); g.refreshHw(o); }
+        if (pl.conds.length) { o.cn = (o.cn || []).concat(pl.conds.filter(function (k) { return (o.cn || []).indexOf(k) < 0; })); }
+        S.undo.push({ oid: o.id, hp: before, cn: cb }); S.undo = S.undo.slice(-10);
+        status = "applied";
+        line = s.fromName + (s.label ? " uses " + s.label + " on " : " strikes ") + o.name + (heal ? " — restores " + d.heal : " — " + (s.noAcc ? "" : (s.crit ? "critical hit, " : "hit, ")) + d.dealt + " damage" + evTxt + (pl.conds.length ? ", inflicting " + pl.conds.map(condName).join(", ") : "")) + (pv && pv.hp <= 0 ? ". " + o.name + " falls." : ".");
+      } else { status = "missed"; line = s.fromName + (s.label ? " uses " + s.label + " on " : " strikes at ") + o.name + " — " + (s.fumble ? "a fumble" : "misses") + "."; }
+    }
+    S.queue = S.queue.filter(function (x) { return x.id !== id; });
+    g.log(line);
+    try { await c.resolveStrike(g.G.code, id, { status: status, result: line }); await g.push(); } catch (e) { say("Could not reach the cloud."); }
+    rerender();
+  }
+  async function undoLast() {
+    var g = E(); if (!g || !S.undo.length) return; var u = S.undo.pop(), o = g.G.enc.order.find(function (x) { return x.id === u.oid; }), pv = o && g.G.priv[o.id];
+    if (o && pv) { pv.hp = u.hp; o.cn = u.cn; g.refreshHw(o); }
+    g.log("Last strike undone."); try { await g.push(); } catch (e) {} rerender();
+  }
+
+  async function sendCreature() {
+    var g = E(), c = api(), f = S.gform; if (!g || !c) return;
+    var order = g.G.enc.order, from = order.find(function (o) { return o.id === (f.from || (g.cur() || {}).id); }), to = order.find(function (o) { return o.id === f.to; });
+    if (!from || from.kind !== "monster") { S.msg = "Choose which creature is acting."; return rerender(); }
+    if (!to || to.kind !== "player") { S.msg = "Choose a player to strike."; return rerender(); }
+    var b = blockOf(from); if (!b) { S.msg = "That creature's Stat Block is gone."; return rerender(); }
+    var heal = f.fx === "heal", ev = !!f.evAttr && !heal, noacc = heal || !!f.noAcc, st = sbStats(b), thr = (b.crit && +b.crit.thr) || 20, mult = 1 + (((b.crit && +b.crit.bonus) || 50) / 100);
+    var roll = 1 + Math.floor(Math.random() * 20), crit = !noacc && roll >= thr, fumble = !noacc && roll === 1, first = true, out = { phys: 0, soul: 0, tru: 0 };
+    [["phys", f.phys], ["soul", f.soul], ["tru", f.tru]].forEach(function (p) {
+      var s = String(p[1] || "").trim(), v = 0;
+      if (s) { v = rollDice(s).total; if (first) v += num(st.damage); first = false; }
+      if (p[0] === "tru" && s) v += num(sbSubVal(b, "lethality"));
+      if (crit && s) v = Math.ceil(v * mult);
+      out[p[0]] = Math.max(0, Math.round(v));
+    });
+    var strike = { id: rid(), from: user().uid, fromName: from.name, toId: to.id, toUid: to.uid, toName: to.name, acc: noacc ? -1 : roll + num(st.accuracy), noAcc: !!f.noAcc, evMode: f.evMode || "half", conds: (f.conds || []).join(","), crit: crit, fumble: fumble,
+      phys: out.phys, soul: out.soul, tru: out.tru, fx: f.fx || "", evAttr: ev ? f.evAttr : "", evDiff: ev ? Math.max(0, Math.round(+f.evDiff || 0)) : 0, label: String(f.label || "").slice(0, 60), round: g.G.enc.round, at: Date.now(), status: "posted", result: "" };
+    S.busy = true; S.msg = "";
+    try { await c.postStrike(g.G.code, strike); S.sent.push(strike.id); g.log(from.name + (strike.label ? " uses " + strike.label + " on " : " attacks ") + to.name + "…"); await g.push(); f.phys = f.soul = f.tru = f.label = ""; }
+    catch (e) { S.msg = "Could not reach the cloud."; }
+    S.busy = false; rerender();
+  }
+
+  function gmHTML() {
+    var g = E(); if (!g || !g.G.enc || g.G.enc.status !== "active") return "";
+    var order = g.G.enc.order, mons = order.filter(function (o) { return o.kind === "monster"; }), pls = order.filter(function (o) { return o.kind === "player"; }), f = S.gform;
+    var cur = g.cur(), from = f.from || (cur && cur.kind === "monster" ? cur.id : "");
+    var q = S.queue.map(function (s) {
+      var o = order.find(function (x) { return x.id === s.toId; }), b = o && blockOf(o), armor = b ? num(sbStats(b).armor) : "?";
+      var heal = s.fx === "heal", ev = evasion(s), hit = heal || !!s.noAcc || (b && hitOf(num(s.acc), !!s.crit, !!s.fumble, armor));
+      return '<div class="stq"><b>' + esc(s.fromName) + "</b> → " + esc(s.toName) + (s.label ? " <em>" + esc(s.label) + "</em>" : "") +
+        (heal ? " (restore)" : (s.noAcc ? " — no Accuracy roll" : " — Accuracy " + esc(s.acc) + (s.crit ? " (crit)" : s.fumble ? " (fumble)" : "") + " vs Armor " + armor + " → <b>" + (hit ? "HIT" : "MISS") + "</b>") + (ev ? " · Evade " + esc(attName(s.evAttr)) + " Diff " + esc(s.evDiff) : "")) + (condsOf(s).length ? " · " + esc(condsOf(s).map(condName).join(", ")) : "") +
+        " · " + [s.phys ? s.phys + " Physical" : "", s.soul ? s.soul + " Soul" + (s.fx && s.fx !== "heal" ? " (" + esc(fxName(s.fx)) + ")" : "") : "", s.tru ? s.tru + " True" : ""].filter(Boolean).join(", ") +
+        ' <button class="btn" data-st="resolve" data-id="' + esc(s.id) + '">' + (ev ? "Roll its Evade and resolve" : "Resolve") + "</button></div>";
+    }).join("");
+    var form = (mons.length && pls.length) ?
+      '<div class="stform"><b>Creature strike</b><div class="camprow2">' +
+      '<select data-stg="from">' + mons.map(function (o) { return '<option value="' + esc(o.id) + '"' + (o.id === from ? " selected" : "") + ">" + esc(o.name) + "</option>"; }).join("") + "</select>" +
+      '<select data-stg="to"><option value="">on…</option>' + pls.map(function (o) { return '<option value="' + esc(o.id) + '"' + (o.id === f.to ? " selected" : "") + ">" + esc(o.name) + "</option>"; }).join("") + "</select></div>" +
+      '<div class="camprow2"><input data-stg="phys" placeholder="Physical dice, e.g. 2d6" value="' + esc(f.phys) + '"><input data-stg="soul" placeholder="Soul dice" value="' + esc(f.soul) + '"><input data-stg="tru" placeholder="True dice" value="' + esc(f.tru) + '"></div>' +
+      '<div class="camprow2"><select data-stg="evAttr">' + attOptions(f.evAttr, "No Evade") + '</select><input data-stg="evDiff" type="number" placeholder="Evade Difficulty" value="' + esc(f.evDiff) + '"><select data-stg="evMode">' + evModeOptions(f.evMode) + '</select></div>' +
+      '<div class="camprow2"><label><input type="checkbox" data-stg="noAcc"' + (f.noAcc ? " checked" : "") + '> No Accuracy roll (Evade only)</label><select multiple size="3" data-stg="conds" title="Conditions it inflicts">' + condOptions(f.conds) + '</select></div>' +
+      '<div class="camprow2"><select data-stg="fx">' + fxOptions(f.fx) + '</select><input data-stg="label" placeholder="Ability name (optional)" value="' + esc(f.label) + '"></div>' +
+      '<div class="camprow2"><button class="btn" data-st="gsend"' + (S.busy ? " disabled" : "") + '>Roll Accuracy and send</button></div></div>' : "";
+    return (q ? '<div class="stqueue"><b>Strikes on creatures</b>' + q + "</div>" : "") + (S.undo.length ? '<div class="camprow2"><button class="btn" data-st="undo">Undo last strike on a creature</button></div>' : "") + form + (S.msg ? '<div class="campmsg bad">' + esc(S.msg) + "</div>" : "");
+  }
+
+  /* ================= player side ================= */
+  async function playerPoll(code, uid) {
+    var c = api(); if (!c) return;
+    var list = await c.waiting(code, uid);
+    if (list.length && (!S.incoming || S.incoming.s.id !== list[0].id)) { S.incoming = { code: code, s: list[0] }; showIncoming(); }
+    else if (!list.length && S.incoming && S.incoming.code === code && !S.applying) { S.incoming = null; showIncoming(); }
+  }
+  function showIncoming() {
+    var box = $("#incoming"); if (!S.incoming) { if (box) box.remove(); return; }
+    if (!box) { box = document.createElement("div"); box.id = "incoming"; document.body.appendChild(box); }
+    var s = S.incoming.s, mine = myMine(S.incoming.code), armor = null;
+    if (mine) armor = asChar(mine.charId, function () { return num(computeStats().armor); });
+    var heal = s.fx === "heal", ev = evasion(s), hit = heal || !!s.noAcc || (armor != null && hitOf(num(s.acc), !!s.crit, !!s.fumble, armor));
+    box.innerHTML = '<div class="inbox"><h4>' + esc(s.fromName) + (s.label ? " — " + esc(s.label) : " strikes you") + "</h4>" +
+      (heal ? "<p>Restores you.</p>" : (s.noAcc ? "" : "<p>Accuracy <b>" + esc(s.acc) + "</b>" + (s.crit ? " (critical)" : s.fumble ? " (fumble)" : "") + " vs your Armor <b>" + esc(armor) + "</b> → <b>" + (hit ? "HIT" : "MISS") + "</b></p>") + (ev && hit ? "<p>Evade with <b>" + esc(attName(s.evAttr)) + "</b> — Difficulty <b>" + esc(s.evDiff) + "</b>. " + ({ all: "Success negates the damage and Conditions.", cond: "Success negates the Conditions.", half: "Success takes half damage." })[s.evMode || "half"] + "</p>" : "")) + (condsOf(s).length ? "<p>Inflicts " + esc(condsOf(s).map(condName).join(", ")) + ".</p>" : "") +
+      "<p>" + [s.phys ? s.phys + " Physical" : "", s.soul ? s.soul + " Soul" + (s.fx && !heal ? " (" + esc(fxName(s.fx)) + ")" : "") : "", s.tru ? s.tru + " True" : ""].filter(Boolean).join(" · ") + "</p>" +
+      '<button class="btn" data-st="take">' + (!hit ? "Dodged — dismiss" : ev ? "Roll Evade" : (heal ? "Receive it" : "Take the hit")) + "</button></div>";
+  }
+  async function takeIncoming() {
+    var inc = S.incoming, c = api(), u = user(); if (!inc || !c || S.applying) return;
+    S.applying = true;
+    var s = inc.s, mine = myMine(inc.code), line = "", status = "missed";
+    try {
+      if (!mine) throw new Error("no character");
+      var i = DB.chars.findIndex(function (x) { return x.id === mine.charId; });
+      if (i < 0) throw new Error("no character");
+      if (C.id !== mine.charId) setActiveAt(i);
+      var heal = s.fx === "heal", armor = num(computeStats().armor), name = C.name || "Someone";
+      var ev = evasion(s), evOk = false, evTxt = "", hitNow = heal || !!s.noAcc || hitOf(num(s.acc), !!s.crit, !!s.fumble, armor);
+      if (hitNow && ev) {
+        var er = d20(s.evAttr), et = er.val + num(subVal("evade")) + num(attrVals()[s.evAttr]);
+        evOk = critOf(er) || et >= num(s.evDiff);
+        evTxt = " (" + name + " Evades with " + attName(s.evAttr) + ": " + et + " vs " + num(s.evDiff) + (evOk ? " — succeeds" : " — fails") + ")";
+        try { pop({ title: "Evade — " + attName(s.evAttr), lines: [er.note, "+ " + num(subVal("evade")) + " Evade", "+ " + num(attrVals()[s.evAttr]) + " full " + attName(s.evAttr), "vs " + num(s.evDiff)], total: String(et), suffix: evOk ? "SUCCESS" : "FAIL", crit: critOf(er), fumble: er.nat === 1 }); } catch (e) {}
+      }
+      if (hitNow) {
+        var pl = plan(s, evOk), v = pl.dmg, o = dmgCalc(v), cur = +C.vit.hpCur || 0;
+        pl.conds.forEach(function (k) { C.conds[k] = true; C.condDur[k] = "next"; });
+        C.vit.hpCur = clamp(cur + o.net, 0, hpMax()); C._lastMax = hpMax();
+        if (o.applyFx && v.fx !== "heal") { C.conds["sf_" + v.fx] = true; C.condDur["sf_" + v.fx] = "next"; }
+        fillIn(document); refresh(); save();
+        try { if (typeof sfx === "function") sfx(o.net < 0 ? "hurt" : "ok"); pop({ title: o.net >= 0 ? "Restored" : "Damage Taken", lines: o.lines.map(function (l) { return l.replace(/<[^>]+>/g, ""); }), total: cur + " → " + C.vit.hpCur + " Health" }); logIt(o.net >= 0 ? "Healed" : "Damage", (o.net >= 0 ? "+" : "") + o.net + " HP", cur + " → " + C.vit.hpCur, ""); } catch (e) {}
+        if (o.net < 0 && C.conds.concentrating && typeof concCheck === "function") setTimeout(function () { concCheck(-o.net); }, 260);
+        status = "applied";
+        line = s.fromName + (s.label ? " uses " + s.label + " on " : " strikes ") + name + (heal ? " — restores " + o.heal : " — " + (s.noAcc ? "" : (s.crit ? "critical hit, " : "hit, ")) + o.dealt + " damage" + evTxt + (pl.conds.length ? ", inflicted " + pl.conds.map(condName).join(", ") : "")) + (C.vit.hpCur <= 0 ? ". " + name + " is down." : ".");
+      } else line = s.fromName + (s.label ? " uses " + s.label + " on " : " strikes at ") + name + " — " + (s.fumble ? "a fumble" : "misses") + ".";
+      await c.resolveStrike(inc.code, s.id, { status: status, result: line });
+    } catch (e) { say("Could not apply that strike."); }
+    S.applying = false; S.incoming = null; showIncoming();
+  }
+
+  function enc() { var g = A.combat && A.combat._E; if (!g) return null; for (var k in g) if (g[k] && g[k].status === "active") return { code: k, enc: g[k] }; return null; }
+  function panelHTML() {
+    var a = enc(), u = user(); if (!a || !S.open) return "";
+    var f = S.form, me = a.enc.order.find(function (o) { return o.uid === u.uid; });
+    var targets = a.enc.order.filter(function (o) { return !me || o.id !== me.id; });
+    return '<div class="stpanel"><h4>Use an ability on…</h4>' +
+      '<select data-stp="target"><option value="">choose a target</option>' + targets.map(function (o) { var nm = o.kind === "monster" && o.hide ? "???" : o.name; return '<option value="' + esc(o.id) + '"' + (o.id === f.target ? " selected" : "") + ">" + esc(nm) + "</option>"; }).join("") + "</select>" +
+      '<input data-stp="label" placeholder="Ability name (optional)" value="' + esc(f.label) + '">' +
+      '<div class="stdice"><input data-stp="phys" placeholder="Physical dice" value="' + esc(f.phys) + '"><input data-stp="soul" placeholder="Soul dice" value="' + esc(f.soul) + '"><input data-stp="tru" placeholder="True dice" value="' + esc(f.tru) + '"></div>' +
+      '<div class="stdice"><select data-stp="evAttr">' + attOptions(f.evAttr, "No Evade (Accuracy)") + '</select><input data-stp="evDiff" type="number" placeholder="Difficulty" value="' + esc(f.evDiff) + '"><select data-stp="evFrom">' + attOptions(f.evFrom, "or my Attribute…") + "</select></div>" +
+      '<select data-stp="evMode">' + evModeOptions(f.evMode) + "</select>" +
+      '<label><input type="checkbox" data-stp="noAcc"' + (f.noAcc ? " checked" : "") + "> No Accuracy roll (Evade only)</label>" +
+      '<select multiple size="3" data-stp="conds" title="Conditions it inflicts">' + condOptions(f.conds) + "</select>" +
+      '<select data-stp="fx">' + fxOptions(f.fx) + "</select>" +
+      '<label><input type="checkbox" data-stp="addD"' + (f.addD ? " checked" : "") + '> +Damage</label> <label><input type="checkbox" data-stp="addL"' + (f.addL ? " checked" : "") + '> +Lethality</label>' +
+      (S.msg ? '<div class="campmsg bad">' + esc(S.msg) + "</div>" : "") +
+      '<div class="stbtns"><button class="btn" data-st="send"' + (S.busy ? " disabled" : "") + '>Roll Accuracy and send</button><button class="btn" data-st="close">Close</button></div></div>';
+  }
+  function drawPanel() {
+    var box = $("#strikePanel"), h = panelHTML();
+    if (!h) { if (box) box.remove(); return; }
+    if (!box) { box = document.createElement("div"); box.id = "strikePanel"; document.body.appendChild(box); }
+    if (box._h !== h) { var act = document.activeElement, id = act && act.getAttribute && act.getAttribute("data-stp"); box.innerHTML = h; box._h = h; if (id) { var n = box.querySelector('[data-stp="' + id + '"]'); if (n && n.focus) n.focus(); } }
+  }
+  async function playerSend() {
+    var a = enc(), c = api(), u = user(), f = S.form; if (!a || !c) return;
+    var to = a.enc.order.find(function (o) { return o.id === f.target; });
+    if (!to) { S.msg = "Choose a target."; return drawPanelNow(); }
+    if (!(f.phys || f.soul || f.tru)) { S.msg = "Enter some damage dice first."; return drawPanelNow(); }
+    var mine = myMine(a.code); if (!mine) return;
+    var r = rollPlayerStrike(f, mine.charId); if (!r) { S.msg = "Your character could not be found."; return drawPanelNow(); }
+    var me = a.enc.order.find(function (o) { return o.uid === u.uid; });
+    var strike = { id: rid(), from: u.uid, fromName: (me && me.name) || mine.charName || "Someone", toId: to.id, toUid: to.uid || "", toName: to.name, acc: r.acc, crit: r.crit, fumble: r.fumble, evAttr: r.evAttr || "", evDiff: r.evDiff || 0, evMode: r.evMode || "half", noAcc: !!f.noAcc, conds: (f.conds || []).join(","),
+      phys: r.phys, soul: r.soul, tru: r.tru, fx: f.fx || "", label: String(f.label || "").slice(0, 60), round: a.enc.round, at: Date.now(), status: "posted", result: "" };
+    S.busy = true; S.msg = ""; drawPanelNow();
+    try { await c.postStrike(a.code, strike); say("Sent: Accuracy " + (r.acc < 0 ? "—" : r.acc) + (r.crit ? " (crit)" : "") + ", " + [r.phys ? r.phys + " Physical" : "", r.soul ? r.soul + " Soul" : "", r.tru ? r.tru + " True" : ""].filter(Boolean).join(", ")); f.phys = f.soul = f.tru = f.label = ""; }
+    catch (e) { S.msg = "Could not reach the cloud."; }
+    S.busy = false; drawPanelNow();
+  }
+  function drawPanelNow() { var b = $("#strikePanel"); if (b) b._h = null; drawPanel(); }
+
+  function boot() {
+    document.addEventListener("click", function (e) {
+      var b = e.target.closest && e.target.closest("[data-st]"); if (!b) return;
+      var a = b.getAttribute("data-st");
+      if (a === "open") { S.open = !S.open; drawPanelNow(); }
+      else if (a === "close") { S.open = false; drawPanelNow(); }
+      else if (a === "send") playerSend();
+      else if (a === "take") takeIncoming();
+      else if (a === "resolve") resolveCreature(b.getAttribute("data-id"));
+      else if (a === "gsend") sendCreature();
+      else if (a === "undo") undoLast();
+    });
+    function setf(e) {
+      var t = e.target, k;
+      var val = function () { return t.type === "checkbox" ? t.checked : t.multiple ? Array.prototype.filter.call(t.options, function (o) { return o.selected; }).map(function (o) { return o.value; }) : t.value; };
+      if (t.getAttribute && (k = t.getAttribute("data-stp"))) S.form[k] = val();
+      else if (t.getAttribute && (k = t.getAttribute("data-stg"))) { S.gform[k] = val(); if (t.type === "checkbox" || t.multiple || t.tagName === "SELECT") rerender(); }
+    }
+    document.addEventListener("input", setf); document.addEventListener("change", setf);
+  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot); else boot();
+
+  A.strike = { gmHTML: gmHTML, gmPoll: gmPoll, playerPoll: playerPoll, drawPanel: drawPanel, reset: function () { S.queue = []; S.sent = []; S.incoming = null; S.open = false; showIncoming(); drawPanel(); }, _S: S, _hit: hitOf };
 })(typeof globalThis !== "undefined" ? globalThis : window);
 
 /* ArchSoul shell — the Home screen, the slim top bar and the one Settings gear.
