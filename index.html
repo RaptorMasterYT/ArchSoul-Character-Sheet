@@ -32553,6 +32553,79 @@ function printGo(){
 #cloudModal .crow .btn{font-size:.78em;padding:.25em .6em;white-space:nowrap}
 #cloudModal .cnote{font-size:.78em;color:var(--ink-faint);margin-top:10px;line-height:1.35}
 
+/* ---- slim top bar: the old buttons stay in the page, only hidden ---- */
+#bar #bDup,#bar #bDel,#bar #bTut,#bar #bPrint,#bar #bExport,#bar #bImport,
+#bar #modeBtn,#bar #gmTab,#bar #cloudBtn,#bar #sfxWrap,#bar .shellsep{display:none !important}
+#shellLogo{cursor:pointer}
+#shellLogo:hover{filter:brightness(1.25)}
+#shellSec{font-size:.8em;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-dim);
+  padding-left:10px;border-left:1px solid var(--line);margin-left:2px}
+#shellMore,#shellGear{padding:5px 11px;font-size:15px;line-height:1}
+#shellAcct{max-width:190px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#shellAcct.on{border-color:var(--good)}
+#shellAcct.err{border-color:var(--bad);color:var(--bad)}
+body.shellhome #charSel,body.shellhome #bNew,body.shellhome #bWiz,body.shellhome #shellMore,
+body.shellhome #bar .undogrp,body.shellhome #bar #saveState,
+body.shellgm #charSel,body.shellgm #bNew,body.shellgm #bWiz,body.shellgm #shellMore{display:none !important}
+/* the GM Tools only have one room now */
+body.shellgm .gmroom.soon{display:none}
+
+/* ---- the pop-ups ---- */
+#shellMenu,#shellSettings{position:fixed;z-index:99000;background:var(--panel);border:1px solid var(--line);
+  border-radius:8px;box-shadow:0 10px 32px rgba(0,0,0,.55);color:var(--ink)}
+#shellMenu{min-width:200px;padding:5px}
+.shellitem{display:block;width:100%;text-align:left;background:none;border:0;color:var(--ink);
+  font:inherit;font-size:.92em;padding:.55em .8em;border-radius:5px;cursor:pointer}
+.shellitem:hover{background:var(--panel-2);color:var(--hot)}
+.shellitem.warn:hover{color:var(--bad)}
+.shellrule{height:1px;background:var(--line);margin:4px 2px}
+#shellSettings{right:10px;width:min(92vw,340px);padding:12px 14px 6px}
+.shellhd{display:flex;align-items:center;margin-bottom:6px}
+.shellhd b{flex:1;letter-spacing:.14em;text-transform:uppercase;font-size:.85em;color:var(--hot)}
+.shellrow{display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:9px 0;border-top:1px solid var(--line)}
+.shellrow small{display:block;color:var(--ink-faint);font-size:.78em;margin-top:2px}
+.shellseg .btn{border-radius:0}
+.shellseg .btn:first-child{border-radius:5px 0 0 5px}.shellseg .btn:last-child{border-radius:0 5px 5px 0}
+.shellseg .btn.on{border-color:var(--hot);color:var(--hot)}
+.shellsnd{display:flex;align-items:center;gap:6px}
+#shellSettings #zoomWrap{display:inline-flex !important;align-items:center;gap:6px;font-size:.85em;color:var(--ink-dim)}
+#shellSettings #zoomWrap input{width:110px}
+#shellSettings .sfxwrap{display:flex}
+
+/* ---- Home ---- */
+#homeWrap{position:fixed;left:0;right:0;bottom:0;z-index:800;display:none;background:var(--bg);
+  color:var(--ink);overflow:auto}
+#homeWrap.open{display:block}
+.homeinner{max-width:1100px;margin:0 auto;padding:34px 22px 40px}
+.homewho{text-align:center;color:var(--ink-dim);font-size:.9em;margin-bottom:26px}
+.homegrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:18px}
+.homecard{display:flex;flex-direction:column;gap:.55em;text-align:left;min-height:170px;
+  background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:1.3em 1.4em;
+  font:inherit;color:var(--ink);cursor:pointer;transition:border-color .15s,background .15s,transform .12s}
+.homecard:hover{border-color:var(--hot);background:var(--panel-2);transform:translateY(-2px)}
+.homecard b{font-size:1.5em;letter-spacing:.12em;text-transform:uppercase;color:var(--hot);font-weight:600}
+.homecard span{color:var(--ink-dim);line-height:1.45}
+.homecard small{margin-top:auto;color:var(--ink-faint);font-size:.85em}
+.homecard.dev{border-style:dashed;opacity:.85}
+.homehead{display:flex;align-items:center;margin-bottom:18px}
+.homehead b{flex:1;font-size:1.3em;letter-spacing:.14em;text-transform:uppercase;color:var(--hot)}
+.homenote{color:var(--ink-dim);line-height:1.5;text-align:center;max-width:520px;margin:0 auto 20px}
+.homeinner.gate{text-align:center;padding-top:9vh}
+.gatetitle{font-size:2.6em;letter-spacing:.2em;text-transform:uppercase;color:var(--hot);margin-bottom:14px}
+.gatebtns{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin:6px 0 16px}
+.btn.big{padding:.7em 1.6em;font-size:1em}
+.linkbtn{background:none;border:0;color:var(--ink-dim);text-decoration:underline;cursor:pointer;
+  font:inherit;font-size:.9em;padding:4px}
+.linkbtn:hover{color:var(--hot)}
+@media (max-width:700px){
+  .homeinner{padding:22px 14px 30px}.homecard{min-height:130px}
+  #shellSec{display:none}
+}
+#bar > #zoomWrap{display:none !important}
+body.shellhome #tabbar{display:none !important}
+#tabbar #themeBtn{display:none !important}
+
 /*CLOUD-CSS:END*/</style>
 <script id="cloud-js">/*CLOUD:BEGIN*/
 /* ArchSoul cloud sync — the engine.
@@ -32844,7 +32917,8 @@ function printGo(){
   var PUSH_DELAY = 3000;
 
   var state = { user: null, status: "signed-out", msg: "", cloud: [], mode: "in", open: false, armed: null, busy: false };
-  var adapter = null, engine = null, pushT = null, toasted = {};
+  var adapter = null, engine = null, pushT = null, toasted = {}, listeners = [];
+  function emit() { listeners.forEach(function (f) { try { f(); } catch (e) {} }); }
 
   function $(s) { return document.querySelector(s); }
   function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
@@ -32894,6 +32968,7 @@ function printGo(){
     var el = $("#cloudStatus");
     if (el) { el.textContent = statusText(); el.classList.toggle("err", s === "error"); }
     if (s === "synced" && state.open && state.user) renderBody();    /* the list may have changed */
+    emit();
   }
 
   /* ---- signing in and syncing ------------------------------------------ */
@@ -32919,7 +32994,7 @@ function printGo(){
   }
 
   function onUser(u) {
-    state.user = u;
+    state.user = u; emit();
     if (!u) {
       try { localStorage.removeItem(USER_KEY); } catch (e) {}
       state.cloud = []; state.armed = null;
@@ -33063,8 +33138,253 @@ function printGo(){
   A.ui = {
     open: open, close: close,
     status: function () { return state.status; },
+    onChange: function (f) { listeners.push(f); },
     _state: state
   };
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot); else boot();
+})(typeof globalThis !== "undefined" ? globalThis : window);
+
+/* ArchSoul shell — the Home screen, the slim top bar and the one Settings gear.
+   This only moves and re-labels what the sheet already has: every old button is
+   still in the page (hidden), and the new menus click them. Nothing here
+   changes how the sheet itself works. */
+(function (root) {
+  "use strict";
+  var A = root.ArchCloud = root.ArchCloud || {};
+  var GUEST_KEY = "archsoul-shell-guest", USER_KEY = "archsoul-cloud-user";
+  var view = "home";               /* home | campaigns */
+  var homeOpen = true;
+
+  function $(s, r) { return (r || document).querySelector(s); }
+  function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+    return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
+  function ls(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+  function lset(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+  function call(name) { try { var f = root[name]; if (typeof f === "function") return f.apply(null, [].slice.call(arguments, 1)); } catch (e) { console.error(name, e); } }
+  function gmIsOpen() { try { return typeof gmOpen === "function" && !!gmOpen(); } catch (e) { return false; } }
+  function arenaIsOn() { try { return typeof inArena === "function" && !!inArena(); } catch (e) { return false; } }
+  function devIsOn() { try { return !!(DB && DB.dev); } catch (e) { return false; } }
+  function cloud() { return (A.ui && A.ui._state) || { user: null }; }
+
+  /* ---- who is in the room ------------------------------------------------ */
+  function gated() {
+    var u = cloud().user;
+    return !(u || ls(USER_KEY) || ls(GUEST_KEY) === "1");
+  }
+
+  /* ---- the top bar ------------------------------------------------------- */
+  var MENU = [
+    ["#bDup", "Duplicate character"],
+    ["#bDel", "Delete character", "warn"],
+    null,
+    ["#bTut", "Tutorial"],
+    ["#bPrint", "Print page"],
+    ["#bExport", "Save to file"],
+    ["#bImport", "Load file"]
+  ];
+
+  function buildBar() {
+    var bar = $("#bar"); if (!bar) return;
+    var brand = $(".brand", bar);
+    if (brand) { brand.id = "shellLogo"; brand.title = "Home"; brand.addEventListener("click", goHome); }
+    var sec = document.createElement("span"); sec.id = "shellSec";
+    var ver = $("#appVer"); (ver || brand).insertAdjacentElement("afterend", sec);
+
+    /* the little "..." menu: the things you use now and then */
+    var more = document.createElement("button");
+    more.className = "btn"; more.id = "shellMore"; more.textContent = "⋯"; more.title = "More";
+    var wiz = $("#bWiz"); (wiz || $("#bNew")).insertAdjacentElement("afterend", more);
+    more.addEventListener("click", function (e) { e.stopPropagation(); toggleMenu(more); });
+
+    /* right-hand side: account chip and the one gear */
+    var anchor = $("#saveState") || bar.lastElementChild;
+    var acct = document.createElement("button"); acct.className = "btn"; acct.id = "shellAcct";
+    acct.addEventListener("click", function () { if (A.ui && A.ui.open) A.ui.open(); });
+    var gear = document.createElement("button"); gear.className = "btn"; gear.id = "shellGear";
+    gear.textContent = "⚙"; gear.title = "Settings";
+    gear.addEventListener("click", function (e) { e.stopPropagation(); toggleSettings(); });
+    anchor.insertAdjacentElement("afterend", acct); acct.insertAdjacentElement("afterend", gear);
+
+    /* the thin divider spans have no names; they only make sense in the old bar */
+    [].forEach.call(bar.querySelectorAll(":scope > span"), function (s) {
+      if (s.style && s.style.width === "1px") s.classList.add("shellsep"); });
+  }
+
+  function closePops() { var m = $("#shellMenu"); if (m) m.remove(); var s = $("#shellSettings"); if (s) closeSettings(); }
+
+  function toggleMenu(btn) {
+    var ex = $("#shellMenu"); if (ex) { ex.remove(); return; }
+    var s = $("#shellSettings"); if (s) closeSettings();
+    var m = document.createElement("div"); m.id = "shellMenu";
+    m.innerHTML = MENU.map(function (it) {
+      return it ? '<button class="shellitem' + (it[2] ? " " + it[2] : "") + '" data-orig="' + it[0] + '">' + it[1] + "</button>" : '<div class="shellrule"></div>';
+    }).join("");
+    document.body.appendChild(m);
+    var r = btn.getBoundingClientRect();
+    m.style.left = Math.max(6, Math.min(r.left, innerWidth - 230)) + "px"; m.style.top = (r.bottom + 4) + "px";
+    m.addEventListener("click", function (e) {
+      var b = e.target.closest("[data-orig]"); if (!b) return;
+      m.remove();
+      var o = $(b.getAttribute("data-orig")); if (o) o.click();
+    });
+  }
+
+  /* ---- Settings --------------------------------------------------------- */
+  function closeSettings() {
+    var s = $("#shellSettings"); if (!s) return;
+    /* the Size slider and the sound controls belong to the sheet: put them in
+       a hidden holder, not in the bin, so it can still reach them */
+    var hold = $("#shellHold");
+    ["#zoomWrap", "#sfxBtn", "#sfxVol", "#sfxMore"].forEach(function (q) { var n = $(q, s); if (n && hold) hold.appendChild(n); });
+    s.remove();
+  }
+  function toggleSettings() {
+    if ($("#shellSettings")) { closeSettings(); return; }
+    var mm = $("#shellMenu"); if (mm) mm.remove();
+    var s = document.createElement("div"); s.id = "shellSettings";
+    var light = !!(DB && DB.light);
+    s.innerHTML =
+      '<div class="shellhd"><b>Settings</b><button class="btn" id="shellSetX" title="Close">✕</button></div>' +
+      '<div class="shellrow"><span>Appearance</span><span class="shellseg">' +
+        '<button class="btn' + (light ? "" : " on") + '" data-theme="dark">Dark</button>' +
+        '<button class="btn' + (light ? " on" : "") + '" data-theme="light">Light</button></span></div>' +
+      '<div class="shellrow"><span>Sheet size</span><span id="shellSize"></span></div>' +
+      '<div class="shellrow"><span>Sound</span><span id="shellSound" class="shellsnd"></span></div>' +
+      '<div class="shellrow"><span>Developer Mode<small>Shows unfinished content and Arena</small></span>' +
+        '<label class="switch"><input type="checkbox" id="shellDev"' + (devIsOn() ? " checked" : "") + '><i></i></label></div>';
+    document.body.appendChild(s);
+    var r = $("#shellGear").getBoundingClientRect();
+    s.style.top = (r.bottom + 6) + "px";
+    var sz = $("#zoomWrap"); if (sz) $("#shellSize", s).appendChild(sz);
+    var snd = $("#shellSound", s), any = false;
+    ["#sfxBtn", "#sfxVol", "#sfxMore"].forEach(function (q) { var n = $(q); if (n) { snd.appendChild(n); any = true; } });
+    if (!any) snd.textContent = "Loading…";
+    s.addEventListener("click", function (e) { e.stopPropagation();
+      if (e.target.closest("#shellSetX")) { closeSettings(); return; }
+      var t = e.target.closest("[data-theme]");
+      if (t) { call("setLight", t.getAttribute("data-theme") === "light"); closeSettings(); toggleSettings(); }
+    });
+    var dv = $("#shellDev", s);
+    dv.addEventListener("change", function () { call("setDev", dv.checked); updateAll(); });
+  }
+
+  /* ---- Home ------------------------------------------------------------- */
+  function buildHome() {
+    var h = document.createElement("div"); h.id = "homeWrap";
+    document.body.appendChild(h);
+    var hold = document.createElement("div"); hold.id = "shellHold"; hold.style.display = "none";
+    document.body.appendChild(hold);
+    h.addEventListener("click", function (e) {
+      var g = e.target.closest("[data-go]"); if (g) { go(g.getAttribute("data-go")); return; }
+      if (e.target.closest("[data-gate]")) {
+        var k = e.target.closest("[data-gate]").getAttribute("data-gate");
+        if (k === "guest") { lset(GUEST_KEY, "1"); renderHome(); return; }
+        if (A.ui) { A.ui._state.mode = k === "up" ? "up" : "in"; A.ui.open(); }
+        return;
+      }
+      if (e.target.closest("[data-homesign]")) { if (A.ui) { A.ui._state.mode = "in"; A.ui.open(); } return; }
+      if (e.target.closest("[data-homeback]")) { view = "home"; renderHome(); }
+    });
+  }
+
+  function sizeHome() {
+    var h = $("#homeWrap"), b = $("#bar"); if (!h || !b) return;
+    h.style.top = b.getBoundingClientRect().bottom + "px";
+  }
+
+  function renderHome() {
+    var h = $("#homeWrap"); if (!h) return;
+    h.classList.toggle("open", homeOpen);
+    document.body.classList.toggle("shellhome", homeOpen);
+    if (!homeOpen) { return; }
+    sizeHome();
+    var u = cloud().user, n = (DB && DB.chars ? DB.chars.length : 0), html = "";
+    if (view === "campaigns") {
+      html = '<div class="homeinner"><div class="homehead"><b>Campaigns</b>' +
+        '<button class="btn" data-homeback>← Home</button></div>' +
+        '<div class="homenote">Creating a campaign and joining one with an invite code is the next thing being built. This is where they will live.</div></div>';
+    } else if (gated()) {
+      html = '<div class="homeinner gate"><div class="gatetitle">ArchSoul</div>' +
+        '<div class="homenote">Sign in to keep your characters in your account and open them on any device. Everything works without one too.</div>' +
+        '<div class="gatebtns"><button class="btn big" data-gate="in">Sign in</button>' +
+        '<button class="btn big" data-gate="up">Create account</button></div>' +
+        '<button class="linkbtn" data-gate="guest">Continue without an account</button></div>';
+    } else {
+      var who = u ? 'Signed in as <b>' + esc(u.email) + '</b>' :
+        (ls(USER_KEY) ? "Signing you in…" : 'Playing without an account — your characters stay on this device. <button class="linkbtn" data-homesign>Sign in</button>');
+      html = '<div class="homeinner"><div class="homewho">' + who + '</div><div class="homegrid">' +
+        card("characters", "Characters", "Build, level and play your characters.", n + " saved here") +
+        card("campaigns", "Campaigns", "Run a campaign or join one with an invite code.", "Coming next") +
+        card("monsters", "Monsters", "Build and keep stat blocks for the GM.", "") +
+        (devIsOn() ? card("arena", "Arena", "Developer Mode only. Built-to-order fighters, no Attribute Caps.", "") : "") +
+        "</div></div>";
+    }
+    h.innerHTML = html;
+  }
+  function card(k, t, d, f) {
+    return '<button class="homecard' + (k === "arena" ? " dev" : "") + '" data-go="' + k + '"><b>' + t + "</b><span>" + d + "</span>" +
+      (f ? "<small>" + f + "</small>" : "") + "</button>";
+  }
+
+  function closeHome() { homeOpen = false; view = "home"; renderHome(); updateAll(); }
+  function goHome() {
+    closePops();
+    if (gmIsOpen()) call("toggleGM", false);
+    var gw = $("#gmodeWrap"); if (gw && gw.classList.contains("open")) call("gmodeOpen", false);
+    homeOpen = true; view = "home"; renderHome(); updateAll();
+  }
+  function go(k) {
+    if (k === "campaigns") { view = "campaigns"; renderHome(); return; }
+    if (k === "characters") {
+      if (gmIsOpen()) call("toggleGM", false);
+      if (arenaIsOn()) call("setMode", "campaign");
+      closeHome(); return;
+    }
+    if (k === "monsters") {
+      if (arenaIsOn()) call("setMode", "campaign");
+      closeHome(); if (!gmIsOpen()) call("toggleGM", true); updateAll(); return;
+    }
+    if (k === "arena") {
+      if (!devIsOn()) return;
+      if (gmIsOpen()) call("toggleGM", false);
+      closeHome(); call("gmodeOpen", true); call("gmodePick", "arena"); updateAll();
+    }
+  }
+
+  /* ---- keeping the bar honest -------------------------------------------- */
+  function acctText() {
+    var s = A.ui ? A.ui.status() : "signed-out", u = cloud().user;
+    if (!u) return "Sign in";
+    var nm = String(u.email || "").split("@")[0]; if (nm.length > 14) nm = nm.slice(0, 13) + "…";
+    return (s === "syncing" ? "↻ " : s === "error" ? "⚠ " : "☁ ") + nm;
+  }
+  function updateAll() {
+    var acct = $("#shellAcct");
+    if (acct) { acct.textContent = acctText(); var st = A.ui ? A.ui.status() : ""; acct.classList.toggle("err", st === "error"); acct.classList.toggle("on", !!cloud().user && st === "synced"); }
+    var sec = $("#shellSec");
+    if (sec) sec.textContent = homeOpen ? "Home" : gmIsOpen() ? "Monsters" : arenaIsOn() ? "Arena" : "Characters";
+    document.body.classList.toggle("shellgm", gmIsOpen());
+    document.body.classList.toggle("shellarena", arenaIsOn());
+    if (homeOpen) renderHome();
+  }
+
+  function boot() {
+    buildBar(); buildHome();
+    var origTabs = root.renderTabs;
+    if (typeof origTabs === "function") root.renderTabs = function () { var r = origTabs.apply(this, arguments); try { updateAll(); } catch (e) {} return r; };
+    if (A.ui && A.ui.onChange) A.ui.onChange(updateAll);
+    document.addEventListener("click", function (e) {
+      if (!e.target.closest("#shellMenu,#shellMore")) { var m = $("#shellMenu"); if (m) m.remove(); }
+      if (!e.target.closest("#shellSettings,#shellGear") && $("#shellSettings")) closeSettings();
+    });
+    document.addEventListener("keydown", function (e) { if (e.key === "Escape") closePops(); });
+    addEventListener("resize", function () { sizeHome(); });
+    renderHome(); updateAll();
+    /* the sound controls are built a moment after load; if Settings is open by then, fill it */
+    setTimeout(function () { var s = $("#shellSound"); if (s && $("#sfxBtn")) { s.textContent = ""; ["#sfxBtn", "#sfxVol", "#sfxMore"].forEach(function (q) { var n = $(q); if (n) s.appendChild(n); }); } }, 900);
+  }
+
+  A.shell = { goHome: goHome, go: go, _update: updateAll };
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot); else boot();
 })(typeof globalThis !== "undefined" ? globalThis : window);
 
