@@ -1502,6 +1502,7 @@ body.arenamode #tabbar #uniTab{display:none}
   <span style="width:1px;height:20px;background:var(--line);margin:0 4px"></span>
   <button class="btn" id="modeBtn" title="Campaign or Arena">◈ Gamemode</button>
   <button class="btn" id="gmTab" title="The GM’s Tools">♛ GM’s Tools</button>
+  <button class="btn" id="cloudBtn" title="Sign in and keep your characters in the cloud">☁ Account</button><!--/CLOUD:BTN-->
   <input type="file" id="fileIn" accept=".json" style="display:none">
   <input type="file" id="imgIn" accept="image/*" style="display:none">
   <span class="spacer"></span>
@@ -32520,5 +32521,553 @@ function printGo(){
 })();
 </script>
 
+<style id="cloud-css">/*CLOUD-CSS:BEGIN*/
+#cloudBtn.on{border-color:var(--good);color:var(--good)}
+#cloudBtn.err{border-color:var(--bad);color:var(--bad)}
+#cloudModal{position:fixed;inset:0;z-index:99990;background:rgba(0,0,0,.62);
+  display:flex;align-items:center;justify-content:center;padding:12px}
+#cloudModal .cbox{background:var(--panel);border:1px solid var(--line);border-radius:10px;
+  padding:16px 18px 18px;width:min(94vw,440px);max-height:88vh;overflow:auto;color:var(--ink);
+  box-shadow:0 12px 40px rgba(0,0,0,.55)}
+#cloudModal .chd{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+#cloudModal .chd b{font-size:1.05em;flex:1}
+#cloudModal .ctabs{display:flex;gap:6px;margin-bottom:10px}
+#cloudModal .ctabs .btn.on{border-color:var(--hot);color:var(--hot)}
+#cloudModal label{display:block;font-size:.82em;color:var(--ink-dim);margin:8px 0 3px}
+#cloudModal input[type=email],#cloudModal input[type=password]{width:100%;box-sizing:border-box;
+  background:var(--sunk);border:1px solid var(--line);color:var(--ink);border-radius:6px;
+  padding:.55em .6em;font-size:1em}
+#cloudModal .cgo{width:100%;margin-top:12px;padding:.6em}
+#cloudModal .cmsg{min-height:1.3em;margin-top:8px;font-size:.88em;color:var(--hot)}
+#cloudModal .cmsg.bad{color:var(--bad)}
+#cloudModal .cforgot{background:none;border:0;color:var(--ink-dim);text-decoration:underline;
+  cursor:pointer;font-size:.82em;padding:6px 0 0}
+#cloudModal .cwho{font-size:.95em;margin-bottom:4px;word-break:break-all}
+#cloudModal .cstat{font-size:.88em;color:var(--ink-dim);margin-bottom:10px}
+#cloudModal .cstat.err{color:var(--bad)}
+#cloudModal .cact{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+#cloudModal .clist{border-top:1px solid var(--line);padding-top:8px}
+#cloudModal .clist h4{margin:0 0 6px;font-size:.85em;color:var(--ink-dim);font-weight:600}
+#cloudModal .crow{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--line)}
+#cloudModal .crow span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#cloudModal .crow .btn{font-size:.78em;padding:.25em .6em;white-space:nowrap}
+#cloudModal .cnote{font-size:.78em;color:var(--ink-faint);margin-top:10px;line-height:1.35}
+
+/*CLOUD-CSS:END*/</style>
+<script id="cloud-js">/*CLOUD:BEGIN*/
+/* ArchSoul cloud sync — the engine.
+   Pure logic: it knows nothing about Firebase or the page. It is handed an
+   adapter (the cloud), a way to read and write the local character list, and a
+   place to keep notes about what it last synced. Everything here can be tested
+   without a browser.
+
+   The rule it lives by: syncing NEVER deletes a character, on either side.
+   Where two devices changed the same character, both versions are kept. */
+(function (root) {
+  "use strict";
+  var ArchCloud = root.ArchCloud = root.ArchCloud || {};
+
+  var MAX_BYTES = 900000;        /* Firestore documents stop at 1 MiB; leave headroom */
+
+  /* cyrb53 — a small, fast, well-spread string hash. Not for secrets. */
+  function cyrb53(str) {
+    var h1 = 0xdeadbeef, h2 = 0x41c6ce57, i, ch;
+    for (i = 0; i < str.length; i++) {
+      ch = str.charCodeAt(i);
+      h1 = Math.imul(h1 ^ ch, 2654435761);
+      h2 = Math.imul(h2 ^ ch, 1597334677);
+    }
+    h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+    h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+    return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(16);
+  }
+
+  /* JSON with keys sorted and every key that starts with "_" left out.
+     The sheet keeps scratch values under such keys (like _lastMax) that change
+     without the character changing, so they must not count. */
+  function stable(v) {
+    if (Array.isArray(v)) return "[" + v.map(stable).join(",") + "]";
+    if (v && typeof v === "object") {
+      return "{" + Object.keys(v).filter(function (k) { return k.charAt(0) !== "_"; }).sort()
+        .map(function (k) { return JSON.stringify(k) + ":" + stable(v[k]); }).join(",") + "}";
+    }
+    return JSON.stringify(v === undefined ? null : v);
+  }
+  function hashChar(char) { return cyrb53(stable(char)); }
+
+  /* what goes into the cloud: the character without its scratch keys */
+  function dataOf(char) {
+    return JSON.stringify(char, function (k, v) { return (k && k.charAt(0) === "_") ? undefined : v; });
+  }
+  function byteLen(s) {
+    return (typeof TextEncoder !== "undefined") ? new TextEncoder().encode(s).length : s.length;
+  }
+
+  /* An untouched default character. The live one has been through the sheet's
+     own fill-ins (ids, hit points, empty slots), so it never equals a fresh
+     blank exactly. It counts as untouched only when every value the blank has
+     matches, and everything extra the sheet added is empty. Anything the
+     player typed makes it real, so a real character is never dropped. */
+  var SKIP_KEYS = { id: 1, iid: 1 };
+  function emptyish(v) {
+    if (v == null || v === "" || v === 0 || v === false) return true;
+    if (Array.isArray(v)) return v.every(emptyish);
+    if (typeof v === "object") return Object.keys(v).every(function (k) { return emptyish(v[k]); });
+    return false;
+  }
+  function sameShape(a, b, path) {
+    if (path === "vit.hpCur") return true;
+    if (a && b && typeof a === "object" && typeof b === "object") {
+      if (Array.isArray(a) !== Array.isArray(b)) return false;
+      if (Array.isArray(a)) return a.length === b.length && a.every(function (x, i) { return sameShape(x, b[i], path + "." + i); });
+      var ok = true;
+      Object.keys(a).forEach(function (k) {
+        if (!ok || k.charAt(0) === "_" || SKIP_KEYS[k]) return;
+        if (!(k in b)) { ok = emptyish(a[k]); return; }
+        ok = sameShape(a[k], b[k], path ? path + "." + k : k);
+      });
+      if (ok) Object.keys(b).forEach(function (k) { if (ok && k.charAt(0) !== "_" && !SKIP_KEYS[k] && !(k in a)) ok = false; });
+      return ok;
+    }
+    return a === b;
+  }
+  function isPristineBlank(char, blankFactory) {
+    return sameShape(char, blankFactory(), "");
+  }
+
+  function clone(o) { return JSON.parse(JSON.stringify(o)); }
+
+  function makeEngine(o) {
+    var adapter = o.adapter, getChars = o.getChars, setChars = o.setChars;
+    var blankFactory = o.blankFactory, now = o.now || Date.now, meta = o.meta;
+
+    function recOf(char, updatedAt) {
+      var data = dataOf(char);
+      return { id: char.id, name: String(char.name || ""), updatedAt: updatedAt, hash: hashChar(char), data: data };
+    }
+    function tooBig(rec) { return byteLen(rec.data) > MAX_BYTES; }
+
+    function copyIdFor(id) { return id + "-x" + Math.floor(now()).toString(36) + Math.floor(Math.random() * 1296).toString(36); }
+
+    async function sync(uid) {
+      var report = { pushed: [], pulled: [], conflicts: [], tooLarge: [] };
+      var cloud = await adapter.list(uid);
+      var cloudById = {}; cloud.forEach(function (r) { cloudById[r.id] = r; });
+      var local = getChars().slice();
+      var m = Object.assign({}, meta.get());
+
+      /* A pristine default character is never uploaded. If it is the only thing
+         here and the account already has characters, it steps aside for them. */
+      var pristine = {}; local.forEach(function (c) { if (isPristineBlank(c, blankFactory)) pristine[c.id] = true; });
+      if (local.length === 1 && pristine[local[0].id] && cloud.length > 0 && !cloudById[local[0].id]) local = [];
+
+      var out = [];                          /* the new local list, in order */
+      var outIds = {};
+      function keep(c) { out.push(c); outIds[c.id] = true; }
+
+      async function pushRec(rec) {
+        if (tooBig(rec)) { report.tooLarge.push(rec.id); return false; }
+        await adapter.put(uid, rec);
+        m[rec.id] = { syncedHash: rec.hash, updatedAt: rec.updatedAt };
+        report.pushed.push(rec.id);
+        return true;
+      }
+      function pulled(rec) {
+        var c = JSON.parse(rec.data);
+        m[rec.id] = { syncedHash: rec.hash, updatedAt: rec.updatedAt };
+        report.pulled.push(rec.id);
+        return c;
+      }
+
+      for (var i = 0; i < local.length; i++) {
+        var L = local[i], K = cloudById[L.id], M = m[L.id];
+        if (pristine[L.id] && !K) { keep(L); continue; }            /* never uploaded */
+        if (!K) { keep(L); await pushRec(recOf(L, now())); continue; }
+        var lh = hashChar(L), kh = K.hash;
+        if (lh === kh) { m[L.id] = { syncedHash: kh, updatedAt: K.updatedAt }; keep(L); continue; }
+        var base = M && M.syncedHash;
+        var localChanged = lh !== base, cloudChanged = kh !== base;
+        if (localChanged && !cloudChanged) { keep(L); await pushRec(recOf(L, now())); }
+        else if (!localChanged && cloudChanged) { keep(pulled(K)); }
+        else {
+          /* changed in both places: keep both. The newer one keeps the name and id. */
+          report.conflicts.push(L.id);
+          var localStamp = now();
+          if (K.updatedAt >= localStamp) {
+            keep(pulled(K));
+            var mine = clone(L); mine.id = copyIdFor(L.id); mine.name = String(L.name || "") + " (other device)";
+            keep(mine); await pushRec(recOf(mine, now()));
+          } else {
+            keep(L); await pushRec(recOf(L, localStamp));
+            var theirs = JSON.parse(K.data); theirs.id = copyIdFor(L.id); theirs.name = String(K.name || "") + " (other device)";
+            keep(theirs); await pushRec(recOf(theirs, now()));
+          }
+        }
+      }
+
+      /* characters only the cloud has */
+      cloud.forEach(function (K) { if (!outIds[K.id]) keep(pulled(K)); });
+
+      /* An all-empty result would leave the sheet with nothing to open. */
+      if (!out.length) out = getChars().slice();
+
+      setChars(out);
+      meta.set(m);
+      return report;
+    }
+
+    async function pushActive(uid, char) {
+      var m = Object.assign({}, meta.get());
+      var h = hashChar(char);
+      if (m[char.id] && m[char.id].syncedHash === h) return "ok";    /* nothing changed */
+      var rec = recOf(char, now());
+      if (tooBig(rec)) return "toolarge";
+      await adapter.put(uid, rec);
+      m[char.id] = { syncedHash: rec.hash, updatedAt: rec.updatedAt };
+      meta.set(m);
+      return "ok";
+    }
+
+    async function removeFromCloud(uid, id) {
+      await adapter.remove(uid, id);
+      var m = Object.assign({}, meta.get()); delete m[id]; meta.set(m);
+    }
+
+    return { sync: sync, pushActive: pushActive, removeFromCloud: removeFromCloud };
+  }
+
+  ArchCloud.core = { hashChar: hashChar, isPristineBlank: isPristineBlank, makeEngine: makeEngine, MAX_BYTES: MAX_BYTES };
+})(typeof globalThis !== "undefined" ? globalThis : window);
+
+/* ArchSoul cloud sync — the Firebase adapter.
+   The only file that touches Firebase. It loads the Firebase code from Google
+   the first time it is needed (never at page load), so the sheet still opens
+   and works with no internet. */
+(function (root) {
+  "use strict";
+  var ArchCloud = root.ArchCloud = root.ArchCloud || {};
+
+  var FIREBASE_VERSION = "13.3.0";
+  var FIREBASE_CONFIG = {
+    apiKey: "AIzaSyAYzFNvJXb7i3N6MOSI09eiek-55z_fDTc",
+    authDomain: "archsoulttrpg.firebaseapp.com",
+    projectId: "archsoulttrpg",
+    storageBucket: "archsoulttrpg.firebasestorage.app",
+    messagingSenderId: "795055402025",
+    appId: "1:795055402025:web:a3ffa82012e2e68a0a4038"
+  };
+  var BASE = "https://www.gstatic.com/firebasejs/" + FIREBASE_VERSION + "/";
+
+  /* Firebase's error codes are for programmers. These are for the person at the form. */
+  var FRIENDLY = {
+    "auth/invalid-credential": "That email and password do not match an account.",
+    "auth/user-not-found": "There is no account with that email. Use Create account instead.",
+    "auth/wrong-password": "That password is not right.",
+    "auth/email-already-in-use": "An account with that email already exists. Sign in instead.",
+    "auth/weak-password": "Pick a longer password. It needs at least 6 characters.",
+    "auth/invalid-email": "That does not look like an email address.",
+    "auth/too-many-requests": "Too many tries. Wait a few minutes and try again.",
+    "auth/network-request-failed": "Could not reach the internet. Check your connection and try again."
+  };
+  function friendlyAuthError(code) {
+    return FRIENDLY[code] || "Something went wrong signing in. Try again in a moment.";
+  }
+
+  function makeFirebaseAdapter(opts) {
+    opts = opts || {};
+    var loadModule = opts.loadModule || function (u) { return import(u); };
+    var A = null, Au = null, F = null, auth = null, db = null;
+    var ready = null, listeners = [];
+
+    function init() {
+      if (ready) return ready;
+      ready = Promise.all([
+        loadModule(BASE + "firebase-app.js"),
+        loadModule(BASE + "firebase-auth.js"),
+        loadModule(BASE + "firebase-firestore.js")
+      ]).then(function (m) {
+        A = m[0]; Au = m[1]; F = m[2];
+        var app = A.initializeApp(FIREBASE_CONFIG);
+        auth = Au.getAuth(app);
+        db = F.getFirestore(app);
+        Au.onAuthStateChanged(auth, function (u) {
+          var user = u ? { uid: u.uid, email: u.email } : null;
+          listeners.forEach(function (cb) { cb(user); });
+        });
+      }).catch(function (e) { ready = null; throw e; });   /* a failed load can be retried */
+      return ready;
+    }
+
+    function userOf(cred) { return { uid: cred.user.uid, email: cred.user.email }; }
+    function chars(uid) { return F.collection(db, "users", uid, "characters"); }
+
+    return {
+      init: init,
+      onAuth: function (cb) { listeners.push(cb); },
+      signUp: async function (email, pw) { await init(); return userOf(await Au.createUserWithEmailAndPassword(auth, email, pw)); },
+      signIn: async function (email, pw) { await init(); return userOf(await Au.signInWithEmailAndPassword(auth, email, pw)); },
+      signOut: async function () { await init(); await Au.signOut(auth); },
+      resetPassword: async function (email) { await init(); await Au.sendPasswordResetEmail(auth, email); },
+      list: async function (uid) {
+        await init();
+        var snap = await F.getDocs(chars(uid));
+        return snap.docs.map(function (d) {
+          var x = d.data();
+          return { id: d.id, name: x.name, updatedAt: x.updatedAt, hash: x.hash, data: x.data };
+        });
+      },
+      put: async function (uid, rec) {
+        await init();
+        await F.setDoc(F.doc(db, "users", uid, "characters", rec.id),
+          { name: rec.name, updatedAt: rec.updatedAt, hash: rec.hash, data: rec.data });
+      },
+      remove: async function (uid, id) {
+        await init();
+        await F.deleteDoc(F.doc(db, "users", uid, "characters", id));
+      }
+    };
+  }
+
+  ArchCloud.FIREBASE_VERSION = FIREBASE_VERSION;
+  ArchCloud.FIREBASE_CONFIG = FIREBASE_CONFIG;
+  ArchCloud.makeFirebaseAdapter = makeFirebaseAdapter;
+  ArchCloud.friendlyAuthError = friendlyAuthError;
+})(typeof globalThis !== "undefined" ? globalThis : window);
+
+/* ArchSoul cloud sync — the Account panel and the hook into the sheet's save().
+   Nothing here talks to Firebase directly: it drives the engine, which drives
+   the adapter. Nothing is loaded from the internet until you sign in. */
+(function (root) {
+  "use strict";
+  var A = root.ArchCloud = root.ArchCloud || {};
+  var META_KEY = "archsoul-cloudmeta", USER_KEY = "archsoul-cloud-user";
+  var PUSH_DELAY = 3000;
+
+  var state = { user: null, status: "signed-out", msg: "", cloud: [], mode: "in", open: false, armed: null, busy: false };
+  var adapter = null, engine = null, pushT = null, toasted = {};
+
+  function $(s) { return document.querySelector(s); }
+  function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+    return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
+  function say(m) { try { if (typeof toast === "function") toast(m); } catch (e) {} }
+  function sayOnce(key, m) { if (toasted[key]) return; toasted[key] = 1; say(m); }
+  function inArenaNow() { try { return typeof inArena === "function" && inArena(); } catch (e) { return false; } }
+
+  var metaStore = {
+    get: function () { try { return JSON.parse(localStorage.getItem(META_KEY) || "{}"); } catch (e) { return {}; } },
+    set: function (m) { try { localStorage.setItem(META_KEY, JSON.stringify(m)); } catch (e) {} }
+  };
+
+  /* ---- the local side of the engine ---------------------------------- */
+  function applyChars(list) {
+    var cur = DB.chars;
+    var same = list.length === cur.length && list.every(function (c, i) {
+      return c.id === cur[i].id && A.core.hashChar(c) === A.core.hashChar(cur[i]); });
+    if (same) return;                                /* nothing changed: do not redraw the sheet */
+    var activeId = (typeof C !== "undefined" && C) ? C.id : null;
+    DB.chars = list.map(function (c) { return migrate(c); });
+    if (inArenaNow()) { save(); return; }            /* the sheet is showing an Arena character */
+    var ix = DB.chars.findIndex(function (c) { return c.id === activeId; });
+    setActiveAt(ix < 0 ? 0 : ix);
+  }
+
+  function friendly(e) {
+    if (e && e.code && /^auth\//.test(e.code)) return A.friendlyAuthError(e.code);
+    if (e && e.code === "permission-denied") return "The cloud refused that. Sign out and back in, then try again.";
+    return "Could not reach the cloud. Your characters are safe on this device.";
+  }
+
+  /* ---- status ---------------------------------------------------------- */
+  function statusText() {
+    if (state.status === "syncing") return "Syncing…";
+    if (state.status === "synced") return "Synced — " + state.cloud.length + " character" + (state.cloud.length === 1 ? "" : "s") + " in the cloud";
+    if (state.status === "error") return "Could not sync: " + state.msg;
+    return "";
+  }
+  function setStatus(s, msg) {
+    state.status = s; state.msg = msg || "";
+    var b = $("#cloudBtn");
+    if (b) {
+      b.textContent = s === "syncing" ? "☁ Syncing…" : s === "synced" ? "☁ Synced" : s === "error" ? "☁ Sync problem" : "☁ Account";
+      b.classList.toggle("on", s === "synced" || s === "syncing"); b.classList.toggle("err", s === "error");
+    }
+    var el = $("#cloudStatus");
+    if (el) { el.textContent = statusText(); el.classList.toggle("err", s === "error"); }
+    if (s === "synced" && state.open && state.user) renderBody();    /* the list may have changed */
+  }
+
+  /* ---- signing in and syncing ------------------------------------------ */
+  function summary(rep) {
+    var p = [];
+    if (rep.pulled.length) p.push(rep.pulled.length + " downloaded");
+    if (rep.pushed.length) p.push(rep.pushed.length + " uploaded");
+    if (rep.conflicts.length) p.push("both versions of " + rep.conflicts.length + " kept (look for “(other device)”)");
+    return p.length ? "Cloud sync: " + p.join(", ") + "." : "";
+  }
+
+  async function doSync() {
+    if (!state.user) return;
+    setStatus("syncing");
+    try {
+      var rep = await engine.sync(state.user.uid);
+      state.cloud = await adapter.list(state.user.uid);
+      state.armed = null;
+      setStatus("synced");
+      var s = summary(rep); if (s) say(s);
+      if (rep.tooLarge.length) say("A character is too large to store in the cloud. It is still saved on this device.");
+    } catch (e) { setStatus("error", friendly(e)); }
+  }
+
+  function onUser(u) {
+    state.user = u;
+    if (!u) {
+      try { localStorage.removeItem(USER_KEY); } catch (e) {}
+      state.cloud = []; state.armed = null;
+      setStatus("signed-out"); if (state.open) renderBody();
+      return;
+    }
+    try { localStorage.setItem(USER_KEY, u.email); } catch (e) {}
+    if (state.open) renderBody();
+    doSync();
+  }
+
+  /* ---- keeping the cloud current as you play ---------------------------- */
+  function schedulePush() {
+    if (!state.user || !engine || inArenaNow()) return;
+    clearTimeout(pushT); pushT = setTimeout(pushNow, PUSH_DELAY);
+  }
+  async function pushNow() {
+    if (!state.user || inArenaNow()) return;
+    var ch = (typeof C !== "undefined") ? C : null;
+    if (!ch || !ch.id) return;
+    try {
+      var r = await engine.pushActive(state.user.uid, ch);
+      if (r === "toolarge") sayOnce("big" + ch.id, "This character is too large to store in the cloud. It is still saved on this device.");
+      else if (state.status === "error") setStatus("synced");
+    } catch (e) { setStatus("error", friendly(e)); }
+  }
+
+  /* ---- the panel -------------------------------------------------------- */
+  function renderBody() {
+    var box = $("#cloudBody"); if (!box) return;
+    if (!state.user) {
+      var up = state.mode === "up";
+      box.innerHTML =
+        '<div class="ctabs"><button class="btn' + (up ? "" : " on") + '" data-cloudtab="in">Sign in</button>' +
+        '<button class="btn' + (up ? " on" : "") + '" data-cloudtab="up">Create account</button></div>' +
+        '<label for="cloudEmail">Email</label><input type="email" id="cloudEmail" autocomplete="email" autocapitalize="none">' +
+        '<label for="cloudPw">Password' + (up ? " (at least 6 characters)" : "") + '</label>' +
+        '<input type="password" id="cloudPw" autocomplete="' + (up ? "new-password" : "current-password") + '">' +
+        '<button class="btn cgo" id="cloudGo">' + (up ? "Create account" : "Sign in") + '</button>' +
+        '<div class="cmsg" id="cloudMsg"></div>' +
+        (up ? "" : '<button class="cforgot" id="cloudForgot">Forgot your password?</button>') +
+        '<div class="cnote">Your characters stay on this device either way. Signing in also keeps a copy in your account, so you can open them on any device.</div>';
+      return;
+    }
+    var rows = state.cloud.slice().sort(function (a, b) { return String(a.name).localeCompare(String(b.name)); }).map(function (r) {
+      var arm = state.armed === r.id;
+      return '<div class="crow"><span data-cloudname title="' + esc(r.name) + '">' + esc(r.name) + '</span>' +
+        '<button class="btn warn" data-cloudremove="' + esc(r.id) + '">' + (arm ? "Really remove?" : "Remove from cloud") + '</button></div>';
+    }).join("");
+    box.innerHTML =
+      '<div class="cwho">Signed in as <b>' + esc(state.user.email) + '</b></div>' +
+      '<div class="cstat" id="cloudStatus">' + esc(statusText()) + '</div>' +
+      '<div class="cact"><button class="btn" id="cloudSyncNow">Sync now</button><button class="btn" id="cloudOut">Sign out</button></div>' +
+      '<div class="clist"><h4>Characters in your account</h4><div id="cloudList">' +
+      (rows || '<div class="cnote">Nothing in the cloud yet. Your characters upload as you play.</div>') + '</div></div>' +
+      '<div class="cnote">Removing a character from the cloud does not delete it from this device or any other device that has it.</div>';
+  }
+
+  function setMsg(t, bad) { var m = $("#cloudMsg"); if (m) { m.textContent = t || ""; m.classList.toggle("bad", !!bad); } }
+
+  async function doAuth() {
+    if (state.busy) return;
+    var email = ($("#cloudEmail").value || "").trim(), pw = $("#cloudPw").value || "";
+    if (!email || !pw) { setMsg("Enter your email and a password.", true); return; }
+    state.busy = true; var go = $("#cloudGo"); if (go) go.disabled = true;
+    setMsg(state.mode === "up" ? "Creating your account…" : "Signing in…");
+    try {
+      if (state.mode === "up") await adapter.signUp(email, pw); else await adapter.signIn(email, pw);
+      /* success: onUser() redraws the panel */
+    } catch (e) { setMsg(friendly(e), true); }
+    state.busy = false; go = $("#cloudGo"); if (go) go.disabled = false;
+  }
+
+  async function doForgot() {
+    var email = ($("#cloudEmail").value || "").trim();
+    if (!email) { setMsg("Type your email above first, then tap this again.", true); return; }
+    try { await adapter.resetPassword(email); setMsg("If an account exists for that email, a reset link is on its way."); }
+    catch (e) { setMsg(friendly(e), true); }
+  }
+
+  async function doRemove(id) {
+    if (state.armed !== id) { state.armed = id; renderBody(); return; }
+    state.armed = null;
+    try {
+      await engine.removeFromCloud(state.user.uid, id);
+      state.cloud = state.cloud.filter(function (r) { return r.id !== id; });
+      renderBody();
+    } catch (e) { setStatus("error", friendly(e)); }
+  }
+
+  function close() { state.open = false; state.armed = null; var m = $("#cloudModal"); if (m) m.remove(); }
+  function open() {
+    if ($("#cloudModal")) return;
+    state.open = true;
+    var d = document.createElement("div"); d.id = "cloudModal";
+    d.innerHTML = '<div class="cbox" role="dialog" aria-label="Account"><div class="chd"><b>☁ Account</b>' +
+      '<button class="btn" id="cloudClose" title="Close">✕</button></div><div id="cloudBody"></div></div>';
+    document.body.appendChild(d);
+    d.addEventListener("click", function (e) {
+      if (e.target === d || e.target.closest("#cloudClose")) { close(); return; }
+      var t = e.target.closest("[data-cloudtab]"); if (t) { state.mode = t.dataset.cloudtab; renderBody(); return; }
+      if (e.target.closest("#cloudGo")) { doAuth(); return; }
+      if (e.target.closest("#cloudForgot")) { doForgot(); return; }
+      if (e.target.closest("#cloudSyncNow")) { doSync(); return; }
+      if (e.target.closest("#cloudOut")) { adapter.signOut().catch(function (er) { setStatus("error", friendly(er)); }); return; }
+      var r = e.target.closest("[data-cloudremove]"); if (r) { doRemove(r.dataset.cloudremove); return; }
+    });
+    d.addEventListener("keydown", function (e) { if (e.key === "Enter" && e.target.id === "cloudPw") doAuth(); });
+    renderBody();
+    var f = $("#cloudEmail"); if (f) f.focus();
+    if (state.user) doSync();
+  }
+
+  /* ---- start up --------------------------------------------------------- */
+  function boot() {
+    adapter = root.__ARCH_CLOUD_ADAPTER__ || A.makeFirebaseAdapter();
+    engine = A.core.makeEngine({
+      adapter: adapter,
+      getChars: function () { return DB.chars; },
+      setChars: applyChars,
+      blankFactory: function () { return migrate(blank("New Character")); },
+      now: function () { return Date.now(); },
+      meta: metaStore
+    });
+    adapter.onAuth(onUser);                         /* only registers; loads nothing */
+
+    var b = $("#cloudBtn"); if (b) b.addEventListener("click", open);
+    document.addEventListener("keydown", function (e) { if (e.key === "Escape" && $("#cloudModal")) close(); });
+
+    /* the sheet's own save(): do what it always did, then queue a push */
+    var origSave = root.save;
+    if (typeof origSave === "function") {
+      root.save = function () { var r = origSave.apply(this, arguments); try { schedulePush(); } catch (e) {} return r; };
+    }
+
+    /* if you were signed in last time, wake the session so syncing carries on */
+    var remembered = null; try { remembered = localStorage.getItem(USER_KEY); } catch (e) {}
+    if (remembered) { setTimeout(function () { adapter.init().catch(function () {}); }, 1500); }
+  }
+
+  A.ui = {
+    open: open, close: close,
+    status: function () { return state.status; },
+    _state: state
+  };
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot); else boot();
+})(typeof globalThis !== "undefined" ? globalThis : window);
+
+/*CLOUD:END*/</script>
 </body>
 </html>
