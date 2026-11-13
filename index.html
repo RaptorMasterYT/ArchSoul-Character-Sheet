@@ -5387,7 +5387,7 @@ const ARCHSOULS=[
 ["Chaos","#6A4C7D","Destabilized","When dealing Soul Damage and choosing the Destabilized Soul Effect, the target is made Unstable and pushed 5ft in any direction (of your choice), increased by 5ft per 10 Soul Damage dealt."],
 ["Darkness","#2B2F44","Drowsed","When dealing Soul Damage and choosing the Drowsed Soul Effect, apply 1 stack of Drowsy. 1 stack Drowsy cleansed every time the target is Restored and during the Resolve phase of their turn. Once the target has 5 stacks of Drowsy, they fall Unconscious and remain Unconscious until they take damage or until the end of the NEXT round. Also, target is Rendered (Blinded) until Drowsy stacks are cleansed."],
 ["Dread","#5E4A5F","Terrifying","When dealing Soul Damage and choosing the Terrifying Soul Effect, apply Rendered (Sinking) and Fear (of you) until they Resolve next round."],
-["Dreams","#7A6F9B","Drowsed","When dealing Soul Damage and choosing the Drowsed Soul Effect, apply 1 stack of Drowsy. 1 stack Drowsy cleansed every time the target is Restored. Once the target has 5 stacks of Drowsy, they fall Unconscious and remain Unconscious until they take damage or until the end of the NEXT round. Also, target is Rendered (Blinded) until Drowsy stacks are cleansed."],
+["Dreams","#7A6F9B","Drowsed","When dealing Soul Damage and choosing the Drowsed Soul Effect, apply 1 stack of Drowsy. 1 stack Drowsy cleansed every time the target is Restored and during the Resolve phase of their turn. Once the target has 5 stacks of Drowsy, they fall Unconscious and remain Unconscious until they take damage or until the end of the NEXT round. Also, target is Rendered (Blinded) until Drowsy stacks are cleansed."],
 ["Earth","#54412E","Force","When dealing Soul Damage and choosing the Force Soul Effect, the damage will count as Physical Damage instead of Soul Damage, applying Rendered (Tremoring) to the target until they Resolve next round. If the target is already Rendered (Tremoring), instead inflict Unstable."],
 ["Echo","#2F4B3E","Chained","When dealing Soul Damage and choosing the Chained Soul Effect, the damage “bounces” to one additional target within 15ft of the original target. The secondary target takes Chained Soul Damage equal to 50% of the total Soul Damage dealt to the original target. Targets struck by the bounced damage my attempt the Evade roll to dodge the Chain entirely. Chain triggers once per target and cannot trigger itself. Evade: Affected targets Evade roll with Agility, taking no damage, Difficulty: Arcane."],
 ["Fate","#8C7A3A","Nullifying","When dealing Soul Damage and choosing the Nullifying Soul Effect, apply Nullify and Rendered (Muted) to the target until they Resolve next round."],
@@ -10226,6 +10226,354 @@ ASDOM["Pain"]={
 
 /* rebuilt on the Domain Skills shape, so it is offered */
 if(typeof relAs==="function") relAs("Pain");
+</script>
+<script>
+/* ============================================================
+   Dreams — rebuilt on the Domain Skills shape, from C.J.'s document
+   (13 Nov 2026). Type: Fear. Soul Effect: Drowsed, and Immune to Drowsed
+   Soul Damage. Domains: Enchantment (Drowsy Spike), Illusion (Sleep) and
+   Resonance (Telekinesis). This replaces the old August entry above.
+   ============================================================ */
+ASDOM["Dreams"]={
+ "name": "Dreams",
+ "info": "Control your enemies by exhausting them until they pass out into a deep sleep. But your battle doesn’t end in their sleep as your domain is what goes on in the mind when crossing the threshold. Become Immune to Drowsed Soul Damage.",
+ "sfxName": "Drowsed",
+ "sfx": "When dealing Soul Damage and choosing the Drowsed Soul Effect, apply 1 stack of Drowsy. 1 stack Drowsy cleansed every time the target is Restored and during the Resolve phase of their turn. Once the target has 5 stacks of Drowsy, they fall Unconscious and remain Unconscious until they take damage or until the end of the NEXT round. Also, target is Rendered (Blinded) until Drowsy stacks are cleansed.",
+ "domains": [
+  {
+   "key": "enchantment",
+   "imbue": {
+    "name": "Slumber",
+    "desc": "After casting any Spell (other than Drowsy Spike), automatically cast Drowsy Spike at any target within range at no additional Action cost. Drowsy Spike, when cast in this way, must apply the same Soul Effect as the first Spell you cast (and cannot trigger any “when you cast a Spell” effects such as Slumber). Any additional costs required for Drowsy Spike Masteries still require the additional Action cost to apply to Drowsy Spike casts in this manner."
+   },
+   "spell": {
+    "name": "Drowsy Spike",
+    "desc": "Cost: 12 Actions (Min:4), Range: 90ft, Duration: Until the target Resolves. Send a bolt of magic at a target within 90ft, rolling for Accuracy to hit and dealing 2d8 + 10 Soul Damage, applying Rendered (Dazed) to the target until they Resolve.",
+    "cost": 12,
+    "min": 4
+   },
+   "m2": [
+    {
+     "name": "Heavy Eyes",
+     "desc": "Drowsy Spike deals an additional 1d8 + 5 Soul Damage for every stack of the Drowsed Soul Effect the target already carries."
+    },
+    {
+     "name": "Insomnia",
+     "desc": "For 6 additional Actions, Drowsy Spike now negates the target’s next Resolve. If the target is cleansed by any ability that cleanses any type of Condition, this effect is removed from them and they benefit from their next Resolve."
+    },
+    {
+     "name": "Reap",
+     "desc": "Drowsy Spike now strikes a 25ft Cone at a position within 90ft. Instead of an Accuracy rolls, affected targets Evade roll with Arcane against your Arcane, negating the Spell and additionally Slows by 6."
+    }
+   ],
+   "m3": [
+    {
+     "name": "Stun",
+     "desc": "When casting Drowsy Spike, for 6 additional Actions, inflict the Stuck Condition unless the target succeeds an Evade roll with Arcane against your Arcane, lasting until the target Resolves next round."
+    },
+    {
+     "name": "Fracture",
+     "desc": "For 6 additional Actions, apply any other additional Rendered Condition to the target when dealing damage with Drowsy Spike, lasting until they Resolve. You can spend this additional cost to apply more Rendered Conditions."
+    },
+    {
+     "name": "Rude Awakening",
+     "desc": "When Drowsy Spike is used on an Unconscious target, it automatically Critical Hits with a +100% Critical Hit damage bonus."
+    }
+   ],
+   "l5": {
+    "name": "Well Rested",
+    "desc": "After Resting, all allies of your choosing gain 1 stack of Exhaustion Tolerance until the end of the day."
+   }
+  },
+  {
+   "key": "illusion",
+   "imbue": {
+    "name": "Visualize",
+    "desc": "When dealing Physical Damage, half of the total Physical Damage dealt is split and dealt as Soul Damage instead (50% of Physical Damage dealt as Soul Damage)."
+   },
+   "spell": {
+    "name": "Sleep",
+    "desc": "Cost: 22 Actions (Min:8), Range: 5ft, Duration: 8 hours. Touch a target’s forehead and put them to sleep (Unconscious Condition). They will wake up if disturbed, as if they were truly sleeping. This lasts for up to eight hours and if they stay asleep during the full duration, they benefit from a “Rest.” The target may attempt an Evade roll with Arcane to resist the Spell when first cast, against your Arcane. Sleeping targets cannot Resolve or act.",
+    "cost": 22,
+    "min": 8
+   },
+   "m2": [
+    {
+     "name": "Dream Warden",
+     "desc": "While targets are asleep within one mile of your or under the effect of your own Sleep Spell, you or the target can control their dreams which may let them directly speak to their chosen allegiance, the ArchSouls, or another from the Realm of Souls. You may also use this to create a convincing false reality for the dreamer."
+    },
+    {
+     "name": "Rest Peacefully",
+     "desc": "Targets affected by Sleep recover 1 Exhaustion (if you allow) for every full round they remain asleep (from the end of the current turn until the end of their next)."
+    },
+    {
+     "name": "Nap",
+     "desc": "Sleep is now Reactive and counts as both a Ward Spell and an Illusion Spell."
+    }
+   ],
+   "m3": [
+    {
+     "name": "Lucid Echo",
+     "desc": "For twice the Action cost, Sleep will affect all targets within 30ft instead of just one within 5ft. Alternatively, for 6 Actions, you may apply Sleep as an ATKMOD to a Weapon Attack."
+    },
+    {
+     "name": "Seal",
+     "desc": "When casting Sleep, instead, trap a target in a prison of their own mind, Nullifying and Suppressing them until they Resolve."
+    },
+    {
+     "name": "Trance",
+     "desc": "While a target is Unconscious because of you, they cannot wake up. Every time they take damage, they must exceed the Sleep Evade roll. Each time they fail the roll, they gain a +5 bonus to the next time they attempt it. They can still use the Escape Universal Action while Unconscious in this way, but it costs 3 additional Actions."
+    }
+   ],
+   "l5": {
+    "name": "Psychic Link",
+    "desc": "All your allies can communicate telepathically with you at any range. Targets can only communicate with you, not each other. You can still consciously and coherently communicate with linked targets when Unconscious or dead."
+   }
+  },
+  {
+   "key": "resonance",
+   "imbue": {
+    "name": "Weightless",
+    "desc": "When you deal Soul Damage to a target,"
+   },
+   "spell": {
+    "name": "Telekinesis",
+    "desc": "Cost: 12 Actions (Min:6), Range: 60ft. Target an object within 60ft and move it anywhere else within 60ft using your mind. The target must be 1-10ft in size. If used on a creature, the Action cost is doubled and minimum cost increases by 4 and the target may attempt the Evade roll to resist the Spell entirely. If the target is thrown at another target, both the targets take 2d10 + 10 Physical Damage, attempting the same Evade roll to instead take half. Evade: Affected targets Evade roll with Power, negating the Spell (or taking half damage if thrown or struck by this Spell), Difficulty: Arcane.",
+    "cost": 12,
+    "min": 6
+   },
+   "m2": [
+    {
+     "name": "Enhancement, Overcharge",
+     "desc": "Telekinesis gains Overcharge (30 Actions, Min:6): Increase the maximum size of the target you can manipulate with this Spell by +10ft and the damage dealt when thrown by 2d10 + 10."
+    },
+    {
+     "name": "Slippery Targets",
+     "desc": "Telekinesis’ cost is no longer doubled when targeting creatures."
+    },
+    {
+     "name": "Stay Put",
+     "desc": "Telekinesis can now freeze targets in place (including if they are suspended). For each target you keep in place, you must maintain via Mana for 1 Action. For creatures, it costs 3 Actions to maintain and keep them frozen, reducing their Speed to 0 (counts as the Slow Condition, they can still act, they are just being pushed through space) temporarily until released. Instead, for 6 Actions, maintain a frozen creature and keep them Stuck (so they cant move OR act, completely frozen). Moving a frozen target again requires you to recast Telekinesis. Letting go (losing Concentration or no longer maintaining via Mana) will drop the target instantly."
+    }
+   ],
+   "m3": [
+    {
+     "name": "Stronger Push",
+     "desc": "Telekinesis’ range increases by 30ft, deals an additional 2d10 + 10 Physical Damage, and the Evade Difficulty increases by 15."
+    },
+    {
+     "name": "Allay",
+     "desc": "When casting Telekinesis, instead, for 30 Actions (Min:10), you may create a 20ft Sphere Allay aura centered on you. All allies, including yourself, Restore Current Health equal to ½ your Arcane when this Spell is first cast and again at the beginning of every turn Allay is maintained via Mana for 5 Actions."
+    },
+    {
+     "name": "Sleepwalking",
+     "desc": "When Telekinesis is cast on an Unconscious or Stuck target, you may make them move 30ft (expending their own Speed) and then use one ability (expending their own Actions) without cleansing the Condition. They can only use Actions you are capable of doing yourself and that they also have access to (a Weapon Attack with a Weapon you know how to use, an ability from a Class or Lineage you share, or a Spell you know how to cast). If you have read the target’s mind or witnessed them, use another ability, you may use that ability as well. The target may attempt the Evade roll before the action is fulfilled, negating it and cleansing the Condition."
+    }
+   ],
+   "l5": {
+    "name": "Dreamstride",
+    "desc": "You may teleport up to 15ft once per round as a Free Action (no Reaction cost). Additionally, your feet float off the ground which grants you Immunity to any effects that are “flat” to the ground."
+   }
+  }
+ ],
+ "prestige": [
+  {
+   "lvl": 1,
+   "name": "Dreams PRESTIGE +1",
+   "mastery": 1,
+   "desc": "Choose one additional Spell Mastery from Level 2 or 3 from any Dreams Domain even if one is already equipped from that Level."
+  },
+  {
+   "lvl": 2,
+   "name": "You Wish",
+   "desc": "Soul Damage dealt ignores Immunities (Soul Effects do not apply, but the damage still does)."
+  },
+  {
+   "lvl": 3,
+   "name": "Dreams PRESTIGE +3",
+   "mastery": 1,
+   "desc": "Choose one additional Spell Mastery from Level 2 or 3 from any Dreams Domain even if one is already equipped from that Level."
+  },
+  {
+   "lvl": 4,
+   "name": "Soul Presence",
+   "desc": "You may still cast Spells while Unconscious or Stuck, but it costs an additional 10% Actions (calculated AFTER Haste is applied)."
+  },
+  {
+   "lvl": 5,
+   "name": "Dreams PRESTIGE Spells",
+   "desc": "You gain all the Dreams PRESTIGE Spells below. When one of them is cast, you cannot cast any of the others until you complete a Rest.",
+   "spells": [
+    {
+     "dom": "illusion",
+     "name": "Lullaby",
+     "desc": "Cost: 150 Actions (Min: 30), Range: 5ft, Duration: Until they Resolve next round. Touch a target and put their soul to sleep until they Resolve next round. During this time, they are Suppressed, Rendered (Dazed), lose access to True Sight and any Immunities if they have it (Exhaustion Tolerance and Immunity to Conditions and damage).",
+     "cost": 150,
+     "min": 30
+    },
+    {
+     "dom": "resonance",
+     "name": "Realm",
+     "desc": "Cost: 100 Actions (Min: 20), Range: Self, AOE:120ft Sphere, Duration: Until you Resolve next round. Project a realm centered on you in a 120ft radius. Until you Resolve next round, any time any target within the radius makes any Action, you can take a Reaction against them as a Reactive Action and your Reaction happens first regardless, and all of your Spells can be cast from any point of origin anywhere within the radius.",
+     "cost": 100,
+     "min": 20
+    },
+    {
+     "dom": "illusion",
+     "name": "Dreamscape",
+     "desc": "Cost: 3 Levels of Exhaustion, Range: 5ft, Duration: 24 Hours. Touch a target (or yourself) and allow them to enter into their own mind to search through their memory. Within this memory, they can take one item from the memory out, appearing in their hand in the real world. This item is called a “Dreamscape” Magic Item and inherits the same features as it did in the past (from the memory) lasting 24 hours before it disappears. Only one Dreamscape Magic Item may exist at any given time (per person able to cast Dreamscape). You can take a living creature or person out of memory and bring them into the real world (called a Dreamscape Simulacrum). A person “created” in this way acts as a perfect duplicate of how they were at the time of the memory, soul included. When they die, their soul simply merges with their actual soul. Celestials cannot be brought forth through this Spell as a Dreamscape Simulacrum.",
+     "cost": 0,
+     "min": 0
+    },
+    {
+     "dom": "enchantment",
+     "name": "Lucidity",
+     "desc": "Cost: Variable, Range: Self, AOE: 30ft Sphere. Emit a cleansing aura that cleanses all allies within 30ft (including yourself) of 1 Condition of your choice. The Condition you choose will determine the Action cost. If the Condition is a stacking Condition, all stacks are cleansed except for Exhaustion (described below). “Unique Spell Effects” include any additional feature, ability, Magic Item, etc. that applies a “Condition” that isn’t an official “Condition” (Dreams Level 30; Lullaby Spell, Core Rune; Hunger, etc.). The minimum Action cost always equals 5 and cannot be reduced by any features. ",
+     "cost": 0,
+     "min": 0
+    }
+   ]
+  }
+ ]
+};
+
+/* rebuilt on the Domain Skills shape, so it is offered */
+if(typeof relAs==="function") relAs("Dreams");
+</script>
+<script>
+/* ============================================================
+   Dreams — the rules its text needs that the reader cannot get from words.
+   Everything here runs once the whole sheet has loaded, because the tables
+   and functions it extends (USE_OVERRIDE, MASTFX, ACT, newRound,
+   safetyCleanse, useRead, useCalc) are defined further down the file.
+   ============================================================ */
+
+/* ---- Drowsy -------------------------------------------------------------
+   "Apply 1 stack of Drowsy. 1 stack Drowsy cleansed every time the target is
+   Restored and during the Resolve phase of their turn. Once the target has 5
+   stacks of Drowsy, they fall Unconscious and remain Unconscious until they
+   take damage or until the end of the NEXT round."
+   Five stacks puts you out. Damage, or the end of the next round, wakes you
+   (C.sfWoke) without taking the stacks away; Resolve and Restoration then
+   bring them down. A new stack while you are at five puts you back under. */
+function drowsyAsleep(){ return sfStackOf("drowsed")>=5 && !C.sfWoke; }
+function drowsyShed(){
+  const n=sfStackOf("drowsed"); if(n<=0) return false;
+  C.sfStack.drowsed=n-1;
+  if(n-1<5){ C.sfWoke=false; C.sfSleepR=0; }
+  return true;
+}
+function drowsyWake(){ if(drowsyAsleep()){ C.sfWoke=true; return true; } return false; }
+/* landing one Soul Effect on this character. A stacking one adds a stack. */
+function sfLand(fx){
+  if(fx==="drowsed"){
+    if(C.immune&&C.immune.sf_drowsed) return "";
+    C.sfStack=C.sfStack||{};
+    const was=sfStackOf("drowsed");
+    if(was>=5) return "Drowsy already at 5";
+    C.sfStack.drowsed=Math.min(5,was+1);
+    /* reaching five puts you to sleep; a stack that cannot be added (already five) does not */
+    if(was<5&&C.sfStack.drowsed>=5){ C.sfWoke=false; C.sfSleepR=0; }
+    syncSoulConds();
+    return "1 Drowsy ("+C.sfStack.drowsed+(C.sfStack.drowsed>=5?" — Unconscious":"")+")";
+  }
+  C.conds["sf_"+fx]=true; C.condDur["sf_"+fx]="next"; return "";
+}
+
+if(typeof document!=="undefined") document.addEventListener("DOMContentLoaded",function dreamsRules(){
+  /* Restoration sheds a stack: every Restore on the sheet runs through the
+     Safety Rune's check, so the stack comes off there, once per Restore. */
+  const _safety=safetyCleanse;
+  safetyCleanse=function(){
+    const got=_safety.apply(this,arguments)||[];
+    if(drowsyShed()){ syncSoulConds(); got.push("1 Drowsy"); }
+    return got.length?got:null;
+  };
+  /* Resolve sheds a stack — but not while the Drowsy sleep holds you, or you
+     would wake at your first Resolve instead of the end of the next round.
+     Insomnia negates one Resolve outright. */
+  const _cleanse=ACT.cleanse;
+  ACT.cleanse=function(){
+    if(C.insomnia){ C.insomnia=false; save();
+      if(typeof logIt==="function") logIt("Insomnia","Resolve negated","","");
+      toast("Insomnia — this Resolve is negated"); return; }
+    const asleep=drowsyAsleep(), before=sfStackOf("drowsed");
+    const r=_cleanse.apply(this,arguments);
+    if(asleep){ if(sfStackOf("drowsed")<before) C.sfStack.drowsed=before; }
+    else if(sfStackOf("drowsed")>0) drowsyShed();
+    syncSoulConds(); fillIn(document); refresh(); save();
+    return r;
+  };
+  /* the end of the NEXT round: two Round starts after falling asleep */
+  const _round=newRound;
+  newRound=function(){
+    if(drowsyAsleep()){ C.sfSleepR=(+C.sfSleepR||0)+1; if(C.sfSleepR>=2){ C.sfWoke=true; syncSoulConds(); } }
+    return _round.apply(this,arguments);
+  };
+
+  /* ---- Spells whose effect is not damage ---------------------------------- */
+  const SLEEP_EV={attr:"arcane",diff:"arcane",on:"no",text:"Evade roll with Arcane, negating the Spell, Difficulty: Arcane."};
+  Object.assign(USE_OVERRIDE,{
+    "Sleep":{none:true,manual:"No damage — the target falls asleep.",ev:SLEEP_EV,
+      conds:[{key:"unconscious",label:"Unconscious",note:"asleep — wakes if disturbed"}]},
+    "Seal":{none:true,manual:"No damage — the target is sealed in its own mind.",ev:SLEEP_EV,
+      conds:[{key:"nullified",label:"Nullified",note:"until they Resolve"},{key:"suppressed",label:"Suppressed",note:"until they Resolve"}]},
+    "Stay Put":{none:true,manual:"No damage — the target is held in place while you maintain it.",
+      ev:{attr:"power",diff:"arcane",on:"no",text:"Evade roll with Power, negating the Spell, Difficulty: Arcane."}},
+    "Allay":{formula:()=>Math.floor((attrVals().arcane||0)/2),label:"½ Arcane (Restored)",noDmgStat:true},
+    "Lullaby":{none:true,manual:"No damage.",conds:[{key:"suppressed",label:"Suppressed",note:"until they Resolve next round"},{key:"dazed",label:"Rendered (Dazed)",note:"until they Resolve next round"}]},
+    "Realm":{none:true,manual:"No damage."},
+    "Dreamscape":{none:true,manual:"Costs 3 Levels of Exhaustion, not Actions."},
+    "Lucidity":{none:true,manual:"Cleanses; the Action cost depends on the Condition chosen."}
+  });
+
+  /* ---- Masteries the reader cannot work out from their words ------------- */
+  Object.assign(MASTFX,{
+    "Dreams|Heavy Eyes":{kind:"mod",note:"+1d8 + 5 Soul Damage per Drowsy stack the target carries — added per target in combat."},
+    "Dreams|Insomnia":{kind:"mode",costAdd:6,sameDmg:true,
+      conds:[{key:"insomnia",label:"Insomnia",note:"negates their next Resolve"}]},
+    "Dreams|Reap":{kind:"mod",aoeSet:"25ft Cone",noAcc:true,
+      ev:{attr:"arcane",diff:"arcane",on:"no",text:"Evade roll with Arcane, negating the Spell, Difficulty: Arcane."},
+      conds:[{key:"slowed",label:"Slowed",note:"by 6"}]},
+    "Dreams|Stun":{kind:"mode",costAdd:6,sameDmg:true,
+      ev:{attr:"arcane",diff:"arcane",on:"full",text:"Evade roll with Arcane against the Stuck, Difficulty: Arcane."},
+      conds:[{key:"stuck",label:"Stuck",note:"until they Resolve next round"}]},
+    "Dreams|Fracture":{kind:"mode",costAdd:6,sameDmg:true,pickRendered:true,
+      note:"Adds one more Rendered Condition of your choice, until they Resolve."},
+    "Dreams|Rude Awakening":{kind:"mod",note:"Against an Unconscious target: a Critical Hit with +100% Critical damage — applied per target in combat."},
+    "Dreams|Dream Warden":{kind:"mod"},
+    "Dreams|Rest Peacefully":{kind:"mod"},
+    "Dreams|Nap":{kind:"mod",reactive:true},
+    "Dreams|Lucid Echo":{kind:"mode",cost:44,min:16,range:"Self",aoe:"30ft Sphere",
+      note:"Twice the cost, everything within 30ft. The 6-Action ATKMOD version is cast by hand."},
+    "Dreams|Seal":{kind:"mode",dropBase:true,range:"5ft"},
+    "Dreams|Trance":{kind:"mod",note:"Your sleepers cannot wake; on taking damage they must beat the Sleep Evade again, +5 for each failure."},
+    "Dreams|Slippery Targets":{kind:"mod",note:"Telekinesis' cost is no longer doubled against creatures."},
+    "Dreams|Stay Put":{kind:"mode",dropBase:true,mana:3,manaMin:3,
+      conds:[{key:"slowed",label:"Slowed",note:"Speed 0 while you maintain it (6 Actions to hold them Stuck instead)"}]},
+    "Dreams|Stronger Push":{kind:"mod",rangeAdd:30,evAdd:15,
+      dmg:{dice:"2d10",flat:10,type:"Physical",bonus:0}},
+    "Dreams|Allay":{kind:"mode",cost:30,min:10,range:"Self",aoe:"20ft Sphere",mana:5,manaMin:5,dropBase:true},
+    "Dreams|Sleepwalking":{kind:"mod",note:"Control an Unconscious or Stuck target: move it 30ft and use one of its abilities."}
+  });
+
+  /* useRead learns three things an override or a Mastery can now say:
+     an Evade of its own, Conditions of its own, and "no Accuracy roll". */
+  const _read=useRead;
+  useRead=function(sp){
+    const o=_read.apply(this,arguments);
+    if(!o||o._dreamsX) return o; o._dreamsX=true;
+    const ov=USE_OVERRIDE[sp&&sp.modeKey]||USE_OVERRIDE[sp&&sp.name];
+    const add=(list)=>(list||[]).forEach(c=>{ if(!o.conds.some(x=>x.key===c.key)) o.conds.push(Object.assign({},c)); });
+    if(ov){ if(ov.ev) o.ev=Object.assign({},ov.ev); add(ov.conds); }
+    const fx=[].concat(sp&&sp.mastMode?[sp.mastMode]:[],(typeof mastModsFor==="function")?mastModsFor(sp):[]);
+    fx.forEach(M=>{ add(M.conds); if(M.ev) o.ev=Object.assign({},M.ev); if(M.noAcc) o.acc=false;
+      if(M.evAdd) o.evDiffAdd=(o.evDiffAdd||0)+M.evAdd; if(M.pickRendered) o.pickRendered=true; });
+    return o;
+  };
+  const _calc=useCalc;
+  useCalc=function(sp){ const K=_calc.apply(this,arguments); if(K&&K.R&&K.R.evDiffAdd&&!K._dreamsX){ K._dreamsX=true; K.evaDiff=(K.evaDiff||0)+K.R.evDiffAdd; } return K; };
+});
 </script>
 <script>
 /* ============================================================
@@ -17113,7 +17461,7 @@ function syncSoulConds(){
     (SFX_COND[k]||[]).forEach(c=>{ if(!C.immune[c]) forced[c]=forced[c]||"sf:"+k; });
   });
   /* five stacks of Drowsy puts you out */
-  if(sfStackOf("drowsed")>=5 && !C.immune.unconscious) forced.unconscious=forced.unconscious||"sf:drowsed";
+  if(sfStackOf("drowsed")>=5 && !C.sfWoke && !C.immune.unconscious) forced.unconscious=forced.unconscious||"sf:drowsed";
   /* Immunity to Corruption clears the track outright */
   if(C.immune.corruption) C.corruption=0;
   /* Corruption 2 forces Nullified, 3 also Suppressed */
@@ -17227,6 +17575,10 @@ REFRESH_HOOKS.push(function refreshRules(){
   ffx.immune.forEach(k=>{ if(C.immune[k]!==undefined||CONDITIONS.some(c=>c[0]===k)
     ||SOULFX.some(c=>"sf_"+c[0]===k)||k==="corruption") C.immune[k]=true; });
   ffx.immAil.forEach(k=>{ C.immAil[k]=true; });
+  /* each ArchSoul says "Become Immune to <its Soul Effect> Soul Damage" */
+  (C.as||[]).forEach(a=>{ const d=a&&ASDOM[a.n], m=d&&/Immune to (\w+) Soul Damage/i.exec(d.info||"");
+    const f=m&&SOULFX.find(c=>String(c[1]).toLowerCase()===m[1].toLowerCase());
+    if(f) C.immune["sf_"+f[0]]=true; });
   rfx.lists.forEach(([k,L])=>{ if(C.lists[k]!==undefined){ C.lists[k]=true;
     if(!C.listLv[k])C.listLv[k]={}; C.listLv[k][L]=true; } });
   if(rfx.weaponsAll) WTYPES.forEach(([k])=>C.wtypes[k]=true);
@@ -17865,7 +18217,8 @@ function dmgMenu(anchor){
     const cur=+C.vit.hpCur||0;
     C.vit.hpCur=clamp(cur+o.net,0,hpMax()); C._lastMax=hpMax();
     /* a Soul hit that actually got through applies its Soul Effect until you Resolve next round */
-    if(o.applyFx && v.fx!=="heal"){ C.conds["sf_"+v.fx]=true; C.condDur["sf_"+v.fx]="next"; }
+    if(o.applyFx && v.fx!=="heal"){ if(typeof sfLand==="function") sfLand(v.fx); else { C.conds["sf_"+v.fx]=true; C.condDur["sf_"+v.fx]="next"; } }
+    if(o.dealt>0 && typeof drowsyWake==="function") drowsyWake();
     /* this dialog can Restore too — the Safety Rune does not care which button you used */
     const sf2=(o.heal>0)?safetyCleanse():null;
     if(sf2) o.lines.push("Safety cleansed "+sf2.join(", "));
@@ -34174,7 +34527,13 @@ body.viewonly #bar #saveState{display:none !important}
   }
   /* a creature's Conditions run out the way a player's do: at its Resolve, "next" becomes "cur" and "cur" ends */
   function expire(o) {
-    if (!o || o.kind !== "monster" || !o.cd) return;
+    if (!o || o.kind !== "monster") return;
+    o.cd = o.cd || {}; o.cn = o.cn || [];
+    /* Insomnia negates this Resolve outright */
+    if (o.cn.indexOf("Insomnia") >= 0) { o.cn = o.cn.filter(function (x) { return x !== "Insomnia"; }); return; }
+    /* a Drowsy stack comes off at Resolve, unless the Drowsy sleep holds them */
+    var di = o.cn.findIndex(function (x) { return /^Drowsy \d+$/.test(x); });
+    if (di >= 0 && o.cn.indexOf("Unconscious") < 0) { var dn = (+o.cn[di].slice(7) || 1) - 1; if (dn > 0) o.cn[di] = "Drowsy " + dn; else o.cn.splice(di, 1); }
     Object.keys(o.cd).forEach(function (n) {
       if (o.cd[n] === "cur") { delete o.cd[n]; o.cn = (o.cn || []).filter(function (x) { return x !== n; }); }
       else if (o.cd[n] === "next") o.cd[n] = "cur";
@@ -34516,7 +34875,7 @@ body.viewonly #bar #saveState{display:none !important}
     var out = [];
     try {
       CONDITIONS.forEach(function (r) { var k = r[0]; if (C.conds && C.conds[k]) out.push({ k: k, d: C.condDur[k] || "", l: r[1] }); });
-      SOULFX.forEach(function (r) { var k = "sf_" + r[0]; if (C.conds && C.conds[k]) out.push({ k: k, d: C.condDur[k] || "", l: r[1] }); });
+      SOULFX.forEach(function (r) { var k = "sf_" + r[0]; if (C.conds && C.conds[k]) { var n = 0; try { if (SFX_STACK[r[0]]) n = sfStackOf(r[0]); } catch (e) {} out.push({ k: k, d: C.condDur[k] || "", l: r[0] === "drowsed" ? "Drowsy" : r[1], n: n }); } });
       var ex = +(C.cond && C.cond.exposed) || 0, wk = +(C.cond && C.cond.weakened) || 0;
       if (ex > 0) out.push({ k: "exposed", n: ex }); if (wk > 0) out.push({ k: "weakened", n: wk });
       ["minor", "major", "fatal"].forEach(function (k) { var n = +(C.ail && C.ail[k]) || 0; if (n > 0) out.push({ k: k, n: n }); });
@@ -34648,7 +35007,7 @@ body.viewonly #bar #saveState{display:none !important}
   var EXTRA = { exposed: "Exposed", weakened: "Weakened", ail_minor: "Minor Ailment", ail_major: "Major Ailment", ail_fatal: "Fatal Ailment", corruption: "Corruption" };
   function condName(k) { var c = condList().find(function (x) { return x[0] === k; }); return c ? c[1] : (EXTRA[k] || k); }
   function condOptions(cur) { return condList().map(function (c) { return '<option value="' + c[0] + '"' + ((cur || []).indexOf(c[0]) >= 0 ? " selected" : "") + ">" + esc(c[1]) + "</option>"; }).join(""); }
-  function condsOf(s) { return String(s.conds || "").split(",").filter(Boolean).map(function (t) { return t.split(":")[0]; }); }
+  function condsOf(s) { return String(s.conds || "").split(",").filter(Boolean).map(function (t) { return t.split(":")[0]; }).filter(function (k) { return ["cb", "rude", "heavy", "youwish"].indexOf(k) < 0; }); }
   /* "exposed:3" carries an amount: the number after the colon */
   function condAmt(s, k) { var t = String(s.conds || "").split(",").find(function (x) { return x.split(":")[0] === k; }); return t && t.indexOf(":") > 0 ? +t.split(":")[1] || 0 : 0; }
   var AIL = { ail_minor: "minor", ail_major: "major", ail_fatal: "fatal" };
@@ -34656,6 +35015,14 @@ body.viewonly #bar #saveState{display:none !important}
   /* the same thing on a creature: its Conditions are chips by name; stacks add up; a timed Condition ends at its Resolve next round */
   function landCreature(o, s, k) {
     o.cn = o.cn || []; o.cd = o.cd || {};
+    if (k === "youwish") return;
+    if (k === "insomnia") { if (o.cn.indexOf("Insomnia") < 0) o.cn.push("Insomnia"); return; }
+    if (k === "sf:drowsed") {
+      var di = o.cn.findIndex(function (x) { return /^Drowsy( \d+)?$/.test(x); }), dn = di >= 0 ? (+String(o.cn[di]).slice(7) || 1) : 0;
+      var was = dn; dn = Math.min(5, dn + 1); if (di >= 0) o.cn[di] = "Drowsy " + dn; else o.cn.push("Drowsy " + dn);
+      if (was < 5 && dn >= 5 && o.cn.indexOf("Unconscious") < 0) { o.cn.push("Unconscious"); o.cd["Unconscious"] = "next"; }
+      return;
+    }
     if (k.indexOf("sf:") === 0) { var fn = fxName(k.slice(3)); if (o.cn.indexOf(fn) < 0) o.cn.push(fn); o.cd[fn] = "next"; return; }
     var n = condAmt(s, k), name = condName(k);
     if (k === "exposed" || k === "weakened" || AIL[k] || k === "corruption") {
@@ -34666,7 +35033,23 @@ body.viewonly #bar #saveState{display:none !important}
     var lab2 = name + (n && k === "slowed" ? " " + n : "");
     o.cn = o.cn.filter(function (x) { return x !== name && x.indexOf(name + " ") !== 0; }); o.cn.push(lab2); o.cd[lab2] = "next";
   }
+  /* The target finishes the hit: a sleeper is Critically Hit (Rude Awakening adds +100%), and
+     Heavy Eyes adds 1d8 + 5 Soul Damage for every Drowsy stack the target already carries. */
+  function tokVal(s, name) { var t = String(s.conds || "").split(",").find(function (x) { return x.split(":")[0] === name; }); return t == null ? null : (t.indexOf(":") > 0 ? t.split(":")[1] : true); }
+  function finishHit(s, dmg, asleep, drowsy) {
+    var notes = [], d = { phys: +dmg.phys || 0, soul: +dmg.soul || 0, tru: +dmg.tru || 0, fx: dmg.fx };
+    if (tokVal(s, "heavy") && drowsy > 0) { var add = 0; for (var i = 0; i < drowsy; i++) add += rollDice("1d8").total + 5; d.soul += add; notes.push("Heavy Eyes +" + add); }
+    if (asleep && (d.phys || d.soul || d.tru)) {
+      var cb = +tokVal(s, "cb") || 50, base = 1 + cb / 100, rude = !!tokVal(s, "rude"), want = base + (rude ? 1 : 0), have = s.crit ? base : 1;
+      if (want !== have) ["phys", "soul", "tru"].forEach(function (k) { if (d[k]) d[k] = Math.ceil(d[k] / have * want); });
+      notes.push(rude ? "Rude Awakening — Critical +100%" : "Unconscious — Critical Hit");
+    }
+    return { dmg: d, notes: notes };
+  }
   function landCond(s, k) {
+    if (k === "cb" || k === "rude" || k === "heavy") return "";
+    if (k === "youwish") return "";
+    if (k === "insomnia") { C.insomnia = true; return "Insomnia (next Resolve negated)"; }
     var n = condAmt(s, k);
     if (k === "exposed" || k === "weakened") { if (C.immune && C.immune[k]) return condName(k) + " (immune)"; C.cond = C.cond || {}; C.cond[k] = (+C.cond[k] || 0) + (n || 1); return condName(k) + " " + (n || 1); }
     if (AIL[k]) { var t = AIL[k]; if (C.immAil && C.immAil[t]) return t + " Ailment (immune)"; C.ail[t] = (+C.ail[t] || 0) + (n || 1); return (n || 1) + " " + t + " Ailment"; }
@@ -34755,20 +35138,27 @@ body.viewonly #bar #saveState{display:none !important}
     if (!o || !b) { status = "missed"; line = s.fromName + " strikes at something that is no longer here."; }
     else {
       var armor = num(sbStats(b).armor), heal = s.fx === "heal", ev = evasion(s), evOk = false, evTxt = "";
-      if (heal || s.noAcc || hitOf(num(s.acc), !!s.crit, !!s.fumble, armor)) {
-        if (ev) {
+      var sleeping = (o.cn || []).indexOf("Unconscious") >= 0 && s.fx !== "heal";
+      if (heal || s.noAcc || hitOf(num(s.acc), !!s.crit, !!s.fumble, armor) || (sleeping && !s.fumble)) {
+        if (ev && sleeping) evTxt = " (" + o.name + " is Unconscious — the Evade fails)";
+        else if (ev) {
           var er = 1 + Math.floor(Math.random() * 20), et = er + num(sbSubVal(b, "evade")) + attB(b, s.evAttr);
           evOk = er === 20 || et >= num(s.evDiff);
           evTxt = " (" + o.name + " Evades with " + attName(s.evAttr) + ": " + et + " vs " + num(s.evDiff) + (evOk ? " — succeeds" : " — fails") + ")";
         }
-        var pl = plan(s, evOk), d = creatureDamage(b, pl.dmg), before = pv ? pv.hp : 0, cb = (o.cn || []).slice(), cdb = JSON.parse(JSON.stringify(o.cd || {}));
+        var pl = plan(s, evOk), drz = 0; (o.cn || []).forEach(function (c) { var mm = /^Drowsy (\d+)$/.exec(c); if (mm) drz = +mm[1]; });
+        var fh = finishHit(s, pl.dmg, sleeping, drz); pl.dmg = fh.dmg;
+        var d = creatureDamage(b, pl.dmg), before = pv ? pv.hp : 0, cb = (o.cn || []).slice(), cdb = JSON.parse(JSON.stringify(o.cd || {}));
         if (pv) { pv.hp = Math.max(0, Math.min(pv.max, pv.hp - d.dealt + d.heal)); g.refreshHw(o); }
+        /* damage wakes a sleeper; Restoration takes a Drowsy stack off */
+        if (d.dealt > 0 && sleeping) { o.cn = o.cn.filter(function (x) { return x !== "Unconscious"; }); if (o.cd) delete o.cd["Unconscious"]; }
+        if (d.heal > 0) { var hi = (o.cn || []).findIndex(function (x) { return /^Drowsy \d+$/.test(x); }); if (hi >= 0) { var hn = (+o.cn[hi].slice(7) || 1) - 1; if (hn > 0) o.cn[hi] = "Drowsy " + hn; else o.cn.splice(hi, 1); } }
         var nul = (o.cn || []).indexOf("Nullified") >= 0, got = pl.conds.slice();
         if (pl.dmg.fx && pl.dmg.fx !== "heal" && d.soulGot > 0 && !nul) got.push("sf:" + pl.dmg.fx);
         got.forEach(function (k) { landCreature(o, s, k); });
         S.undo.push({ oid: o.id, hp: before, cn: cb, cd: cdb }); S.undo = S.undo.slice(-10);
         status = "applied";
-        line = s.fromName + (s.label ? " uses " + s.label + " on " : " strikes ") + o.name + (heal ? " — restores " + d.heal : " — " + (s.noAcc ? "" : (s.crit ? "critical hit, " : "hit, ")) + d.dealt + " damage" + evTxt + (got.length ? ", inflicting " + got.map(function (k) { return k.indexOf("sf:") === 0 ? fxName(k.slice(3)) : condName(k) + (condAmt(s, k) ? " " + condAmt(s, k) : ""); }).join(", ") : "")) + (pv && pv.hp <= 0 ? ". " + o.name + " falls." : ".");
+        line = s.fromName + (s.label ? " uses " + s.label + " on " : " strikes ") + o.name + (heal ? " — restores " + d.heal : " — " + (s.noAcc ? "" : (s.crit ? "critical hit, " : "hit, ")) + d.dealt + " damage" + evTxt + (fh.notes.length ? " (" + fh.notes.join(", ") + ")" : "") + (got.length ? ", inflicting " + got.map(function (k) { return k.indexOf("sf:") === 0 ? fxName(k.slice(3)) : condName(k) + (condAmt(s, k) ? " " + condAmt(s, k) : ""); }).join(", ") : "")) + (pv && pv.hp <= 0 ? ". " + o.name + " falls." : ".");
       } else { status = "missed"; line = s.fromName + (s.label ? " uses " + s.label + " on " : " strikes at ") + o.name + " — " + (s.fumble ? "a fumble" : "misses") + "."; }
     }
     S.queue = S.queue.filter(function (x) { return x.id !== id; }); S.done[id] = 1; delete S.gpend[id];
@@ -34864,19 +35254,29 @@ body.viewonly #bar #saveState{display:none !important}
       if (i < 0) throw new Error("no character");
       if (C.id !== mine.charId) setActiveAt(i);
       var heal = s.fx === "heal", armor = num(computeStats().armor), name = C.name || "Someone";
-      var ev = evasion(s), evOk = false, evTxt = "", hitNow = heal || !!s.noAcc || hitOf(num(s.acc), !!s.crit, !!s.fumble, armor);
-      if (hitNow && ev) {
+      var asleepHit = !!C.conds.unconscious && !heal;
+      var ev = evasion(s), evOk = false, evTxt = "", hitNow = heal || !!s.noAcc || hitOf(num(s.acc), !!s.crit, !!s.fumble, armor) || (asleepHit && !s.fumble);
+      var asleepNow = !!C.conds.unconscious;
+      if (hitNow && ev && asleepNow) evTxt = " (" + name + " is Unconscious — the Evade fails)";
+      else if (hitNow && ev) {
         var er = d20(s.evAttr), et = er.val + num(subVal("evade")) + attV(s.evAttr);
         evOk = critOf(er) || et >= num(s.evDiff);
         evTxt = " (" + name + " Evades with " + attName(s.evAttr) + ": " + et + " vs " + num(s.evDiff) + (evOk ? " — succeeds" : " — fails") + ")";
         try { pop({ title: "Evade — " + attName(s.evAttr), lines: [er.note, "+ " + num(subVal("evade")) + " Evade", "+ " + attV(s.evAttr) + " full " + attName(s.evAttr), "vs " + num(s.evDiff)], total: String(et), suffix: evOk ? "SUCCESS" : "FAIL", crit: critOf(er), fumble: er.nat === 1 }); } catch (e) {}
       }
       if (hitNow) {
-        var pl = plan(s, evOk), v = pl.dmg, o = dmgCalc(v), cur = +C.vit.hpCur || 0;
+        var pl = plan(s, evOk), fh = finishHit(s, pl.dmg, asleepHit, typeof sfStackOf === "function" ? sfStackOf("drowsed") : 0); pl.dmg = fh.dmg;
+        var v = pl.dmg, wish = !!tokVal(s, "youwish") && v.fx && v.fx !== "heal" && C.immune && C.immune["sf_" + v.fx];
+        var o = dmgCalc(wish ? Object.assign({}, v, { fx: "" }) : v), cur = +C.vit.hpCur || 0;
+        if (wish) o.applyFx = false;
+        var wasAsleep = typeof drowsyAsleep === "function" && drowsyAsleep();
         var landed = pl.conds.map(function (k) { return landCond(s, k); }).filter(Boolean);
         C.vit.hpCur = clamp(cur + o.net, 0, hpMax()); C._lastMax = hpMax();
         if (o.heal > 0 && typeof safetyCleanse === "function") { var sc = safetyCleanse(); if (sc) landed.push("Safety cleansed " + sc.join(", ")); }
-        if (o.applyFx && v.fx !== "heal") { if (C.conds.nullified || (C.immune && C.immune["sf_" + v.fx])) landed.push(fxName(v.fx) + " (resisted)"); else { C.conds["sf_" + v.fx] = true; C.condDur["sf_" + v.fx] = "next"; landed.push(fxName(v.fx)); } }
+        if (o.applyFx && v.fx !== "heal") { if (C.conds.nullified || (C.immune && C.immune["sf_" + v.fx])) landed.push(fxName(v.fx) + " (resisted)"); else if (typeof sfLand === "function") landed.push(sfLand(v.fx) || fxName(v.fx)); else { C.conds["sf_" + v.fx] = true; C.condDur["sf_" + v.fx] = "next"; landed.push(fxName(v.fx)); } }
+        fh.notes.forEach(function (n) { landed.unshift(n); });
+        if (wish) landed.push("You Wish — Immunity ignored, no " + fxName(v.fx));
+        if (o.dealt > 0 && wasAsleep && drowsyWake()) { if (typeof syncSoulConds === "function") syncSoulConds(); landed.push("woken by the hit"); }
         fillIn(document); refresh(); save();
         var nodmg = !(+v.phys || +v.soul || +v.tru);
         if (nodmg) { try { pop({ title: (s.label || "Ability") + " — from " + s.fromName, lines: landed.length ? landed : ["Nothing landed"], total: "" }); } catch (e) {} }
@@ -35050,6 +35450,14 @@ body.viewonly #bar #saveState{display:none !important}
     return out;
   }
 
+  function mastered(as, dom, name) { try { return mastOn(as, dom).some(function (m) { return m.name === name; }); } catch (e) { return false; } }
+  function prestigeOf(as) { var a = (C.as || []).find(function (x) { return x && x.n === as; }); return a ? (+a.prestige || 0) : 0; }
+  function isDrowsySpike(sp) { return sp && (sp.name === "Drowsy Spike" || sp.modeOf === "Drowsy Spike") && (sp.from === "Dreams" || !sp.from); }
+  /* Telekinesis on a creature costs double and its Minimum rises by 4 — unless Slippery Targets */
+  function tkDouble(sp) {
+    return sp && sp.name === "Telekinesis" && sp.modeKey !== "Allay" && !mastered("Dreams", "resonance", "Slippery Targets");
+  }
+
   /* ---- who is it aimed at ---------------------------------------------------------- */
   function ask(f, base, kind, run, title) {
     close();
@@ -35059,16 +35467,19 @@ body.viewonly #bar #saveState{display:none !important}
       var self = o.uid && o.uid === u.uid, nm = o.kind === "monster" && o.hide ? "???" : o.name;
       return '<label class="tgrow"><input type="checkbox" data-tg="' + esc(o.id) + '"' + (last.indexOf(o.id) >= 0 ? " checked" : "") + "> " + esc(nm) + (self ? " (you)" : o.kind === "monster" ? " — enemy" : " — ally") + "</label>";
     }).join("");
+    var pick = "";
+    try { if (!title && useRead(sp).pickRendered) pick = '<label class="tgrow">Fracture adds: <select data-tgr><option value="blinded">Rendered (Blinded)</option><option value="deafened">Rendered (Deafened)</option><option value="muted">Rendered (Muted)</option><option value="sinking">Rendered (Sinking)</option><option value="tremoring">Rendered (Tremoring)</option></select></label>'; } catch (e) {}
     var box = document.createElement("div"); box.id = "tgtBox";
-    box.innerHTML = '<div class="tgbox"><h4>' + esc(sp.name || "Ability") + " — choose targets</h4><div class=\"tglist\">" + rows + '</div><div class="tgbtns"><button class="btn" data-tgo="go">Use</button><button class="btn" data-tgo="none">Roll with no target</button><button class="linkbtn" data-tgo="x">Cancel</button></div></div>';
+    box.innerHTML = '<div class="tgbox"><h4>' + esc(sp.name || "Ability") + " — choose targets</h4><div class=\"tglist\">" + rows + pick + '</div><div class="tgbtns"><button class="btn" data-tgo="go">Use</button><button class="btn" data-tgo="none">Roll with no target</button><button class="linkbtn" data-tgo="x">Cancel</button></div></div>';
     document.body.appendChild(box); S.dlg = { f: f, base: base, kind: kind, run: run, key: key, title: title };
     box.addEventListener("click", function (e) {
       var b = e.target.closest && e.target.closest("[data-tgo]"); if (!b) return;
       var d = S.dlg; if (!d) { close(); return; }
       var a = b.getAttribute("data-tgo"), ids = Array.prototype.map.call(box.querySelectorAll("[data-tg]:checked"), function (x) { return x.getAttribute("data-tg"); });
       close();
-      if (a === "x") return;
+      if (a === "x") { S.free = null; S.fxOverride = ""; return; }
       if (a === "go" && !ids.length) { say("Pick at least one target."); return ask(d.f, d.base, d.kind, d.run, d.title); }
+      var rsel = box.querySelector("[data-tgr]"); S.rendered = rsel ? rsel.value : "";
       S.last[d.key] = ids; exec(d.f, d.base, d.kind, d.run, a === "go" ? ids : [], d.title);
     });
   }
@@ -35082,7 +35493,11 @@ body.viewonly #bar #saveState{display:none !important}
     C.useReact = C.useReact || {}; var had = C.useReact[ref];
     if (myTurn) delete C.useReact[ref]; else C.useReact[ref] = 1;
     try {
-      var sp = useItem(ref), R = useRead(sp), st = computeStats(), K = useCalc(sp, { ref: ref }), cost = actionCost(sp, R, K.overN, st).cost;
+      var sp = useItem(ref), R = useRead(sp), st = computeStats(), K = useCalc(sp, { ref: ref });
+      if (tkDouble(sp)) sp = Object.assign({}, sp, { cost: (+sp.cost || 0) * 2, min: (+sp.min || 0) + 4 });
+      var cost = actionCost(sp, R, K.overN, st).cost;
+      /* Slumber: the free Drowsy Spike costs nothing but what its Masteries add */
+      if (S.free && S.free === ref) { cost = (sp.mastMode && sp.mastMode.costAdd) || 0; }
       var P = spendPlan(ref, sp, R, cost);
       var cb = (typeof castBlocked === "function") ? castBlocked(ref, sp) : ""; if (cb) return cb;
       if (P.shortReact) return "No Reactions left this round";
@@ -35119,10 +35534,43 @@ body.viewonly #bar #saveState{display:none !important}
     for (var i = 0; i < ids.length; i++) {
       var to = f.enc.order.find(function (o) { return o.id === ids[i]; }); if (!to) continue;
       var s = { id: rid(), from: u.uid, fromName: (me && me.name) || f.mine.charName || "Someone", toId: to.id, toUid: to.uid || "", toName: to.name, round: f.enc.round, at: at, status: "posted", result: "" };
-      var dt = kind === "quick" ? data : build(base, cap, kind, to.kind === "monster" ? "enemy" : "ally"); Object.keys(dt).forEach(function (k) { s[k] = dt[k]; });
+      var dt = kind === "quick" ? data : build(base, cap, kind, to.kind === "monster" ? "enemy" : "ally");
+      if (kind !== "quick") {
+        var tok = String(dt.conds || "").split(",").filter(Boolean);
+        /* what the target needs to finish the hit on its own side: the caster's Critical bonus
+           (a sleeper is Critically Hit), and which Dreams Masteries ride on this Spell */
+        if ((+dt.phys || +dt.soul || +dt.tru) && dt.fx !== "heal" && !dt.fumble) {
+          tok.push("cb:" + (+C.vit.critBonus || 50));
+          var spx = useItem(base);
+          if (isDrowsySpike(spx) && mastered("Dreams", "enchantment", "Rude Awakening")) tok.push("rude");
+          if (isDrowsySpike(spx) && mastered("Dreams", "enchantment", "Heavy Eyes")) tok.push("heavy");
+        }
+        if (S.rendered && useRead(useItem(base)).pickRendered && !dt.fumble) tok.push(S.rendered);
+        /* You Wish (Dreams Prestige +2): Soul Damage ignores Immunities; the Soul Effect still does not land */
+        if (prestigeOf("Dreams") >= 2 && +dt.soul && dt.fx !== "heal") tok.push("youwish");
+        if (S.fxOverride && dt.fx !== "heal" && +dt.soul) dt.fx = S.fxOverride;
+        dt.conds = tok.join(",");
+      } Object.keys(dt).forEach(function (k) { s[k] = dt[k]; });
       try { await c.postStrike(f.code, s); sent++; } catch (e) { say("Could not reach the cloud."); break; }
     }
     if (sent) say(data.label + " sent to " + sent + (sent === 1 ? " target" : " targets") + ".");
+    slumber(f, base, data);
+  }
+
+  /* Slumber (Dreams Soul Imbue): after casting any Spell other than Drowsy Spike, cast Drowsy Spike
+     free at a target in range, applying the same Soul Effect as the first Spell. */
+  function slumber(f, base, data) {
+    var wasFree = S.free === base; S.free = null; S.fxOverride = "";
+    if (wasFree) return;
+    var sp = useItem(base);
+    if (!/^sec\.[a-z]+\.spells\./.test(base) || isDrowsySpike(sp)) return;
+    var im = C.imbues || {}, on = (Array.isArray(im) ? im : Object.keys(im).map(function (k) { return im[k]; })).some(function (l) { return Array.isArray(l) && l.indexOf("Slumber") >= 0; }); if (!on) return;
+    var ds = null;
+    ["enchantment"].concat(Object.keys(C.sec || {})).some(function (k) { var L = (C.sec[k] && C.sec[k].spells) || []; for (var i = 0; i < L.length; i++) if (L[i].name === "Drowsy Spike") { ds = "sec." + k + ".spells." + i; return true; } return false; });
+    if (!ds || !root.useAcc || !root.useAcc._orig) return;
+    S.free = ds; S.fxOverride = (data && data.fx && data.fx !== "heal") ? data.fx : "";
+    say("Slumber — Drowsy Spike, free. Pick its target.");
+    setTimeout(function () { var f2 = fight(); if (f2) ask(f2, ds, "acc", root.useAcc._orig); else S.free = null; }, 400);
   }
 
   /* ---- hooking the sheet's own buttons ---------------------------------------------- */
