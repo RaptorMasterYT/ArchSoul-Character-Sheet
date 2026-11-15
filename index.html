@@ -15212,6 +15212,20 @@ function stageScale(){
   const cv=$("#canvas"); if(!cv||!cv.offsetWidth) return 1;
   return (cv.getBoundingClientRect().width/cv.offsetWidth)||1;
 }
+/* The campaign table sits beside the sheet on the right. While it is open the
+   stage is drawn a little smaller, by DOCK_FIT, so the columns that fit the
+   window without it still fit beside it. DB.zoom (the Size slider) is never
+   touched: with the table closed DOCK_FIT is 1 and the stage is exactly as
+   before. */
+var DOCK_FIT=1;
+function stageXf(){ return `scale(${((DB.zoom||100)/100)*DOCK_FIT})`; }
+function setDockFit(k){
+  k=Math.max(0.5,Math.min(1,+k||1));
+  if(Math.abs(k-DOCK_FIT)<0.004) return false;
+  DOCK_FIT=k;
+  if(!(typeof phone==="function"&&phone())){ const st=$("#stage"); if(st) st.style.transform=stageXf(); }
+  return true;
+}
 /* Floating windows overlap freely and stay where they are dropped. An earlier
    version pushed a window whose title bar ended up buried out from under the
    one in front, but a single drop could then rearrange half the page — and
@@ -28438,7 +28452,7 @@ function tutFind(sels){
 const TUT_FILL=0.62;      /* how much of the window the target should take up */
 function tutFrame(els){
   const stage=$("#stage"); if(!stage||!els.length) return;
-  const z0=(DB.zoom||100)/100;
+  const z0=(DB.zoom||100)/100*DOCK_FIT;
   const sr=stage.getBoundingClientRect();
   /* union box, in unscaled stage coordinates */
   let x1=1e9,y1=1e9,x2=-1e9,y2=-1e9;
@@ -28480,7 +28494,7 @@ function tutFrame(els){
 function setTutZoom(v){
   if(tutZoomWas===null) tutZoomWas=DB.zoom||100;
   DB.zoom=v;
-  const st=$("#stage"); if(st) st.style.transform=`scale(${v/100})`;
+  const st=$("#stage"); if(st) st.style.transform=stageXf();
   const zi=$("#zoom"), zv=$("#zoomV");
   if(zi) zi.value=v; if(zv) zv.textContent=v+"%";
 }
@@ -28646,14 +28660,14 @@ document.addEventListener("mousedown",e=>{
   // width resize
   const g=e.target.closest("[data-wgrip]");
   if(g){ const p=g.closest(".panel");
-    wdrag={iid:g.dataset.wgrip,el:p,sx:e.clientX,ow:p.getBoundingClientRect().width/(DB.zoom/100)};
+    wdrag={iid:g.dataset.wgrip,el:p,sx:e.clientX,ow:p.getBoundingClientRect().width/(DB.zoom/100*DOCK_FIT)};
     e.preventDefault(); return; }
 
   // block arranging inside a panel
   const pnl=e.target.closest(".panel");
   if(pnl&&pnl.classList.contains("arrange")){
     const b=e.target.closest(".blk");
-    if(b){ const r=b.getBoundingClientRect(), z=DB.zoom/100;
+    if(b){ const r=b.getBoundingClientRect(), z=DB.zoom/100*DOCK_FIT;
       const ph=document.createElement("div"); ph.className="blkph";
       ph.style.height=r.height/z+"px"; ph.style.width=r.width/z+"px";
       b.parentElement.insertBefore(ph,b);
@@ -28669,7 +28683,7 @@ document.addEventListener("mousedown",e=>{
   // panel move
   const h=e.target.closest(".panel > h3");
   if(!h||e.target.closest("button")) return;
-  const p=h.parentElement, r=p.getBoundingClientRect(), z=DB.zoom/100;
+  const p=h.parentElement, r=p.getBoundingClientRect(), z=DB.zoom/100*DOCK_FIT;
   e.preventDefault();
   /* Floating view: the window is already where it lives, so a drag just moves
      it. It is not lifted out of the stage and there is no placeholder, because
@@ -28699,7 +28713,7 @@ document.addEventListener("mousedown",e=>{
 
 document.addEventListener("mousemove",e=>{
   if(wdrag){ e.preventDefault();
-    const z=DB.zoom/100, w=clamp(Math.round(wdrag.ow+(e.clientX-wdrag.sx)/z),200,1600);
+    const z=DB.zoom/100*DOCK_FIT, w=clamp(Math.round(wdrag.ow+(e.clientX-wdrag.sx)/z),200,1600);
     const inst=page().panels.find(x=>x.iid===wdrag.iid); if(!inst) return;
     inst.w=w; const T=PT[inst.type];
     wdrag.el.style.width=w+"px";
@@ -29389,7 +29403,7 @@ function wire(){
       phFit();
     } else {
       DB.zoom=v;
-      $("#stage").style.transform=`scale(${v/100})`;
+      $("#stage").style.transform=stageXf();
       $("#zoomV").textContent=v+"%";
     }
     const zi=$("#zoom"); if(zi&&+zi.value!==v) zi.value=v;};
@@ -29500,7 +29514,7 @@ function wire(){
     $("#zoomV").textContent=n+(n>1?" cols":" col");
   } else {
     $("#zoom").value=DB.zoom||100;
-    $("#stage").style.transform=`scale(${(DB.zoom||100)/100})`;
+    $("#stage").style.transform=stageXf();
     $("#zoomV").textContent=(DB.zoom||100)+"%";
   }
   phWatch();
@@ -33198,6 +33212,8 @@ body.shellgm .gmroom.soon{display:none}
 #homeWrap{position:fixed;left:0;right:0;bottom:0;z-index:800;display:none;background:var(--bg);
   color:var(--ink);overflow:auto}
 #homeWrap.open{display:block}
+#homeWrap{overscroll-behavior:contain}
+html.shell-lock,html.shell-lock body{overflow:hidden !important;overscroll-behavior:none}
 .homeinner{max-width:1100px;margin:0 auto;padding:34px 22px 40px}
 .homewho{text-align:center;color:var(--ink-dim);font-size:.9em;margin-bottom:26px}
 .homegrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:18px}
@@ -33771,6 +33787,107 @@ body.has-table #callBox{left:calc(50% - 150px)}
 @media (min-width:761px){ body.gs-open #homeWrap{right:440px} body.notes-open #homeWrap{left:380px} }
 
 .calls .clform select{color:var(--ink,#e8dcc0);background:#1b1712;border:1px solid #5a4a30;padding:3px 6px}
+
+/* a creature's own abilities, as buttons */
+.crfrom select{min-width:220px}
+.crlist{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:6px;margin:8px 0}
+.crab{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 6px;text-align:left;padding:7px 9px;border:1px solid #4a3c26;background:#1d1812;color:#e8dcc0;border-radius:6px;cursor:pointer;font:inherit}
+.crab:hover{border-color:#c9a24a}
+.crab.on{border-color:#e0b54a;background:#2a2114;box-shadow:0 0 0 1px #e0b54a inset}
+.crab.leg{border-style:dashed}
+.crab[disabled]{opacity:.45;cursor:not-allowed}
+.crab b{font-size:14px}
+.crab small{flex-basis:100%;color:#b9ab8c;font-size:12px;line-height:1.3}
+.crcost{font-style:normal;font-size:11px;color:#e0b54a;border:1px solid #6a5328;border-radius:3px;padding:0 4px}
+.crdet{border:1px solid #4a3c26;border-radius:6px;padding:8px 10px;margin:4px 0 8px;background:#17130e}
+.crdesc{margin:0 0 8px;color:#d6cab0;font-size:13px;line-height:1.45;max-height:9em;overflow:auto}
+.crto{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;margin-bottom:8px}
+.crto>span{color:#b9ab8c;font-size:12px;text-transform:uppercase;letter-spacing:.08em}
+.crtgt{display:flex;gap:5px;align-items:center;font-size:14px;cursor:pointer}
+.crcustom{margin-top:6px;border-top:1px solid #3a2f20;padding-top:6px}
+.crcustom>summary{cursor:pointer;color:#c9b88f;font-size:14px}
+.crcustom>summary small{color:#8f826a}
+.crnone{color:#b9ab8c;font-size:13px;margin:8px 0}
+.btn.gold{border-color:#c9a24a;color:#f0d68a}
+
+/* ---- the GM's page between fights ---- */
+.homehead{flex-wrap:wrap;gap:8px 12px}
+.homehead .camptitle{flex:1 1 260px;min-width:0;overflow-wrap:anywhere}
+.headbtns{display:flex;flex-wrap:wrap;gap:6px;align-items:center;justify-content:flex-end}
+.headbtns .codechip{margin:0}
+.homeinner.gmpage{max-width:1320px}
+.gmbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:12px 14px;margin:0 0 14px;background:var(--panel);border:1px solid var(--line);border-radius:10px}
+.gmbar .btn.big{font-size:15px;padding:9px 16px}
+.gmbar .btn.on{border-color:var(--hot);color:var(--hot)}
+.gbenc{display:flex;gap:6px;align-items:center;margin-left:auto}
+.gbenc select{max-width:240px}
+.gbcalls details.calls:not([open]){display:none}
+.gbcalls details.calls[open]{margin:0 0 14px}
+.gbcalls details.calls>summary{display:none}
+.gbcalls details.calls{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+.gmgrid{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:22px;align-items:start}
+.gmgrid .gmmain>.campsec:first-child{margin-top:4px}
+.gmside{display:flex;flex-direction:column;gap:12px;position:sticky;top:12px}
+.gsbox{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+.gsbox h4{margin:0 0 8px;font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--hot);font-weight:600}
+.gsrow{display:flex;gap:8px;align-items:center;justify-content:space-between;padding:6px 0;border-top:1px solid color-mix(in srgb,var(--line) 70%,transparent)}
+.gsrow:first-of-type{border-top:0}
+.gsrow b{display:block;font-size:14px}
+.gsrow small{display:block;color:var(--ink-dim);font-size:12px;line-height:1.3}
+.gsnote{padding:6px 0;border-top:1px solid color-mix(in srgb,var(--line) 70%,transparent);font-size:13px;line-height:1.4}
+.gsnote:first-of-type{border-top:0}
+.gsnote small{display:block;color:var(--ink-dim);font-size:11.5px;margin-top:2px}
+.gspin{font-style:normal;margin-right:4px}
+.gsjr{margin:0 0 6px;font-size:13px}
+.gsjn{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:4px}
+.gstag{font-size:12px;border:1px solid var(--line);border-radius:12px;padding:2px 8px;color:var(--ink)}
+.gsempty{margin:0 0 6px;color:var(--ink-dim);font-size:13px;line-height:1.4}
+.linkbtn{background:none;border:0;padding:4px 0 0;color:var(--hot);cursor:pointer;font:inherit;font-size:13px}
+.linkbtn:hover{text-decoration:underline}
+@media (max-width:1000px){ .gmgrid{grid-template-columns:1fr} .gmside{position:static} .gbenc{margin-left:0} }
+@media (max-width:760px){
+  .homehead .camptitle{flex-basis:100%;font-size:1.15em}
+  .headbtns{justify-content:flex-start}
+  .gmbar{padding:10px}
+  .gmbar .btn.big{flex:1 1 100%}
+  .gbenc{flex:1 1 100%}.gbenc select{flex:1;max-width:none}
+}
+
+/* ---- one box per entry in the turn order; its controls sit inside it ---- */
+.cbent{border:1px solid color-mix(in srgb,var(--line) 85%,transparent);border-radius:7px;margin:0 0 6px;background:color-mix(in srgb,var(--panel) 70%,#000 30%)}
+.cbent.cur{border-color:#3f8a5a;background:rgba(120,200,140,.10);box-shadow:0 0 0 1px #3f8a5a inset}
+.cbent .cbrow{border-radius:7px 7px 0 0;padding:6px 8px}
+.cbent .cbrow.cur{background:transparent;outline:0}
+.cbent .cbxtra{margin:0;padding:5px 8px 6px 30px;border-top:1px dashed color-mix(in srgb,var(--line) 70%,transparent);gap:5px}
+.cbmv{display:inline-flex;gap:2px;margin-right:8px}
+.cbmv .btn.sm{min-width:28px}
+.cbrevl{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-dim);margin-right:2px}
+@media (max-width:760px){ .cbent .cbxtra{padding-left:8px} .cbmv .btn.sm{min-width:36px;min-height:30px} }
+
+/* ---- the campaign pages wear the sheet's own look ----
+   Windows: 6px corners, the same shadow, a dark header band with the title in
+   spaced capitals — the way every window on the sheet is drawn. */
+#homeWrap,#tableDock,#gmDrawer,#notesDrawer{--ink-faint:#8f887e}   /* 4.95:1 on the panel colour, was 3.0:1 */
+#homeWrap .camppanel,#homeWrap .gsbox,#homeWrap .gmbar,#homeWrap .codebox,#homeWrap .pcard.full,#homeWrap .stform,#homeWrap details.cbfold,#homeWrap .gbcalls details.calls{border-radius:6px;box-shadow:0 2px 14px #0007}
+#homeWrap .gsbox{padding:0 0 10px;overflow:hidden}
+#homeWrap .gsbox>h4{margin:0 0 6px;padding:.5em .9em;background:#00000030;border-bottom:1px solid var(--line);color:var(--ink-dim);font-size:12px;letter-spacing:.16em}
+#homeWrap .gsbox>:not(h4){margin-left:14px;margin-right:14px}
+#homeWrap .gsbox>.gsrow,#homeWrap .gsbox>.gsnote{padding-left:0;padding-right:0}
+#homeWrap .camppanel>b:first-child{margin:-14px -16px 12px;padding:.5em 1em;background:#00000030;border-bottom:1px solid var(--line);border-radius:6px 6px 0 0;color:var(--ink-dim);font-size:12px;letter-spacing:.16em}
+#homeWrap details.cbfold>summary{letter-spacing:.02em}
+#homeWrap details.cbfold>summary b{letter-spacing:.06em}
+#homeWrap .campsec{color:var(--ink-dim);letter-spacing:.18em;border-bottom:1px solid var(--line);padding-bottom:5px}
+#homeWrap .homehead .camptitle{font-family:inherit;letter-spacing:.18em}
+#homeWrap .pcard.full{background:var(--panel)}
+#homeWrap .pcard.full .pchead{margin:-10px -12px 8px;padding:.45em .8em;background:#00000030;border-bottom:1px solid var(--line);border-radius:6px 6px 0 0}
+/* readable sizes: nothing on these pages below 12px */
+#homeWrap .cbrow label,#homeWrap .cbrevl,#homeWrap .crcost,#tableDock small,#homeWrap .pcard small{font-size:12px}
+/* fingers: buttons on a touch screen are at least 36px tall, small ones 32px */
+@media (pointer:coarse){
+  #homeWrap .btn,#tableDock .btn,#gmDrawer .btn,#notesDrawer .btn,#rxBar .btn,#callBox .btn{min-height:36px}
+  #homeWrap .btn.sm,#tableDock .btn.sm,#gmDrawer .btn.sm{min-height:32px;min-width:32px}
+  #homeWrap .crtgt input,#homeWrap .crtgt{min-height:32px}
+}
 
 /*CLOUD-CSS:END*/</style>
 <script id="cloud-js">/*CLOUD:BEGIN*/
@@ -34863,6 +34980,32 @@ body.has-table #callBox{left:calc(50% - 150px)}
   }
   function msgHTML() { return S.msg ? '<div class="campmsg' + (S.bad ? " bad" : "") + '">' + esc(S.msg) + "</div>" : ""; }
 
+  /* ---- the GM's page between fights: one toolbar, and a side column with what they reach for ---- */
+  function gmBar(code) {
+    var G = A.combat && A.combat._G, msg = G && G.msg ? '<div class="campmsg bad">' + esc(G.msg) + "</div>" : "";
+    var list = A.gmset && A.gmset.encs ? A.gmset.encs(code) : [];
+    var encPick = list.length ? '<span class="gbenc"><select data-gside="encsel">' + list.map(function (e) { return '<option value="' + esc(e.id) + '"' + (S.encSel === e.id ? " selected" : "") + ">" + esc((e.folder ? e.folder + " / " : "") + e.name) + "</option>"; }).join("") + '</select><button class="btn" data-gside="encgo" title="Start combat with this encounter’s creatures">▶ Run</button></span>'
+      : '<button class="btn" data-gside="open" data-tab="enc" title="Build fights ahead of time">📁 Prepare an encounter</button>';
+    var calls = A.calls && S.members.length ? A.calls.gmHTML(code, S.members) : "";
+    return '<div class="gmbar">' + '<button class="btn gold big" data-cb="start"' + (G && G.busy ? " disabled" : "") + ' title="Every player rolls Initiative on their own device; creatures roll d20 + their Speed Check.">⚔ Start combat</button>' +
+      (calls ? '<button class="btn' + (A.calls._X.open ? " on" : "") + '" data-gside="calls" aria-expanded="' + (A.calls._X.open ? "true" : "false") + '">🎲 Call for a roll</button>' : "") + encPick + "</div>" + msg +
+      (calls ? '<div class="gbcalls">' + calls + "</div>" : "");
+  }
+  function gmSide(code) {
+    var encs = A.gmset && A.gmset.encs ? A.gmset.encs(code).sort(function (a, b) { return (b.at || 0) - (a.at || 0); }).slice(0, 4) : [];
+    if (A.notes && A.notes._N && !A.notes._N.list[code] && !(S.notesAsked || (S.notesAsked = {}))[code]) { S.notesAsked[code] = 1; setTimeout(function () { A.notes._load(code); }, 0); }
+    var notes = (A.notes && A.notes._N && A.notes._N.list[code] || []).slice().sort(function (a, b) { return (b.pin ? 1 : 0) - (a.pin ? 1 : 0) || (b.at || 0) - (a.at || 0); }).slice(0, 3);
+    var jr = A.gmset && A.gmset.journalList ? A.gmset.journalList(code).sort(function (a, b) { return (b.last || 0) - (a.last || 0); }) : [];
+    var snip = function (t) { t = String(t || "").replace(/\*\*/g, "").replace(/\s+/g, " ").trim(); return t.length > 110 ? t.slice(0, 107) + "…" : t; };
+    return '<aside class="gmside">' +
+      '<section class="gsbox"><h4>Prepared encounters</h4>' + (encs.length ? encs.map(function (e) { return '<div class="gsrow"><div><b>' + esc(e.name) + "</b><small>" + esc(e.summary) + '</small></div><button class="btn sm" data-gside="erun" data-id="' + esc(e.id) + '">Run</button></div>'; }).join("") : '<p class="gsempty">None yet. Build fights ahead of time and start them in one click.</p>') +
+        '<button class="linkbtn" data-gside="open" data-tab="enc">Manage encounters →</button></section>' +
+      '<section class="gsbox"><h4>Party board</h4>' + (notes.length ? notes.map(function (n) { return '<div class="gsnote">' + (n.pin ? '<i class="gspin" title="Pinned">📌</i>' : "") + "<span>" + esc(snip(n.text)) + "</span><small>" + esc(n.byName || "") + (n.tag ? " · " + esc(n.tag) : "") + "</small></div>"; }).join("") : '<p class="gsempty">Nothing posted yet.</p>') +
+        '<button class="linkbtn" data-gside="notes">Open notes →</button></section>' +
+      '<section class="gsbox"><h4>Creature journal</h4>' + (jr.length ? '<p class="gsjr"><b>' + jr.length + "</b> " + (jr.length === 1 ? "creature" : "creatures") + " met</p>" + '<div class="gsjn">' + jr.slice(0, 6).map(function (e) { return '<span class="gstag">' + esc(e.name) + "</span>"; }).join("") + "</div>" : '<p class="gsempty">Creatures fill in here as you fight them.</p>') +
+        '<button class="linkbtn" data-gside="open" data-tab="journal">Open journal →</button></section>' +
+      "</aside>";
+  }
   function html() {
     var u = user();
     if (!u) {
@@ -34927,7 +35070,7 @@ body.has-table #callBox{left:calc(50% - 150px)}
       var foot = '<div class="pcfoot"><span class="pcago" title="When this sheet last reached the cloud">' + esc(ago(m.updatedAt)) + "</span>" +
         (gm ? '<span class="pcbtns"><button class="btn sm" data-camp="view" data-uid="' + esc(m.uid) + '">View sheet</button>' +
           '<button class="btn sm warn" data-camp="kick" data-uid="' + esc(m.uid) + '">' + (S.armed === "kick" + m.uid ? "Really remove?" : "Remove") + "</button></span>" : "") + "</div>";
-      if (card) return card(m, false, { full: true, you: mine, foot: foot, code: S.code });
+      if (card) return card(m, false, { full: true, you: mine, foot: foot, code: S.code, calm: !(gm && A.combat && A.combat._G && A.combat._G.enc && A.combat._G.code === S.code) });
       return '<div class="rosterrow"><div class="rname"><b>' + esc(m.charName) + "</b>" + (mine ? ' <span class="youtag">you</span>' : "") +
         "<small>" + esc(m.name || "Player") + "</small></div>" + '<div class="rsum">' + sumLine(m.sum) + "</div>" + hpBar(m.sum) + foot + "</div>";
     }).join("");
@@ -34941,22 +35084,27 @@ body.has-table #callBox{left:calc(50% - 150px)}
       (lowAr != null ? "<span>Lowest Armor <b>" + lowAr + "</b></span>" : "") +
       '<span class="pgrun">Run by <b>' + esc(k.gmName || "the GM") + "</b></span></div>" : "";
     var live = gm && A.combat && A.combat._G && A.combat._G.enc && A.combat._G.code === S.code;
-    var top = '<div class="homehead"><b>' + esc(k.name) + "</b>" +
-      (live ? '<button class="codechip" data-camp="copy" title="Invite code — click to copy">' + esc(H.fmtCode(k.code)) + "</button>" : "") +
+    /* the invite code matters until someone has joined; after that it is a small chip that copies */
+    var bigCode = gm && !live && !S.members.length;
+    /* updates arrive live; the button is only worth having while the live link is down */
+    var isLive = A.live && A.live.on && A.live.on(S.code) && A.live._L && A.live._L.online;
+    var top = '<div class="homehead"><b class="camptitle">' + esc(k.name) + "</b>" +
+      '<span class="headbtns">' +
+      (gm && !bigCode ? '<button class="codechip" data-camp="copy" title="Invite code — click to copy">' + esc(H.fmtCode(k.code)) + "</button>" : "") +
       (gm && A.gmset ? '<button class="btn" data-gsbtn title="Creature journal, prepared encounters, Stat Blocks, fight recap">⚙ Campaign settings</button>' : "") +
-      '<button class="btn" data-camp="refresh">Refresh</button>' + back + "</div>";
-    var codeBox = gm && !live ? '<div class="codebox"><span>Invite code</span><b id="campCodeTxt">' + esc(H.fmtCode(k.code)) + '</b>' +
-      '<button class="btn" data-camp="copy">Copy</button><small>Players join by entering this on the Campaigns screen.</small></div>' : "";
+      (isLive ? "" : '<button class="btn" data-camp="refresh" title="Fetch the latest from the cloud">⟳ Refresh</button>') + back + "</span></div>";
+    var codeBox = bigCode ? '<div class="codebox"><span>Invite code</span><b id="campCodeTxt">' + esc(H.fmtCode(k.code)) + '</b>' +
+      '<button class="btn" data-camp="copy">Copy</button><small>Players join by entering this on the Campaigns screen.</small></div>' : (gm ? '<span id="campCodeTxt" hidden>' + esc(H.fmtCode(k.code)) + "</span>" : "");
     var tableBtn = !gm && A.table ? '<div class="tablecall"><div><b>The table</b><small>Play from your own sheet, with the party, the turn order and the log beside it. Fights find you there.</small></div><button class="btn big hotbtn" data-camp="table">▶ Go to the table</button></div>' : "";
     var mineRow = !gm ? tableBtn + '<div class="camppanel wide"><b>Your character</b><div class="camprow2"><select id="campPick">' + charOptions() + '</select>' +
       '<button class="btn" data-camp="change"' + (S.busy ? " disabled" : "") + '>Play this one</button>' +
       '<button class="btn warn" data-camp="leave">' + (S.armed === "leave" ? "Really leave?" : "Leave campaign") + "</button></div></div>" : "";
     var gmFoot = gm ? '<div class="gmfoot"><button class="btn warn" data-camp="destroy">' + (S.armed === "destroy" ? "Really delete this campaign for everyone?" : "Delete campaign") + "</button></div>" : "";
-    var combat = gm && A.combat ? A.combat.gmHTML() : "";
-    if (gm && !live && A.calls && S.members.length) combat += '<div class="camppanel wide">' + A.calls.gmHTML(S.code, S.members) + "</div>";
+    var combat = gm && A.combat ? (live ? A.combat.gmHTML() : gmBar(S.code)) : "";
     var roster = '<div class="campsec">Party</div>' + glance + '<div class="roster partygrid">' + (rows || (gm ? '<div class="invitesteps"><b>No one has joined yet</b><ol><li>Send your players the invite code above (<b>Copy</b> puts it on your clipboard).</li><li>Each of them opens <b>Campaigns</b> and types it under <b>Join with a code</b>.</li><li>They choose a character, or build one right there, and appear here.</li></ol></div>' : '<div class="homenote">No one else is here yet.</div>')) + "</div>";
     if (live) { roster = '<details class="cbfold campros" data-fold="roster"' + (S.foldRoster ? " open" : "") + '><summary><b>Players (' + S.members.length + ")</b> <small>full sheets, Ailments, ArchSouls, remove players</small></summary>" + glance + '<div class="roster partygrid">' + rows + "</div></details>"; gmFoot = ""; }
     var mine2 = !gm ? tableBtn : "", pick = !gm ? mineRow.slice(tableBtn.length) : "";
+    if (gm && !live) return '<div class="homeinner gmpage">' + top + msgHTML() + codeBox + combat + '<div class="gmgrid"><div class="gmmain">' + roster + "</div>" + gmSide(S.code) + "</div>" + gmFoot + "</div>";
     return '<div class="homeinner' + (live ? " wide" : "") + '">' + top + msgHTML() + codeBox + mine2 + combat + roster + pick + gmFoot + "</div>";
   }
 
@@ -34965,6 +35113,16 @@ body.has-table #callBox{left:calc(50% - 150px)}
     if (A.qb && A.qb.wire) A.qb.wire();
     if (A.combat && A.combat.wire) A.combat.wire();
     var h = $("#homeWrap"); if (!h || h._campWired) return; h._campWired = 1;
+    h.addEventListener("click", function (e) {
+      var b = e.target.closest("[data-gside]"); if (!b || b.tagName === "SELECT") return;
+      var a = b.getAttribute("data-gside");
+      if (a === "calls") { A.calls._X.open = !A.calls._X.open; rerender(); }
+      else if (a === "open" && A.gmset) A.gmset.open(b.getAttribute("data-tab") || "journal");
+      else if (a === "notes" && A.notes) A.notes.open();
+      else if (a === "erun" && A.gmset) A.gmset.runEnc(S.code, b.getAttribute("data-id"));
+      else if (a === "encgo" && A.gmset) { var sel = h.querySelector('[data-gside="encsel"]'); if (sel && sel.value) A.gmset.runEnc(S.code, sel.value); }
+    });
+    h.addEventListener("change", function (e) { if (e.target.getAttribute && e.target.getAttribute("data-gside") === "encsel") S.encSel = e.target.value; });
     h.addEventListener("keydown", function (e) { if ((e.key === "Enter" || e.key === " ") && e.target.matches && e.target.matches('[role="button"][data-camp]')) { e.preventDefault(); e.target.click(); } });
     h.addEventListener("click", function (e) {
       var b = e.target.closest("[data-camp]"); if (!b) return;
@@ -35016,7 +35174,7 @@ body.has-table #callBox{left:calc(50% - 150px)}
 
   /* "Create and join": keep the new character, then join with it */
   function qbCreate() { if (A.qb && S.join) A.qb.finish(function (id) { S.pick = id; doAttach(S.join.camp); }); }
-  A.campUI = { _qbCreate: qbCreate, html: html, enter: enter, leave: function () { if (A.qb) A.qb.cancel(); if (A.combat) A.combat.leave(); stopPoll(); }, exitView: exitView, _state: S, _factsOf: factsOf, openCode: openCamp,
+  A.campUI = { refresh: function () { setMsg(""); return refreshCamp().then(function () { rerender(); }); }, _qbCreate: qbCreate, html: html, enter: enter, leave: function () { if (A.qb) A.qb.cancel(); if (A.combat) A.combat.leave(); stopPoll(); }, exitView: exitView, _state: S, _factsOf: factsOf, openCode: openCamp,
     refreshIfOpen: function (code) { if (S.screen === "campaign" && S.code === code && document.body.classList.contains("shellhome")) refreshCamp().then(rerender); } };
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot); else boot();
 })(typeof globalThis !== "undefined" ? globalThis : window);
@@ -35365,9 +35523,10 @@ body.has-table #callBox{left:calc(50% - 150px)}
   }
 
   function xtra(o) {
-    var p = G.priv[o.id], h = '<button class="btn sm" data-cb="up" data-id="' + esc(o.id) + '" title="Move up">▲</button><button class="btn sm" data-cb="dn" data-id="' + esc(o.id) + '" title="Move down">▼</button>';
+    var p = G.priv[o.id], h = '<span class="cbmv"><button class="btn sm" data-cb="up" data-id="' + esc(o.id) + '" title="Move up in the order" aria-label="Move up">▲</button><button class="btn sm" data-cb="dn" data-id="' + esc(o.id) + '" title="Move down in the order" aria-label="Move down">▼</button></span>';
     if (o.kind === "monster") {
       var kn = o.kn || {};
+      h += '<span class="cbrevl" title="Tell the players one of its numbers">Reveal</span>';
       [["armor", "Armor"], ["res", "Resist."], ["prot", "Protect."], ["evade", "Evade"]].forEach(function (r) { h += '<button class="btn sm' + (kn[r[0]] != null ? " on" : "") + '" data-cb="reveal" data-id="' + esc(o.id) + '" data-k="' + r[0] + '" title="Players learn its ' + r[1] + '">' + (kn[r[0]] != null ? "✓ " : "") + r[1] + "</button>"; });
       (o.cn || []).forEach(function (k) { h += '<button class="btn sm cnchip" data-cb="rmcond" data-id="' + esc(o.id) + '" data-k="' + esc(k) + '" title="Remove this Condition">' + esc(k) + " ✕</button>"; });
       if (o.grp && G.priv["pool:" + o.grp]) h += '<label class="cbpool" title="Shared Action pool (only you see this)">Pool <input type="number" data-cbpool="' + esc(o.grp) + '" value="' + G.priv["pool:" + o.grp].n + '"></label>';
@@ -35384,14 +35543,14 @@ body.has-table #callBox{left:calc(50% - 150px)}
     var e = G.enc, act = e.status === "active";
     return e.order.map(function (o, i) {
       var isCur = act && i === e.turn;
-      return '<div class="cbrow' + (isCur ? " cur" : "") + (o.kind === "player" ? " pl" : " mo") + '">' +
+      return '<div class="cbent' + (isCur ? " cur" : "") + '"><div class="cbrow' + (isCur ? " cur" : "") + (o.kind === "player" ? " pl" : " mo") + '">' +
         '<span class="cbmark">' + (isCur ? "▶" : "") + '</span>' +
         '<span class="cbname">' + esc(o.name) + (o.kind === "monster" ? ' <small>' + esc(o.hw || "creature") + "</small>" :
           e.status === "rolling" ? (o.init == null ? ' <small class="cbwait">waiting for their roll…</small>' : ' <small class="cbin">rolled</small>') : "") + '</span>' +
         (o.kind === "monster" && G.priv[o.id] ? '<label class="cbhpl" title="Health (only you see this)">HP <input class="cbhp" type="number" data-cbhp="' + esc(o.id) + '" value="' + G.priv[o.id].hp + '"><small>/ ' + G.priv[o.id].max + "</small></label>" : "<span></span>") +
         '<label class="cbinitl" title="Initiative">Init <input class="cbinit" type="number" data-cbinit="' + esc(o.id) + '" value="' + (o.init == null ? "" : o.init) + '" placeholder="' + (o.kind === "player" && e.status === "rolling" ? "…" : "—") + '"></label>' +
         (o.kind === "monster" ? '<button class="btn" data-cb="hide" data-id="' + esc(o.id) + '" title="Players see ??? instead of its name">' + (o.hide ? "Hidden" : "Shown") + '</button>' : "<span></span>") +
-        '<button class="btn warn" data-cb="rm" data-id="' + esc(o.id) + '" title="Remove from the order">✕</button></div>' + xtra(o);
+        '<button class="btn warn" data-cb="rm" data-id="' + esc(o.id) + '" title="Remove from the order" aria-label="Remove ' + esc(o.name) + '">✕</button></div>' + xtra(o) + "</div>";
     }).join("");
   }
   function addBar() {
@@ -35495,7 +35654,8 @@ body.has-table #callBox{left:calc(50% - 150px)}
     opts = opts || {};
     var s = (m && m.sum) || {}, v = s.v || {}, mx = s.hpMax || 0, pct = mx > 0 ? Math.max(0, Math.min(100, Math.round(100 * s.hp / mx))) : 0, at = v.at || [];
     var cd = (A.cic && v.cd) ? A.cic.strip(v.cd, opts.full ? 22 : 20) : "";
-    var st = v.st === "awakened" ? '<span class="pcstate aw">Awakened</span>' : v.st === "dormant" ? '<span class="pcstate">Dormant</span>' : "";
+    /* Dormant is the everyday state; only Awakened is news */
+    var st = v.st === "awakened" ? '<span class="pcstate aw">Awakened</span>' : "";
     var who = [s.lin, s.cls, s.lvl ? "Level " + s.lvl : ""].filter(Boolean).join(" · ");
     var ai = v.ai || [], warn = [];
     if (v.ex) warn.push("Exhaustion " + v.ex); if (v.co) warn.push("Corruption " + v.co);
@@ -35510,8 +35670,10 @@ body.has-table #callBox{left:calc(50% - 150px)}
       '<div class="pcst"><span title="Armor">🛡 ' + (v.ar | 0) + '</span><span title="Resistance">Res ' + (v.rs | 0) + '</span><span title="Protection">Prot ' + (v.pr | 0) + "</span>" +
         (v.sp != null ? '<span title="Speed">Spd ' + (v.sp | 0) + "</span>" : "") + "</div>" +
       '<div class="pcat"><span title="Power">Pow ' + (at[0] | 0) + '</span><span title="Vigor">Vig ' + (at[1] | 0) + '</span><span title="Arcane">Arc ' + (at[2] | 0) + '</span><span title="Agility">Agi ' + (at[3] | 0) + "</span></div>" +
+      /* Actions and Reactions only mean something in a fight */
+      (opts.calm ? (v.arl ? '<div class="pcac"><span title="ArchSoul Resonance Level">ARL ' + (v.arl[0] | 0) + "/" + (v.arl[1] | 0) + "</span></div>" : "") :
       '<div class="pcac"><span title="Current Actions">Actions ' + (v.ac | 0) + '</span><span title="Reactions left">Reactions ' + (v.rc | 0) + (v.rm ? "/" + v.rm : "") + "</span>" +
-        (v.arl ? '<span title="ArchSoul Resonance Level">ARL ' + (v.arl[0] | 0) + "/" + (v.arl[1] | 0) + "</span>" : "") + "</div>" +
+        (v.arl ? '<span title="ArchSoul Resonance Level">ARL ' + (v.arl[0] | 0) + "/" + (v.arl[1] | 0) + "</span>" : "") + "</div>") +
       (warn.length ? '<div class="pcwarn">' + esc(warn.join(" · ")) + "</div>" : "") +
       (opts.full && v.as && v.as.length ? '<div class="pcas">' + v.as.map(function (n) { return '<span class="pcasn">' + esc(n) + "</span>"; }).join("") + "</div>" : "") +
       (cd ? '<div class="pccd">' + cd + "</div>" : "") +
@@ -35999,6 +36161,127 @@ body.has-table #callBox{left:calc(50% - 150px)}
   function E() { return A.combat && A.combat._api; }
   function blockOf(o) { var all = (typeof sbAll === "function") ? sbAll() : []; return all.find(function (b) { return b.id === o.blockId; }); }
 
+  /* ================= a creature's own abilities =================
+     The Stat Block's Actions and Legendary Actions, read by the same reader the players' abilities use,
+     with the sheet pointed at the creature (asBlock): its Accuracy, its Damage Stat, its Lethality. */
+  function crSec(f) { return f.sec || (typeof sbcSec === "function" ? sbcSec(f) : "p"); }
+  function crAbils(b) {
+    return (b && b.feats || []).map(function (f, i) { return { f: f, i: i, sec: crSec(f) }; })
+      .filter(function (x) { return (x.sec === "a" || x.sec === "l") && String(x.f.name || "").trim(); });
+  }
+  /* The books also write a creature's Evade with a number for its Difficulty — "Difficulty: 100",
+     "Difficulty: 15 + Power" — which the sheet's reader (built for "Difficulty: Arcane") passes over. */
+  function crEv(b, desc) {
+    var t = String(desc || "").replace(/\s+/g, " "), m = /Evade:\s*(.+)$/i.exec(t); if (!m) return null;
+    var c = m[1], at = /Evade rolls?\s+(?:individually\s+)?with\s+(Power|Vigor|Arcane|Agility)/i.exec(c), df = /Difficulty:\s*([^.;]+)/i.exec(c);
+    if (!at || !df) return null;
+    var expr = df[1].trim(), tot = 0, ok = false;
+    expr.split(/\s*\+\s*/).forEach(function (part) {
+      var n = /^(\d+)$/.exec(part); if (n) { tot += +n[1]; ok = true; return; }
+      var a = /^(?:the creature's\s+|its\s+)?(Power|Vigor|Arcane|Agility)$/i.exec(part); if (a && typeof sbAttr === "function") { tot += +sbAttr(b, a[1].toLowerCase()) || 0; ok = true; }
+    });
+    if (!ok) return null;
+    var mode = /no damage|negat\w*\s+(?:the\s+)?(?:Spell|ability|effect|attack)|negating it/i.test(c) ? "all"
+      : /half/i.test(c) && /Condition/i.test(c) ? "halfcond"
+      : /half/i.test(c) ? "half"
+      : /mitigat\w*\s+the\s+damage\s+and\s+(?:the\s+)?Conditions?/i.test(c) ? "halfcond"
+      : /negat\w*\s+the\s+damage/i.test(c) ? "all"
+      : /negat|Cleans/i.test(c) ? "cond" : "";
+    return { attr: at[1].toLowerCase(), diff: Math.round(tot), mode: mode, text: c };
+  }
+  function crRead(b, x) {
+    var id = "cr|" + b.id + "|" + x.i, ref = "ab:" + id;
+    return asBlock(b, function () {
+      mkAbil(id, x.f.name, b.name || "", x.f.desc || "", x.f.type || "");
+      var sp = useItem(ref), R = useRead(sp), K = useCalc(sp, { ref: ref });
+      return { ref: ref, sp: sp, R: R, K: K, ev2: R.ev ? null : crEv(b, x.f.desc) };
+    });
+  }
+  /* one line that says what the button will do */
+  function crSummary(b, x) {
+    try {
+      var r = crRead(b, x), R = r.R, K = r.K, bits = [];
+      if ((K.dice.length || K.flat) && !R.none) bits.push(K.dice.join(" + ") + (K.flat ? " + " + K.flat : "") + " " + (R.type || "Soul"));
+      if (R.acc) bits.push("Accuracy");
+      var ev = R.ev ? attName(R.ev.attr) + " Evade" : r.ev2 ? attName(r.ev2.attr) + " Evade " + r.ev2.diff : "";
+      if (ev) bits.push(ev);
+      var cs = (R.conds || []).map(function (c) { return c.label || condName(c.key); }).filter(Boolean);
+      if (cs.length) bits.push(cs.join(", "));
+      return { cost: r.sp.cost, text: bits.join(" · "), acts: !!(bits.length), r: r };
+    } catch (e) { return { cost: 0, text: "", acts: false, r: null }; }
+  }
+  /* Roll it as the creature and post one strike per target. Nothing aimed (Cloak, Invisibility) is announced. */
+  async function crUse(monId, idx, ids) {
+    var g = E(), c = api(); if (!g || !c) return;
+    var order = g.G.enc.order, from = order.find(function (o) { return o.id === monId; }), b = from && blockOf(from);
+    if (!b) { S.msg = "That creature's Stat Block is gone."; return rerender(); }
+    var x = crAbils(b).find(function (y) { return y.i === +idx; }); if (!x) return;
+    var r = crRead(b, x), R = r.R, K = r.K, ref = r.ref, hasDmg = !!(K.dice.length || K.flat) && !R.none, cap = null, data = null;
+    var aimed = hasDmg || R.acc || R.ev || r.ev2 || (R.conds || []).length;
+    if (aimed && !ids.length) { S.msg = "Choose who " + x.f.name + " is used on."; return rerender(); }
+    if (x.sec === "l") { var pl = g.G.priv[from.id]; if (pl && (pl.leg | 0) <= 0) { S.msg = from.name + " has no Legendary Actions left."; return rerender(); } if (pl) { pl.leg -= 1; g.privSave(); } }
+    try {
+      data = asBlock(b, function () {
+        if (R.acc || hasDmg) {
+          var orig = root.popRoll; root.popRoll = function (o) { cap = o; };
+          var fn = R.acc ? (root.useAcc && (root.useAcc._orig || root.useAcc)) : (root.useRoll && (root.useRoll._orig || root.useRoll));
+          try { fn(ref); } finally { root.popRoll = orig; }
+        }
+        return A.abil.build(ref, cap || { segs: [] }, R.acc ? "acc" : "roll", "enemy");
+      });
+    } catch (e) { S.msg = "Could not read " + x.f.name + "."; return rerender(); }
+    if (r.ev2 && !data.evAttr) { data.evAttr = r.ev2.attr; data.evDiff = r.ev2.diff; data.evMode = r.ev2.mode || ((data.phys || data.soul || data.tru) ? "half" : "cond"); }
+    if (!R.acc) data.noAcc = true;
+    var tg = A.react ? A.react.tagsFor({ ref: ref, code: g.G.code, cost: +r.sp.cost || 0, sp: { name: x.f.name, desc: x.f.desc || "", type: x.f.type || "" } }) : { tokens: [] };
+    var at = Date.now(), round = g.G.enc.round, rolled = cap && cap.segs ? cap.segs.map(function (q) { return q.label + " " + q.value + (q.tag ? " (" + q.tag + ")" : ""); }).join(", ") : "";
+    S.busy = true; S.msg = "";
+    try {
+      if (!aimed) {
+        var ed = { id: rid(), from: user().uid, fromName: from.name, toId: from.id, toUid: "", toName: from.name, acc: 0, crit: false, fumble: false, phys: 0, soul: 0, tru: 0, fx: "", label: String(x.f.name).slice(0, 60), round: round, at: at, status: "echo", result: from.name + " uses " + x.f.name + (rolled ? " — " + rolled : ""), evAttr: "", evDiff: 0, evMode: "", noAcc: true, conds: tg.tokens.join(",") };
+        if (!from.hide) await c.postStrike(g.G.code, ed);
+        if (A.react) { A.react.ingest(g.G.code, [ed]); A.react.posted(g.G.code); }
+        g.log(from.name + " uses " + x.f.name + (x.sec === "l" ? " (Legendary)" : "") + ".");
+      } else {
+        var sentTo = [];
+        for (var i = 0; i < ids.length; i++) {
+          var to = order.find(function (o) { return o.id === ids[i]; }); if (!to || to.kind !== "player") continue;
+          var strike = { id: rid(), from: user().uid, fromName: from.name, toId: to.id, toUid: to.uid, toName: to.name, acc: data.noAcc ? -1 : data.acc, noAcc: !!data.noAcc, evMode: data.evMode || "half", conds: String(data.conds || ""), crit: !!data.crit, fumble: !!data.fumble,
+            phys: data.phys | 0, soul: data.soul | 0, tru: data.tru | 0, fx: data.fx || "", evAttr: data.evAttr || "", evDiff: data.evDiff | 0, label: String(x.f.name).slice(0, 60), round: round, at: at, status: "posted", result: "" };
+          if ((strike.phys || strike.soul || strike.tru) && strike.fx !== "heal" && !strike.fumble) strike.conds = strike.conds.split(",").filter(Boolean).concat(["cb:" + (((b.crit && +b.crit.bonus) || 50))]).join(",");
+          strike.conds = strike.conds.split(",").filter(Boolean).concat(tg.tokens).join(",");
+          await c.postStrike(g.G.code, strike); S.sent.push(strike.id); sentTo.push(to.name);
+          if (A.react) A.react.ingest(g.G.code, [strike]);
+        }
+        if (A.react) A.react.posted(g.G.code);
+        g.log(from.name + " uses " + x.f.name + (x.sec === "l" ? " (Legendary)" : "") + " on " + sentTo.join(", ") + (rolled ? " — " + rolled : "") + "…");
+      }
+      S.crPick = null; S.crTo = {};
+      await g.push();
+    } catch (e) { S.msg = "Could not reach the cloud."; }
+    S.busy = false; rerender();
+  }
+  function crHTML(mons, pls, fromId) {
+    var from = mons.find(function (o) { return o.id === fromId; }), b = from && blockOf(from); if (!b) return "";
+    var list = crAbils(b), pick = S.crPick && S.crPick.mon === fromId ? S.crPick.i : null, legs = (E().G.priv[fromId] || {}).leg | 0;
+    if (!list.length) return '<div class="crnone">' + esc(b.name || from.name) + "'s Stat Block has no Actions written yet. Use a custom strike below, or add Actions in Monsters.</div>";
+    var chips = list.map(function (x) {
+      var sm = crSummary(b, x), on = pick === x.i;
+      return '<button class="crab' + (on ? " on" : "") + (x.sec === "l" ? " leg" : "") + '" data-st="crpick" data-i="' + x.i + '"' + (x.sec === "l" && legs <= 0 ? " disabled" : "") + ">" +
+        '<b>' + esc(x.f.name) + "</b>" + (sm.cost ? '<i class="crcost">' + sm.cost + "A</i>" : "") + (x.sec === "l" ? '<i class="crcost">Legendary</i>' : "") +
+        '<small>' + esc(sm.text || "no roll — announced") + "</small></button>";
+    }).join("");
+    var det = "";
+    if (pick != null) {
+      var x = list.find(function (y) { return y.i === pick; }), sm = crSummary(b, x), aimed = sm.r && ((sm.r.K.dice.length || sm.r.K.flat) && !sm.r.R.none || sm.r.R.acc || sm.r.R.ev || sm.r.ev2 || (sm.r.R.conds || []).length);
+      S.crTo = S.crTo || {};
+      det = '<div class="crdet"><p class="crdesc">' + esc(x.f.desc || "") + "</p>" +
+        (aimed ? '<div class="crto"><span>On</span>' + pls.map(function (o) { return '<label class="crtgt"><input type="checkbox" data-st="crto" data-id="' + esc(o.id) + '"' + (S.crTo[o.id] ? " checked" : "") + "> " + esc(o.name) + "</label>"; }).join("") +
+          (pls.length > 1 ? '<button class="btn sm" data-st="crall">Everyone</button>' : "") + "</div>" : "") +
+        '<div class="camprow2"><button class="btn gold" data-st="cruse"' + (S.busy ? " disabled" : "") + ">" + (aimed ? (sm.r.R.acc ? "Roll Accuracy and send" : "Roll and send") : "Use it — tell the table") + '</button><button class="btn" data-st="crcancel">Cancel</button></div></div>';
+    }
+    return '<div class="crlist">' + chips + "</div>" + det;
+  }
+
   async function gmPoll(fresh) {
     var c = api(), g = E(); if (!c || !g || !g.G.code || !g.G.enc || g.G.enc.status !== "active") return;
     S.gn = (S.gn || 0) + 1;
@@ -36116,14 +36399,16 @@ body.has-table #callBox{left:calc(50% - 150px)}
         ' <button class="btn" data-st="resolve" data-id="' + esc(s.id) + '"' + (A.react && A.react.held(s) ? " disabled" : "") + ">" + (ev ? "Roll its Evade and resolve" : "Resolve") + "</button></div>";
     }).join("");
     var form = (mons.length && pls.length) ?
-      '<details class="stform cbfold" data-fold="strike"' + ((S.foldStrike === true || (S.foldStrike == null && cur && cur.kind === "monster")) ? " open" : "") + '><summary><b>Creature strike</b> <small>a creature attacks or affects a player</small></summary><div class="camprow2">' +
-      '<select data-stg="from">' + mons.map(function (o) { return '<option value="' + esc(o.id) + '"' + (o.id === from ? " selected" : "") + ">" + esc(o.name) + "</option>"; }).join("") + "</select>" +
+      '<details class="stform cbfold" data-fold="strike"' + ((S.foldStrike === true || (S.foldStrike == null && cur && cur.kind === "monster")) ? " open" : "") + '><summary><b>Creature acts</b> <small>pick one of its abilities, or make a custom strike</small></summary>' +
+      '<div class="camprow2 crfrom"><select data-stg="from">' + mons.map(function (o) { return '<option value="' + esc(o.id) + '"' + (o.id === from ? " selected" : "") + ">" + esc(o.name) + "</option>"; }).join("") + "</select></div>" +
+      crHTML(mons, pls, from) +
+      '<details class="crcustom"' + (S.customOpen ? " open" : "") + ' data-crcustom><summary>Custom strike <small>type the dice yourself</small></summary><div class="camprow2">' +
       '<select data-stg="to"><option value="">on…</option>' + pls.map(function (o) { return '<option value="' + esc(o.id) + '"' + (o.id === f.to ? " selected" : "") + ">" + esc(o.name) + "</option>"; }).join("") + "</select></div>" +
       '<div class="camprow2"><input data-stg="phys" placeholder="Physical dice, e.g. 2d6" value="' + esc(f.phys) + '"><input data-stg="soul" placeholder="Soul dice" value="' + esc(f.soul) + '"><input data-stg="tru" placeholder="True dice" value="' + esc(f.tru) + '"></div>' +
       '<div class="camprow2"><select data-stg="evAttr">' + attOptions(f.evAttr, "No Evade") + '</select><input data-stg="evDiff" type="number" placeholder="Evade Difficulty" value="' + esc(f.evDiff) + '"><select data-stg="evMode">' + evModeOptions(f.evMode) + '</select></div>' +
       '<div class="camprow2"><label><input type="checkbox" data-stg="noAcc"' + (f.noAcc ? " checked" : "") + '> No Accuracy roll (Evade only)</label><select multiple size="3" data-stg="conds" title="Conditions it inflicts">' + condOptions(f.conds) + '</select></div>' +
       '<div class="camprow2"><select data-stg="fx">' + fxOptions(f.fx) + '</select><input data-stg="label" placeholder="Ability name (optional)" value="' + esc(f.label) + '"></div>' +
-      '<div class="camprow2"><button class="btn" data-st="gsend"' + (S.busy ? " disabled" : "") + '>Roll Accuracy and send</button></div></details>' : "";
+      '<div class="camprow2"><button class="btn" data-st="gsend"' + (S.busy ? " disabled" : "") + '>Roll Accuracy and send</button></div></details></details>' : "";
     return '<label class="stauto"><input type="checkbox" data-st="auto"' + (S.auto ? " checked" : "") + '> Apply strikes on creatures automatically</label>' + (q ? '<div class="stqueue"><b>Strikes on creatures</b>' + q + "</div>" : "") + (S.undo.length ? '<div class="camprow2"><button class="btn" data-st="undo">Undo last strike on a creature</button></div>' : "") + form + (S.msg ? '<div class="campmsg bad">' + esc(S.msg) + "</div>" : "");
   }
 
@@ -36268,7 +36553,7 @@ body.has-table #callBox{left:calc(50% - 150px)}
   function drawPanelNow() { var b = $("#strikePanel"); if (b) b._h = null; drawPanel(); }
 
   function boot() {
-    document.addEventListener("toggle", function (e) { var d = e.target; if (d && d.getAttribute && d.getAttribute("data-fold") === "strike") S.foldStrike = d.open; }, true);
+    document.addEventListener("toggle", function (e) { var d = e.target; if (d && d.getAttribute && d.getAttribute("data-fold") === "strike") S.foldStrike = d.open; if (d && d.hasAttribute && d.hasAttribute("data-crcustom")) S.customOpen = d.open; }, true);
     document.addEventListener("click", function (e) {
       var b = e.target.closest && e.target.closest("[data-st]"); if (!b) return;
       var a = b.getAttribute("data-st");
@@ -36278,6 +36563,12 @@ body.has-table #callBox{left:calc(50% - 150px)}
       else if (a === "take") takeIncoming();
       else if (a === "resolve") resolveCreature(b.getAttribute("data-id"));
       else if (a === "gsend") sendCreature();
+      else if (a === "crpick") { var mon = (function () { var g = E(); if (!g || !g.G.enc) return ""; var mons = g.G.enc.order.filter(function (o) { return o.kind === "monster"; }), cu = g.cur(), f = S.gform; return (f.from && mons.some(function (o) { return o.id === f.from; }) && f.from) || (cu && cu.kind === "monster" ? cu.id : "") || (mons[0] ? mons[0].id : ""); })();
+        var ii = +b.getAttribute("data-i"); S.crPick = (S.crPick && S.crPick.mon === mon && S.crPick.i === ii) ? null : { mon: mon, i: ii }; if (!S.crTo || !Object.keys(S.crTo).length) { S.crTo = {}; if (S.gform.to) S.crTo[S.gform.to] = true; } S.msg = ""; rerender(); }
+      else if (a === "crto") { S.crTo = S.crTo || {}; S.crTo[b.getAttribute("data-id")] = !!b.checked; }
+      else if (a === "crall") { var g2 = E(); S.crTo = {}; if (g2) g2.G.enc.order.forEach(function (o) { if (o.kind === "player") S.crTo[o.id] = true; }); rerender(); }
+      else if (a === "crcancel") { S.crPick = null; rerender(); }
+      else if (a === "cruse") { if (S.crPick && !S.busy) crUse(S.crPick.mon, S.crPick.i, Object.keys(S.crTo || {}).filter(function (k) { return S.crTo[k]; })); }
       else if (a === "undo") undoLast();
       else if (a === "auto") { S.auto = !S.auto; rerender(); }
     });
@@ -36293,12 +36584,12 @@ body.has-table #callBox{left:calc(50% - 150px)}
 
   /* the GM answering an action with a creature: the strike form, ready, with that creature acting */
   function reactWith(monId) {
-    S.gform.from = monId; S.foldStrike = true; S.msg = "Reaction — choose what the creature does and press Roll Accuracy and send.";
+    S.gform.from = monId; S.foldStrike = true; S.crPick = null; S.msg = "Reaction — choose which of its abilities the creature answers with.";
     if (A.shell && A.shell.open && !document.body.classList.contains("shellhome")) A.shell.open("campaigns");
     rerender();
     setTimeout(function () { var d = document.querySelector('details[data-fold="strike"]'); if (d) { d.open = true; d.scrollIntoView({ block: "center", behavior: "smooth" }); } }, 80);
   }
-  A.strike = { reactWith: reactWith, gmHTML: gmHTML, gmPoll: gmPoll, playerPoll: playerPoll, drawPanel: drawPanel, reset: function () { S.pend = {}; S.gpend = {}; S.done = {}; S.queue = []; S.sent = []; S.incoming = null; S.open = false; showIncoming(); drawPanel(); }, _S: S, _hit: hitOf, _land: landCond, _landCreature: landCreature };
+  A.strike = { reactWith: reactWith, gmHTML: gmHTML, gmPoll: gmPoll, playerPoll: playerPoll, drawPanel: drawPanel, reset: function () { S.pend = {}; S.gpend = {}; S.done = {}; S.queue = []; S.sent = []; S.incoming = null; S.open = false; showIncoming(); drawPanel(); }, _S: S, _hit: hitOf, _land: landCond, _landCreature: landCreature, _crAbils: crAbils, _crEv: crEv, _crUse: crUse, _crSummary: crSummary };
 })(typeof globalThis !== "undefined" ? globalThis : window);
 
 /* ArchSoul — using abilities in a fight, from the sheet itself. Out of combat nothing changes. In combat,
@@ -37472,6 +37763,7 @@ body.has-table #callBox{left:calc(50% - 150px)}
       if (D.jsave && docsOf(code).journal) m.journal = docsOf(code).journal;
       D.docs[code] = m; D.loaded[code] = Date.now();
       restoreBlocks(code);
+      if (document.querySelector(".gmside") && A.shell && A.shell.rerender) setTimeout(A.shell.rerender, 0);
     } catch (e) { D.err = "The GM drawer is not switched on in the cloud yet."; }
     draw();
   }
@@ -37712,7 +38004,7 @@ body.has-table #callBox{left:calc(50% - 150px)}
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot); else boot();
 
-  A.gmset = { reload: function (code) { if (!D.busy) load(code, true); }, beforeEnd: beforeEnd, draw: draw, keepBlock: keepBlock, open: function (t) { D.open = true; if (t) D.tab = t; draw(); }, _D: D, recapText: recapText };
+  A.gmset = { encs: function (code) { return encs(code).map(function (r) { var d = parse(r.data) || {}; return { id: r.id, name: r.name || "Encounter", folder: r.folder || "", summary: encSummary(d), at: r.at || 0 }; }); }, runEnc: runEnc, journalList: function (code) { var j = journal(code).entries || {}; return Object.keys(j).map(function (k) { return j[k]; }); }, loaded: function (code) { return !!D.loaded[code]; }, reload: function (code) { if (!D.busy) load(code, true); }, beforeEnd: beforeEnd, draw: draw, keepBlock: keepBlock, open: function (t) { D.open = true; if (t) D.tab = t; draw(); }, _D: D, recapText: recapText };
 })(typeof globalThis !== "undefined" ? globalThis : window);
 
 /* ArchSoul — the table. A player at a campaign plays from their own sheet, with the campaign
@@ -37780,6 +38072,7 @@ body.has-table #callBox{left:calc(50% - 150px)}
     var dock = $("#tableDock"), u = user(), code = T.code, m = code && mineRec(code);
     if (!u || !m) {
       if (dock) dock.remove(); document.body.classList.remove("has-table", "table-mine");
+      fit();
       return;
     }
     var e = encOf(code), active = !!(e && e.status === "active"), rolling = !!(e && e.status === "rolling");
@@ -37846,6 +38139,7 @@ body.has-table #callBox{left:calc(50% - 150px)}
     document.body.classList.toggle("table-mine", mineNow);
     if (A.strike) A.strike.drawPanel();
     if (!e) loadMembers(false);
+    fit();
   }
 
   /* your turn reaches you even when you are looking elsewhere: the tab's title says so, and a phone buzzes once */
@@ -37859,6 +38153,28 @@ body.has-table #callBox{left:calc(50% - 150px)}
     try { if (navigator.vibrate) navigator.vibrate([120, 60, 120]); } catch (x) {}
   }
 
+  /* The table covers the right of the window. The sheet is drawn just small enough that every column
+     that fits the window without the table still fits beside it — on a big monitor that is no change at all.
+     The Size slider (DB.zoom) is never touched; closing the table puts the sheet back exactly. */
+  function fit() {
+    if (typeof root.setDockFit !== "function") return;
+    var bc = document.body.classList, phone = (window.matchMedia && window.matchMedia("(max-width: 760px)").matches) || document.documentElement.classList.contains("ph");
+    var on = bc.contains("has-table") && !bc.contains("shellhome") && !bc.contains("viewonly") && !phone;
+    var cv = document.getElementById("canvas"), st = document.getElementById("stage");
+    if (!on || !cv || !st || cv.classList.contains("floating") || !st.offsetWidth) { root.setDockFit(1); return; }
+    var s = (typeof root.stageScale === "function" ? root.stageScale() : 1) || 1, z = ((typeof DB !== "undefined" && DB && DB.zoom) || 100) / 100;
+    var sr = st.getBoundingClientRect(), left = sr.left + (window.scrollX || 0);
+    var W = document.documentElement.clientWidth, room = W - (bc.contains("table-rail") ? 46 : 300) - 6;
+    var edge = 0;
+    Array.prototype.forEach.call(cv.children, function (c) {
+      if (!c.classList || !c.classList.contains("col") || c.classList.contains("ghost") || !c.offsetWidth) return;
+      var right = (c.getBoundingClientRect().right - sr.left) / s;          /* in the stage's own pixels */
+      if (left + right * z <= W + 1) edge = Math.max(edge, right);
+    });
+    if (!edge) { root.setDockFit(1); return; }
+    var k = Math.min(1, (room - left) / (edge * z));
+    root.setDockFit(k >= 0.6 ? k : 1);
+  }
   /* the sheet's own bars are not fixed: they scroll away, and the dock follows them up */
   function place(dock, phone) {
     dock = dock || $("#tableDock"); if (!dock) return;
@@ -37888,6 +38204,7 @@ body.has-table #callBox{left:calc(50% - 150px)}
   function boot() {
     document.addEventListener("click", onClick);
     addEventListener("resize", function () { render(); });
+    document.addEventListener("input", function (e) { if (e.target && e.target.id === "zoom") setTimeout(fit, 0); });
     document.addEventListener("scroll", function () { place(); }, { passive: true, capture: true });
     if (A.ui && A.ui.onChange) A.ui.onChange(function () { setTimeout(render, 50); });
     /* the table follows the sheet: a change to your own character redraws your row */
@@ -37897,7 +38214,7 @@ body.has-table #callBox{left:calc(50% - 150px)}
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot); else boot();
 
-  A.table = { sit: sit, stand: stand, render: render, code: function () { return T.code; }, _T: T };
+  A.table = { _fit: fit, sit: sit, stand: stand, render: render, code: function () { return T.code; }, _T: T };
 })(typeof globalThis !== "undefined" ? globalThis : window);
 
 /* ArchSoul — the campaign's notes. A tab on the left edge of the screen, there only while you are
@@ -37957,6 +38274,8 @@ body.has-table #callBox{left:calc(50% - 150px)}
     } catch (e) { N.err = (e && /permission/.test(String(e.code || e.message))) ? "The notes board is not switched on in the cloud yet." : "Could not reach the cloud. Try again in a moment."; }
     finally { N.busy = false; }
     render();
+    /* the GM's page shows the newest notes in its side column */
+    if (document.querySelector(".gmside") && A.shell && A.shell.rerender) A.shell.rerender();
   }
   async function post(ctx, text, tag) {
     var c = api(); text = String(text || "").trim(); if (!c || !text) return false;
@@ -38396,14 +38715,31 @@ body.has-table #callBox{left:calc(50% - 150px)}
     });
   }
 
+  /* The top bar scrolls with the page, but Home is pinned to the window. While Home is open the
+     page underneath must not scroll at all, or the bar slides away and the sheet shows through
+     the strip it leaves. So: lock the page (and put it back where it was afterwards), and keep
+     Home's top edge on the bar's bottom edge whatever happens. */
+  var locked = false, savedY = 0;
+  function lockPage(on) {
+    if (on === locked) return;
+    locked = on;
+    var de = document.documentElement;
+    if (on) { savedY = window.scrollY || de.scrollTop || 0; de.classList.add("shell-lock"); window.scrollTo(0, 0); }
+    else {
+      de.classList.remove("shell-lock");
+      /* the sheet is shown again a moment later; wait for it, or the page is too short to scroll back */
+      var y = savedY; requestAnimationFrame(function () { requestAnimationFrame(function () { if (!locked) window.scrollTo(0, y); }); });
+    }
+  }
   function sizeHome() {
     var h = $("#homeWrap"), b = $("#bar"); if (!h || !b) return;
-    h.style.top = b.getBoundingClientRect().bottom + "px";
+    h.style.top = Math.max(0, Math.round(b.getBoundingClientRect().bottom)) + "px";
   }
 
   function renderHome() {
     var h = $("#homeWrap"); if (!h) return;
     h.classList.toggle("open", homeOpen);
+    lockPage(homeOpen); /* first: hiding the sheet shortens the page and would lose the scroll position */
     document.body.classList.toggle("shellhome", homeOpen);
     if (!homeOpen) { return; }
     sizeHome();
@@ -38487,6 +38823,14 @@ body.has-table #callBox{left:calc(50% - 150px)}
     });
     document.addEventListener("keydown", function (e) { if (e.key === "Escape") closePops(); });
     addEventListener("resize", function () { sizeHome(); });
+    /* something scrolled the page anyway (a script, iOS rubber-banding): put it back */
+    addEventListener("scroll", function () {
+      if (!locked) return;
+      if ((window.scrollY || document.documentElement.scrollTop) !== 0) window.scrollTo(0, 0);
+      sizeHome();
+    }, { passive: true });
+    /* the bar can change height after Home opens (fonts, the account name, wrapping) */
+    if (window.ResizeObserver && $("#bar")) new ResizeObserver(function () { if (locked) sizeHome(); }).observe($("#bar"));
     renderHome(); updateAll();
     /* the sound controls are built a moment after load; if Settings is open by then, fill it */
     setTimeout(function () { var s = $("#shellSound"); if (s && $("#sfxBtn")) { s.textContent = ""; ["#sfxBtn", "#sfxVol", "#sfxMore"].forEach(function (q) { var n = $(q); if (n) s.appendChild(n); }); } }, 900);
