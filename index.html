@@ -264,6 +264,23 @@ body.camplocked input[readonly][title^="Your campaign locks"]{opacity:.75;cursor
 #wpnAsk .wabtn.on{border-color:var(--hot);color:var(--hot)}
 #wpnAsk .wabtn small{color:var(--ink-dim);font-size:11px}
 #wpnAsk .dafoot{display:flex;justify-content:space-between;align-items:center;margin-top:12px;color:var(--ink-dim);font-size:13px}
+#choicePop{position:fixed;inset:0;z-index:3000;display:flex;align-items:center;justify-content:center;background:rgba(6,5,4,.62);animation:chFade .18s ease-out}
+#choicePop .cpbox{background:var(--panel);border:1px solid var(--hot);border-radius:10px;box-shadow:0 14px 48px #000c;padding:18px 20px 14px;width:min(760px,94vw);max-height:88vh;overflow:auto}
+#choicePop .cphd{font-size:13px;letter-spacing:.2em;text-transform:uppercase;color:var(--hot)}
+#choicePop .cpline{margin:4px 0 10px;color:var(--ink-dim);font-size:13.5px}
+#choicePop .cpsec{border-top:1px solid var(--line);padding:10px 0 4px}
+#choicePop .cpsec h4{margin:0;font-size:15px;letter-spacing:.06em;color:var(--ink)}
+#choicePop .cpsec > p{margin:2px 0 8px;font-size:12.5px;color:var(--ink-dim)}
+#choicePop .cpopts{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px}
+#choicePop .cpopt{display:flex;flex-direction:column;gap:3px;text-align:left;padding:9px 11px;border:1px solid var(--line);border-radius:7px;background:var(--panel-2);color:var(--ink);cursor:pointer;font:inherit}
+#choicePop .cpopt.wide{grid-column:1/-1}
+#choicePop .cpopt:hover,#choicePop .cpopt:focus-visible{border-color:var(--glow,var(--hot));outline:none;box-shadow:0 0 12px color-mix(in srgb,var(--glow,var(--hot)) 35%,transparent)}
+#choicePop .cpopt.on{border-color:var(--hot)}
+#choicePop .cpopt b{font-size:14px}
+#choicePop .cpopt small{font-size:12px;color:var(--ink-dim);line-height:1.4}
+#choicePop .cpnote{font-size:12px;color:var(--ink-faint);margin-top:6px}
+#choicePop .cpfoot{display:flex;justify-content:flex-end;margin-top:10px}
+#choiceMini{width:38px;height:38px;border-radius:50%;border:1px solid var(--hot);background:var(--panel);color:var(--hot);font-weight:700;font-size:18px;cursor:pointer;box-shadow:0 4px 14px #000a;animation:chFade .18s ease-out}
 #domAsk{position:fixed;inset:0;z-index:3000;display:flex;align-items:center;justify-content:center;background:rgba(6,5,4,.66)}
 #domAsk .dabox{background:var(--panel);border:1px solid var(--hot);border-radius:8px;box-shadow:0 12px 44px #000b;padding:18px 20px;max-width:min(860px,94vw);max-height:90vh;overflow:auto}
 #domAsk .dahd{font-size:13px;letter-spacing:.2em;text-transform:uppercase;color:var(--hot);margin-bottom:6px}
@@ -291,7 +308,10 @@ body.camplocked input[readonly][title^="Your campaign locks"]{opacity:.75;cursor
 .panel.dragpanel{position:fixed;z-index:1200;opacity:.93;box-shadow:0 12px 40px #000c;
   border-color:var(--hot);pointer-events:none;cursor:grabbing}
 .ph{border:1px dashed var(--hot);border-radius:6px;background:#c9a2270d;flex:0 0 auto}
-.panel.dim{opacity:.42;filter:saturate(.4)}
+/* not Awakened: only the window itself greys — its frame and title — so every Domain and Spell stays readable (C.J., 16 Nov) */
+.panel.dim{border-color:color-mix(in srgb,var(--line) 70%,transparent) !important;box-shadow:none !important;background-color:color-mix(in srgb,var(--panel) 82%,#000)}
+.panel.dim > h3{opacity:.5;filter:saturate(.3)}
+.panel.dim > h3::after{content:"Dormant — Spells need Awakened";margin-left:auto;font-size:.7em;letter-spacing:.08em;text-transform:none;font-style:italic;color:var(--ink-faint);opacity:1}
 .panel.lit{border-color:var(--bad);box-shadow:0 0 18px #e0453f44,0 2px 14px #0007}
 
 /* block arranging */
@@ -3044,17 +3064,17 @@ select.ksborrow{width:100%;margin-bottom:.3em}
 .menu:has(.aslist){min-width:min(430px,86vw)}
 
 /* ---------- Action Dice row ---------- */
-.adrow{display:inline-flex;align-items:center;gap:.2em;vertical-align:middle}
-.adrow input.adbox{width:3.1em;flex:0 0 3.1em;text-align:center}
-.adroll{background:var(--panel-2);border:1px solid var(--line);color:var(--hot);
+.dicerow{display:inline-flex;align-items:center;gap:.2em;vertical-align:middle}
+.dicerow input.dicebox{width:3.1em;flex:0 0 3.1em;text-align:center}
+.diceroll{background:var(--panel-2);border:1px solid var(--line);color:var(--hot);
   border-radius:3px;cursor:pointer;font-size:1.05em;line-height:1;padding:.1em .28em;
   font-family:inherit}
-.adroll:hover{background:var(--hot);color:var(--bg);border-color:var(--hot)}
-.adavg{font-size:.72em;color:var(--ink-faint);line-height:1.3;margin-top:.15em;
+.diceroll:hover{background:var(--hot);color:var(--bg);border-color:var(--hot)}
+.diceavg{font-size:.72em;color:var(--ink-faint);line-height:1.3;margin-top:.15em;
   display:flex;gap:.35em;align-items:baseline}
-.adavg em{font-style:italic}
-.adavg b{color:var(--ink-dim);font-style:normal}
-.adrer{color:var(--hot)}
+.diceavg em{font-style:italic}
+.diceavg b{color:var(--ink-dim);font-style:normal}
+.dicerer{color:var(--hot)}
 
 /* ---------- Spend Actions, in the free corner of the card header ---------- */
 .usecard .uhd{flex-wrap:wrap}
@@ -3628,14 +3648,14 @@ body.arenamode #tabbar #calcTab,body.arenamode #tabbar #pageGear{display:none}
   border:1px solid var(--line);border-radius:4px;padding:.1em .35em;color:var(--ink-dim);background:var(--sunk)}
 .arero:hover{color:var(--hot);border-color:var(--hot)}
 
-.adoms{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:.6em;margin-top:1em}
-.adom{display:flex;flex-direction:column;gap:.2em;text-align:left;cursor:pointer;font:inherit;
+.dompicks{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:.6em;margin-top:1em}
+.dompick{display:flex;flex-direction:column;gap:.2em;text-align:left;cursor:pointer;font:inherit;
   background:var(--panel-2);border:1px solid var(--line);border-radius:6px;padding:.6em .7em;color:var(--ink);
   opacity:.55}
-.adom.lit{opacity:1;border-color:#5a6b47}
-.adom.on{border-color:#9fd18f;box-shadow:0 0 0 1px #9fd18f inset;opacity:1}
-.adom b{color:var(--hot)}
-.adom span{font-size:.8em;color:var(--ink-dim)}
+.dompick.lit{opacity:1;border-color:#5a6b47}
+.dompick.on{border-color:#9fd18f;box-shadow:0 0 0 1px #9fd18f inset;opacity:1}
+.dompick b{color:var(--hot)}
+.dompick span{font-size:.8em;color:var(--ink-dim)}
 
 /* ---- the sheet ---- */
 .asheet{display:grid;grid-template-columns:minmax(420px,1fr) minmax(420px,1fr);gap:12px;
@@ -14667,10 +14687,10 @@ PT.vitals={t:"Vitals",w:450,blocks:()=>[
       <div class="vbox" data-actbox><label>Current Actions</label>${inp("vit.actions","number","f-sm actbox")}
         <button class="manapay" data-manapay style="display:none"></button>
         <div style="margin-top:.3em" data-adicebox><label>Action Dice</label>
-          <span class="adrow">${inp("vit.actionDice","text","f-sm adbox")}
-          <button class="adroll" data-adroll title="Roll your Action Dice">⚅</button></span>
+          <span class="dicerow">${inp("vit.actionDice","text","f-sm dicebox")}
+          <button class="diceroll" data-diceroll title="Roll your Action Dice">⚅</button></span>
           <b class="fxadd" data-fxadd="dice"></b>
-          <div class="adavg"><em>Avg. per Round: <b data-out="adavg">0</b></em><b class="adrer" data-out="adrer"></b></div></div></div>
+          <div class="diceavg"><em>Avg. per Round: <b data-out="diceavg">0</b></em><b class="dicerer" data-out="dicerer"></b></div></div></div>
       <div class="vbox">
         <div class="p" data-speedbox><label>Speed</label><div class="ln">${nn("vit.speedLeft","f-xs")}
           <span class="slash">/</span>${oa("spdmax")}
@@ -16062,7 +16082,7 @@ function setArchSoulAt(i,name){
 /* Your first ArchSoul asks for your first Domain straight away: one of its three. */
 const qbBuilding=()=>!!(window.ArchCloud&&ArchCloud.qb&&ArchCloud.qb.isOpen&&ArchCloud.qb.isOpen());
 function firstDomainAsk(name){
-  if(!C||!name||!ASDOM[name]||qbBuilding()) return;
+  if(!C||!name||!ASDOM[name]||qbBuilding()||document.getElementById("choicePop")) return;
   if(SPELLSEC.some(([k])=>C.domUnlocked&&C.domUnlocked[k])) return;
   if(typeof domGrantsAvail==="function"&&domGrantsAvail()<1) return;
   const opts=(domOf(name)||[]).filter(k=>SPELLSEC.some(x=>x[0]===k)); if(!opts.length) return;
@@ -23533,16 +23553,16 @@ REFRESH_HOOKS.push(function refreshActionDice(){
       :man?`You typed this. Clear the box to go back to ${auto}.`
           :`From your Max Level. Type over it to set your own.`;
   });
-  setOut("adavg",Math.round(actionsPerRound()*10)/10);
+  setOut("diceavg",Math.round(actionsPerRound()*10)/10);
   const r=rerollCount();
-  setOut("adrer",r?`· ${r} Reroll${r>1?"s":""}`:"");
-  $$('[data-out="adrer"]').forEach(el=>{
+  setOut("dicerer",r?`· ${r} Reroll${r>1?"s":""}`:"");
+  $$('[data-out="dicerer"]').forEach(el=>{
     el.title=r?"Your lowest Action Dice are rerolled automatically, keeping the better result."
               :"";
   });
 });
 BIND_HOOKS.push(function bindActionDice(root,B){
-  B("[data-adroll]","click",(el,e)=>{ e.stopPropagation();
+  B("[data-diceroll]","click",(el,e)=>{ e.stopPropagation();
     const r=rollActionDice();
     const st=computeStats();
     const extra=((typeof featFx==="function")?(featFx().actions||0):0)
@@ -24368,7 +24388,6 @@ function milestonePop(title,body){
     (typeof featMs==="function")?featMs():9000);
 }
 /* the modal */
-function choiceClose(){ const el=$("#choiceWrap"); if(el) el.remove(); }
 const GO_LABEL={keystone:"Keystones",domain:"Domains",archsoul:"ArchSouls",race:"Lineage",
   mastery:"Spell Mastery",evolution:"Evolve"};
 /* Fifteen seconds is long enough to read it and short enough that it stops
@@ -24380,29 +24399,76 @@ function choiceFold(el,mini){
   el.classList.toggle("mini",!!mini);
   if(!mini) _choiceT=setTimeout(()=>{ if(el.isConnected) choiceFold(el,true); },CHOICE_FOLD_MS);
 }
-function choiceModal(list){
-  if(!list.length) return;
-  const old=$("#choiceWrap"); if(old) old.remove();
-  const el=document.createElement("div");
-  el.id="choiceWrap"; el.className="choiceWrap";
-  const n=list.length;
-  el.innerHTML=`<button class="choiceMini"
-      title="${n>1?n+" choices are waiting":"A choice is waiting"} — press to open">!</button>
-    <div class="choiceBox">
-    <button class="choiceX" title="Collapse — it waits in the corner">✕</button>
-    <h3>${n>1?"Choices are waiting":"A choice is waiting"}</h3>
-    <p class="note">Levelling up opened ${n>1?"these":"this"}. Collapsing this does not skip anything — the choice stays where it lives.</p>
-    ${list.map(c=>`<div class="choiceRow"><b>${esc(c.t)}</b><span>${esc(c.d)}</span>
-      <button class="rb" data-choicego="${esc(c.go)}">Open ${esc(GO_LABEL[c.go]||c.go)}</button></div>`).join("")}
-  </div>`;
-  /* the ✕ folds it away rather than throwing it out — the choice is still
-     waiting, and an exclamation mark in the corner says so */
-  el.querySelector(".choiceX").onclick=()=>choiceFold(el,true);
-  el.querySelector(".choiceMini").onclick=()=>choiceFold(el,false);
-  el.querySelectorAll("[data-choicego]").forEach(b=>b.onclick=()=>{
-    choiceGo(b.dataset.choicego); el.remove(); });
-  cornerStack().appendChild(el);
-  choiceFold(el,false);
+/* The level-up choice pop-up (16 Nov). It opens in the middle of the screen the moment
+   a real decision exists — a Keystone, a new ArchSoul, a new Domain, a Spell Mastery,
+   an Evolution, a Race — and lets you make it right there. It redraws after every pick
+   and closes itself when nothing is left. "Later" folds it to a ! in the corner; the
+   choice is still where it lives. Slot Abilities and things you simply gain are not
+   decisions and never appear here. */
+function choiceModal(list){ choiceOpen(); }
+function choiceBusy(){ return !!(document.getElementById("crlayer")||(typeof qbBuilding==="function"&&qbBuilding())||(typeof tutOn!=="undefined"&&tutOn)||document.body.classList.contains("viewonly")); }
+function choiceSections(){
+  const list=pendingChoices(), out=[];
+  list.forEach(c=>{
+    let body="";
+    if(c.go==="keystone"&&typeof ksGroups==="function"){
+      const gs=ksGroups(), gi=gs.findIndex(g=>!g.done), g=gs[gi];
+      if(g) body=`<div class="cpopts">${g.opts.map(f=>{ const on=ksHeld().includes(ksKey(f));
+        return `<button class="cpopt${on?" on":""}" data-cpks="${gi}|${esc(f.name)}"><b>${esc(f.name)}</b><small>${esc(String(f.desc||"").slice(0,160))}${(f.desc||"").length>160?"…":""}</small></button>`; }).join("")}</div>
+        <div class="cpnote">Level ${g.lvl}: choose ${g.allow}. ${g.taken.length?g.taken.length+" chosen.":""}</div>`;
+    } else if(c.go==="archsoul"){
+      const i=(C.as||[]).findIndex(a=>!a||!(a.n||"").trim());
+      body=`<div class="cpopts">${i>=0?`<button class="cpopt wide" data-cpas="${i}"><b>Choose an ArchSoul…</b><small>It brings its Soul Effect and three Domains.</small></button>`:""}</div>`;
+    } else if(c.go==="domain"){
+      const opts=myDomains().filter(k=>!(C.domUnlocked||{})[k]&&SPELLSEC.some(x=>x[0]===k));
+      body=opts.length?`<div class="cpopts">${opts.map(k=>{ const R=SPELLSEC.find(x=>x[0]===k)||[k,k,"#999"], from=(C.as||[]).map(a=>a&&a.n).find(n=>n&&domOf(n).includes(k));
+          return `<button class="cpopt" data-cpdom="${k}" style="--glow:${R[2]}"><b style="color:${R[2]}">${esc(R[1])}</b><small>${from?"From "+esc(from):""}${DOMRULE&&DOMRULE[k]?" — "+esc(DOMRULE[k].t):""}</small></button>`; }).join("")}</div>`
+        :`<div class="cpnote">Choose an ArchSoul first — a Domain comes from an ArchSoul you hold.</div>`;
+    } else if(c.go==="mastery"){
+      const rows=[];
+      (C.as||[]).forEach(a=>{ const n=(a&&a.n||"").trim(); if(!n||!ASDOM[n]) return;
+        domOf(n).forEach(k=>{ if(!domUnlocked(k)) return; const o=mastOwed(n,k)+(rows.some(r=>r.n===n)?0:mastPoolLeft(n)); if(o>0) rows.push({n,k,o}); }); });
+      body=`<div class="cpopts">${rows.map(r=>`<button class="cpopt" data-cpmast="${esc(r.n)}|${r.k}"><b>${esc(DOMNAME[r.k]||r.k)}</b><small>${r.o} pick${r.o>1?"s":""} — open its Masteries</small></button>`).join("")}</div>`;
+    } else {
+      body=`<div class="cpopts"><button class="cpopt wide" data-cpgo="${esc(c.go)}"><b>Open ${esc(GO_LABEL[c.go]||c.go)}</b><small>${esc(c.d)}</small></button></div>`;
+    }
+    out.push(`<section class="cpsec"><h4>${esc(c.t)}</h4><p>${esc(c.d)}</p>${body}</section>`);
+  });
+  return {n:list.length, html:out.join("")};
+}
+function choiceOpen(){
+  if(choiceBusy()) return;
+  const {n,html}=choiceSections();
+  const mini=document.getElementById("choiceMini");
+  if(!n){ choiceClose(); return; }
+  if(mini) mini.remove();
+  let el=document.getElementById("choicePop");
+  if(!el){ el=document.createElement("div"); el.id="choicePop"; el.setAttribute("role","dialog"); el.setAttribute("aria-modal","true"); document.body.appendChild(el); wireChoicePop(el); }
+  const body=`<div class="cpbox"><div class="cphd">${n>1?n+" choices to make":"A choice to make"}</div>
+    <p class="cpline">Your character has grown. Make ${n>1?"these":"this"} now, or later from the sheet.</p>
+    ${html}<div class="cpfoot"><button class="btn" data-cplater>Later</button></div></div>`;
+  if(el._h!==body){ el.innerHTML=body; el._h=body; }
+}
+function choiceClose(){ ["choicePop","choiceMini","choiceWrap"].forEach(id=>{ const x=document.getElementById(id); if(x) x.remove(); }); }
+function choiceLater(){
+  const el=document.getElementById("choicePop"); if(el) el.remove();
+  if(!pendingChoices().length) return;
+  let m=document.getElementById("choiceMini");
+  if(!m){ m=document.createElement("button"); m.id="choiceMini"; m.className="choiceMini";
+    m.onclick=()=>{ m.remove(); choiceOpen(); }; cornerStack().appendChild(m); }
+  const n=pendingChoices().length; m.textContent="!"; m.title=(n>1?n+" choices are":"A choice is")+" waiting — press to open";
+}
+function wireChoicePop(el){
+  const after=()=>{ dirtyAll(); if(typeof onLevelChange==="function") onLevelChange(); syncDomains(); fillIn(document); renderLists(); refresh(); save(); setTimeout(choiceOpen,30); };
+  el.addEventListener("click",e=>{
+    const t=e.target.closest("button"); if(!t){ return; }
+    if(t.hasAttribute("data-cplater")){ choiceLater(); return; }
+    if(t.dataset.cpks){ const i=t.dataset.cpks.indexOf("|"), g=ksGroups()[+t.dataset.cpks.slice(0,i)]; const f=g&&g.opts.find(x=>x.name===t.dataset.cpks.slice(i+1)); if(f){ ksTake(f,g); after(); } return; }
+    if(t.dataset.cpas!=null){ e.stopPropagation(); asPicker(+t.dataset.cpas,t); return; }
+    if(t.dataset.cpdom){ const k=t.dataset.cpdom; if(domGrantsAvail()<1||!myDomains().includes(k)) return; unlockDomain(k); toast(DOMNAME[k]+" unlocked"); after(); return; }
+    if(t.dataset.cpmast){ e.stopPropagation(); const [n,k]=t.dataset.cpmast.split("|"); masteryMenu(n,k,t); return; }
+    if(t.dataset.cpgo){ choiceLater(); choiceGo(t.dataset.cpgo); return; }
+  });
 }
 /* the bottom-left column both stacks live in */
 function cornerStack(){
@@ -24428,6 +24494,11 @@ function choiceGo(where){
    move without one of these moving with it, so the signature is the guard. */
 REFRESH_HOOKS.push(function watchChoices(){
   if(typeof bootDone!=="undefined"&&!bootDone) return;
+  /* an open pop-up (or its ! in the corner) follows the sheet: a choice made anywhere disappears from it */
+  if(document.getElementById("choicePop")) choiceOpen();
+  else if(document.getElementById("choiceMini")) choiceLater();
+  /* the creator, the quick builder and the tutorial ask their own questions: nothing pops over them, and nothing is marked seen */
+  if(choiceBusy()) return;
   const sig=[C.info.cls,C.info.clsLvl,C.info.lineage,C.info.linLvl,C.info.level,
     C.race,(C.keystones||[]).length,(C.as||[]).filter(x=>x.n).length,
     Object.keys(C.domUnlocked||{}).filter(k=>C.domUnlocked[k]).length,
@@ -24436,10 +24507,18 @@ REFRESH_HOOKS.push(function watchChoices(){
   if(!dirty("choices",sig)) return;
   C.seenChoice=C.seenChoice||{};
   const list=pendingChoices().filter(c=>!C.seenChoice[c.k]);
+  /* it pops up when a Level went UP and opened the choice. A choice simply left open (skipped in the
+     creator, or waiting since last time) gets the ! in the corner instead of a box over the sheet. */
+  const lvSig=[+C.info.level||0,+C.info.clsLvl||0,+C.info.linLvl||0,
+    SPELLSEC.map(([k])=>+((C.sec[k]||{}).lvl)||0).reduce((a,b)=>a+b,0),
+    (C.as||[]).reduce((a,x)=>a+(+(x&&x.prestige)||0),0)].reduce((a,b)=>a+b,0);
+  const rose=C._choiceLv!=null&&lvSig>C._choiceLv;
+  C._choiceLv=lvSig;
   if(list.length){
     list.forEach(c=>C.seenChoice[c.k]=1);
-    choiceModal(list); saveSoon();
-  }
+    if(rose) choiceOpen(); else choiceLater();
+    saveSoon();
+  } else if(!document.getElementById("choicePop")&&!document.getElementById("choiceMini")&&pendingChoices().length&&!rose){ choiceLater(); }
   /* milestones — Max Level only, and only once each */
   C.seenMile=C.seenMile||{};
   const lv=maxLvl();
@@ -28276,8 +28355,8 @@ function arenaDraftHTML(){
   const chosen=d.doms||[];
   return `<div class="apick wide"><h2>Choose 2 Domains</h2>
     <p class="note" style="max-width:52em">This includes the Domain some Classes hand you at Level 5. The ones your ArchSouls carry are lit — those are the ones that will actually give you Spells.</p>
-    <div class="adoms">${arenaDomains().map(k=>`
-      <button class="adom${mine.has(k)?" lit":""}${chosen.includes(k)?" on":""}" data-adom="${k}">
+    <div class="dompicks">${arenaDomains().map(k=>`
+      <button class="dompick${mine.has(k)?" lit":""}${chosen.includes(k)?" on":""}" data-dompick="${k}">
         <b>${esc(DOMNAME[k])}</b>
         <span>${mine.has(k)?"One of your ArchSouls carries this":"No ArchSoul of yours carries this"}</span>
       </button>`).join("")}</div>
@@ -28382,7 +28461,7 @@ function arenaSubHTML(s){
       <b>${esc(n)}</b><span>${esc(asSummary(n))}</span></button>`).join("")}</div></div></div>`;
   if(s.type==="domain") return `<div class="aoverlay"><div class="acardbox">
     <h3>An additional Domain</h3><p class="note">Any of them.</p>
-    <div class="adoms">${s.opts.map(k=>`<button class="adom" data-asub="${k}">
+    <div class="dompicks">${s.opts.map(k=>`<button class="dompick" data-asub="${k}">
       <b>${esc(DOMNAME[k])}</b></button>`).join("")}</div></div></div>`;
   if(s.type==="mystery") return `<div class="aoverlay"><div class="acardbox">
     <h3>Mystery Box</h3><p class="note">Three at random. All three are yours.</p>
@@ -28533,8 +28612,8 @@ function arenaWire(root){
     if(d.ksAs.length>=arenaKsSoulGrants().length){ d.step=3; d.doms=[]; }
     renderArena(); save(); });
 
-  q("[data-adom]",b=>b.onclick=()=>{
-    const k=b.dataset.adom, d=a.draft;
+  q("[data-dompick]",b=>b.onclick=()=>{
+    const k=b.dataset.dompick, d=a.draft;
     d.doms=d.doms||[];
     const i=d.doms.indexOf(k);
     if(i>=0) d.doms.splice(i,1); else if(d.doms.length<2) d.doms.push(k);
@@ -34349,6 +34428,68 @@ body.log-open #logTab,body.log-open #notesTab{left:380px}
 .lgtext{line-height:1.45;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
 @media (max-width:700px){#logDrawer{width:100vw}body.log-open #logTab,body.log-open #notesTab{left:auto;right:0;border-radius:8px 0 0 8px}}
 
+/* ===================== 16 Nov — campaign screen, design pass ===================== */
+/* room for the Notes and Log tabs on the left edge */
+body.has-logtab #homeWrap .homeinner{padding-left:max(22px,56px)}
+@media (max-width:700px){ body.has-logtab #homeWrap .homeinner{padding-left:32px;padding-right:12px} }
+/* the head: title, then one quiet line about the campaign */
+#homeWrap .homehead{margin-bottom:4px}
+#homeWrap .homehead .camptitle{font-size:1.6em;letter-spacing:.2em;text-shadow:0 0 22px color-mix(in srgb,var(--hot) 30%,transparent)}
+.campsubline{display:flex;flex-wrap:wrap;gap:4px 16px;align-items:center;padding:0 0 14px;margin:0 0 18px;border-bottom:1px solid color-mix(in srgb,var(--hot) 22%,var(--line));color:var(--ink-dim);font-size:.92em}
+.campsubline b{color:var(--ink);font-weight:600}
+.campsubline .cslive{color:#6fd39a;letter-spacing:.06em}
+.campsubline .csfight{color:var(--hot);letter-spacing:.06em}
+/* panels: one family */
+#homeWrap .camppanel,#homeWrap .gsbox,#homeWrap .gmbar{border-radius:12px;background:linear-gradient(180deg,color-mix(in srgb,var(--panel) 92%,#fff 8%) 0,var(--panel) 46px);border-color:color-mix(in srgb,var(--line) 85%,var(--hot) 15%);box-shadow:0 3px 14px #0005}
+#homeWrap .camppanel > b,#homeWrap .gsbox h4{display:flex;align-items:center;gap:8px;padding-bottom:8px;margin-bottom:10px;border-bottom:1px solid var(--line)}
+/* section headings: a small lit dot, the count, actions on the right */
+#homeWrap .campsec{display:flex;align-items:center;gap:10px;margin:24px 0 10px;padding-bottom:7px;border-bottom:1px solid color-mix(in srgb,var(--hot) 25%,var(--line));font-size:12.5px}
+#homeWrap .campsec::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--hot);box-shadow:0 0 8px var(--hot);flex:0 0 auto}
+#homeWrap .campsec .secount,#homeWrap .gscount{font-style:normal;font-size:11px;letter-spacing:.04em;padding:1px 7px;border-radius:9px;background:color-mix(in srgb,var(--hot) 16%,transparent);color:var(--hot)}
+#homeWrap .campsec .rwallbtn{margin-left:auto;text-transform:none;letter-spacing:.02em}
+.gmgrid .gmmain > .campsec:first-of-type{margin-top:0}
+/* the party: cards fill the row and lift a little under the pointer */
+#homeWrap .roster.partygrid{grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}
+#homeWrap .pcard.full{border-radius:12px;padding:12px 14px;box-shadow:0 2px 12px #0005;transition:border-color .15s,transform .15s,box-shadow .15s}
+#homeWrap .pcard.full:hover{transform:translateY(-1px);box-shadow:0 6px 18px #0007}
+#homeWrap .partyglance{padding:8px 12px;border-radius:8px;background:color-mix(in srgb,var(--panel) 70%,transparent);border:1px solid var(--line)}
+/* between fights: the GM's command strip */
+#homeWrap .gmbar{padding:12px 16px;gap:10px}
+#homeWrap .gmbar .btn.big{font-size:15.5px;padding:10px 20px;letter-spacing:.04em}
+/* NPCs, compact */
+.npcbox .gsp2{margin:0 0 10px;font-size:12px;color:var(--ink-dim);line-height:1.45}
+.npcbox .npclist{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.npcbox .npcchip{font:inherit;font-size:13px;padding:4px 10px;border-radius:14px;border:1px solid var(--line);background:var(--panel-2);color:var(--ink);cursor:pointer}
+.npcbox .npcchip:hover,.npcbox .npcchip:focus-visible{border-color:var(--hot);color:var(--hot);outline:none}
+.npcbox .npcnew{width:100%;box-sizing:border-box;justify-content:center;display:flex}
+.npcbox .npcfrom{display:flex;gap:6px;margin-top:8px}
+.npcbox .npcfrom select{flex:1;min-width:0;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:4px 6px;font:inherit;font-size:13px}
+.npcrow{margin-top:14px;max-width:420px}
+/* a player's page: the table first, the rest quieter */
+.plpage .tablecall{border-radius:14px;box-shadow:0 4px 22px #0006}
+.mycharbox .camprow2{flex-wrap:wrap}
+.mycharbox select#campPick{flex:1 1 220px;max-width:420px}
+/* join requests and rewards stand out from the rest */
+#homeWrap .reqpanel{background:linear-gradient(180deg,color-mix(in srgb,var(--hot) 10%,var(--panel)) 0,var(--panel) 60px)}
+#homeWrap .rwpanel{background:linear-gradient(180deg,color-mix(in srgb,var(--hot) 8%,var(--panel)) 0,var(--panel) 60px)}
+@media (max-width:700px){
+  #homeWrap .homehead .camptitle{font-size:1.3em;letter-spacing:.14em}
+  #homeWrap .roster.partygrid{grid-template-columns:1fr}
+  .npcrow{max-width:none}
+}
+/* phones: Notes and Log sit low on the left edge, one above the other, clear of the content */
+@media (max-width:700px){
+  body.has-logtab #notesTab{top:auto;bottom:186px;transform:none;padding:9px 5px}
+  #logTab{top:auto;bottom:96px;transform:none;padding:9px 5px}
+  body.has-table #logTab{bottom:62px} body.has-table.has-logtab #notesTab{bottom:152px}
+  body.notes-open #logTab,body.log-open #notesTab{display:none}
+  body.log-open #logTab{display:none}
+  #homeWrap .homeinner{padding-left:30px}
+}
+/* the call to the table: a lit button */
+.plpage .tablecall .btn.big{background:linear-gradient(180deg,color-mix(in srgb,var(--hot) 92%,#fff) 0,var(--hot) 100%);color:#15110a;border-color:var(--hot);font-weight:700}
+.plpage .tablecall .btn.big:hover{filter:brightness(1.08)}
+
 /*CLOUD-CSS:END*/</style>
 <script id="cloud-js">/*CLOUD:BEGIN*/
 /* ArchSoul cloud sync — the engine.
@@ -34720,13 +34861,18 @@ body.log-open #logTab,body.log-open #notesTab{left:380px}
           init().then(function () {
             if (stopped) return;
             on("camp", F.doc(db, "campaigns", code), function (snap) { var x = snap.exists() ? snap.data() : {}; return { seen: x.seen || 0 }; });
-            on("enc", F.doc(db, "campaigns", code, "encounter", "current"));
+            /* the encounter itself rides on the push: nobody has to fetch it again after being told it changed */
+            on("enc", F.doc(db, "campaigns", code, "encounter", "current"), function (snap) { return snap.exists() ? snap.data() : null; });
             on("strikes", F.query(F.collection(db, "campaigns", code, "strikes"), F.where("at", ">", t0)), function (snap) {
               return snap.docChanges().map(function (c) { var x = c.doc.data(); x.id = c.doc.id; return x; });
             });
-            on("members", F.collection(db, "campaigns", code, "members"), function (snap) { return snap.docs.map(function (d) { var x = d.data(); return { uid: d.id, seen: x.seen || 0 }; }); });
+            on("members", F.collection(db, "campaigns", code, "members"), function (snap) { return snap.docs.map(function (d) { var x = d.data(); return { uid: d.id, seen: x.seen || 0, updatedAt: x.updatedAt || 0, charId: x.charId || "" }; }); });
             on("notes", F.query(F.collection(db, "campaigns", code, "notes"), F.where("at", ">", t0)));
-            if (opts.gm) { on("gm", F.collection(db, "campaigns", code, "gm")); on("rolls", F.collection(db, "campaigns", code, "rolls")); on("turns", F.collection(db, "campaigns", code, "turns")); }
+            if (opts.gm) { on("gm", F.collection(db, "campaigns", code, "gm")); on("rolls", F.collection(db, "campaigns", code, "rolls")); on("turns", F.collection(db, "campaigns", code, "turns"));
+              on("requests", F.collection(db, "campaigns", code, "requests")); }
+            else if (opts.uid) on("rewards", F.query(F.collection(db, "campaigns", code, "rewards"), F.where("to", "==", opts.uid)));
+            /* the Log: only while its drawer is open (opts.log), from the moment this listener started */
+            if (opts.log) on("log", F.query(F.collection(db, "campaigns", code, "log"), F.where("at", ">", t0)), function (snap) { return snap.docChanges().filter(function (c) { return c.type === "added"; }).map(function (c) { var x = c.doc.data(); x.id = c.doc.id; return x; }); });
           }).catch(function (e) { cb("error", { code: e && e.code }); });
           return function () { stopped = true; subs.forEach(function (u) { try { u(); } catch (e) {} }); subs = []; };
         },
@@ -35263,7 +35409,7 @@ body.log-open #logTab,body.log-open #notesTab{left:380px}
   "use strict";
   var A = root.ArchCloud = root.ArchCloud || {};
   var H = A.camp;                        /* the pure helpers */
-  var POLL_MS = 20000, PUSH_MS = 4000;
+  var POLL_MS = 20000, PUSH_MS = 2000;
 
   var S = { screen: "list", code: null, mine: [], loaded: false, camp: null, members: [], gone: "",
             msg: "", bad: false, busy: false, join: null, nameIn: "", codeIn: "", pick: "", armed: null,
@@ -35381,6 +35527,7 @@ body.log-open #logTab,body.log-open #notesTab{left:380px}
     reqT = setInterval(async function () {
       var u = user(), c = camp();
       if (!u || !c || !c.requests || S.screen !== "campaign" || !S.camp || S.camp.gm !== u.uid || !$("#homeWrap.open") || A.viewing) return;
+      if (A.live && A.live.on && A.live.on(S.code) && Date.now() % 30000 > 6000) return;   /* the live push brings requests; this only checks now and then */
       try { var r = await c.requests(S.code), sig = JSON.stringify(r.map(function (x) { return x.uid + x.at; })); if (sig !== JSON.stringify(S.reqs.map(function (x) { return x.uid + x.at; }))) { S.reqs = r; rerender(); } } catch (e) {}
     }, 6000);
   }
@@ -35513,13 +35660,25 @@ body.log-open #logTab,body.log-open #notesTab{left:380px}
     await loadMine();
   }
 
+  function rwLabel(w, n) {
+    if (w.kind === "level") return n + " Level" + (n === 1 ? "" : "s");
+    if (w.kind === "souls") return n + " Souls";
+    if (w.kind === "item") return n + "× " + w.rar + " " + ({ weapon: "Weapon", armor: "Armour", gem: "Gem" }[w.cat] || w.cat);
+    if (w.kind === "mats") return n + " " + w.mat;
+    var t = String(w.tgt || "").split(":"); return (n >= 0 ? "+" : "") + n + " " + (t[1] || "");
+  }
   async function sendReward() {
     var w = S.rw, c = camp(); if (!w || !c || !c.give) return;
     var n = Math.round(+w.n || 0); if (w.kind !== "bonus" && n < 1) { setMsg("Give at least 1.", true); rerender(); return; }
     if (w.kind === "bonus" && !n) { setMsg("A bonus of 0 does nothing.", true); rerender(); return; }
     var data = w.kind === "item" ? w.cat + "|" + w.rar : w.kind === "mats" ? w.mat : w.kind === "bonus" ? w.tgt : "";
-    var m = S.members.find(function (x) { return x.uid === w.uid; });
-    try { await c.give(S.code, { to: w.uid, kind: w.kind, n: n, text: String(w.text || "").trim(), data: data }); say("Sent to " + ((m && m.charName) || "them") + " — it lands on their sheet."); S.rw = null; setMsg(""); }
+    var to = w.uid === "*" ? S.members.filter(function (x) { return !isNpcUid(x.uid); }) : S.members.filter(function (x) { return x.uid === w.uid; });
+    try {
+      for (var i = 0; i < to.length; i++) await c.give(S.code, { to: to[i].uid, kind: w.kind, n: n, text: String(w.text || "").trim(), data: data });
+      say(w.uid === "*" ? "Sent to all " + to.length + " players — the same reward lands on every sheet." : "Sent to " + ((to[0] && to[0].charName) || "them") + " — it lands on their sheet.");
+      if (A.log && A.log.record) A.log.record("Reward", (w.uid === "*" ? "Everyone" : (to[0] && to[0].charName) || "A player") + " receives " + rwLabel(w, n) + (w.text ? " — " + w.text : ""), { gm: true });
+      S.rw = null; setMsg("");
+    }
     catch (e) { setMsg(errText(e), true); }
     rerender();
   }
@@ -35548,7 +35707,9 @@ body.log-open #logTab,body.log-open #notesTab{left:380px}
       try { if (typeof sfx === "function") sfx("ok"); pop({ title: "The GM rewards " + (ch.name || "you"), lines: lines, total: "", suffix: m.name || "" }); } catch (e) { say("Reward: " + lines.join(", ")); }
     }
   }
-  function startRewards() { if (rewT) return; rewT = setInterval(function () { if (!document.hidden) checkRewards(); }, 9000); setTimeout(checkRewards, 1500); }
+  /* rewards arrive on the live push; this is the slow safety net (every 9 s without the live link, every 36 s with it) */
+  var rewN = 0;
+  function startRewards() { if (rewT) return; rewT = setInterval(function () { rewN++; if (document.hidden) return; if (A.live && A.live.any && A.live.any() && rewN % 4) return; checkRewards(); }, 9000); setTimeout(checkRewards, 1500); }
   async function doChange() {
     var u = user(), c = camp(), ch = DB.chars.find(function (x) { return x.id === S.pick; });
     if (!ch || !S.camp) return;
@@ -35611,7 +35772,7 @@ body.log-open #logTab,body.log-open #notesTab{left:380px}
     if (typeof C === "undefined" || !C || C._viewonly) return;
     var codes = S.mine.filter(function (m) { return m.role === "player" && m.charId === C.id; });
     if (!codes.length && !npcCodeOf(C)) return;
-    clearTimeout(pushT); pushT = setTimeout(pushNow, (A.combat && A.combat.live && A.combat.live()) ? 1200 : PUSH_MS);
+    clearTimeout(pushT); pushT = setTimeout(pushNow, (A.combat && A.combat.live && A.combat.live()) ? 500 : PUSH_MS);
   }
   async function pushNow() {
     var u = user(), c = camp(); if (!u || !c || A.viewing || !C || C._viewonly) return;
@@ -35765,7 +35926,7 @@ body.log-open #logTab,body.log-open #notesTab{left:380px}
   var RW_KINDS = [["level", "Levels"], ["souls", "Souls"], ["item", "Magic Item"], ["mats", "Materials"], ["bonus", "Custom bonus"]];
   function rewardHTML() {
     var w = S.rw; if (!w) return "";
-    var m = S.members.find(function (x) { return x.uid === w.uid; }); if (!m) return "";
+    var all = w.uid === "*", m = all ? { charName: "everyone", name: S.members.filter(function (x) { return !isNpcUid(x.uid); }).map(function (x) { return x.charName; }).join(", ") } : S.members.find(function (x) { return x.uid === w.uid; }); if (!m) return "";
     var o = function (v, l, cur) { return '<option value="' + esc(v) + '"' + (String(v) === String(cur) ? " selected" : "") + ">" + esc(l) + "</option>"; };
     var extra = "";
     if (w.kind === "item") extra = '<select data-rw="cat">' + (typeof MAGIC_TYPES !== "undefined" ? MAGIC_TYPES : [["weapon", "Weapon"], ["armor", "Armour"], ["gem", "Gem"]]).map(function (t) { return o(t[0], t[1], w.cat); }).join("") + "</select>" +
@@ -35813,7 +35974,7 @@ body.log-open #logTab,body.log-open #notesTab{left:380px}
       (lv.length ? "<span>Level <b>" + (lv[0] === lv[lv.length - 1] ? lv[0] : lv[0] + "–" + lv[lv.length - 1]) + "</b></span>" : "") +
       (totMax ? '<span>Party Health <b>' + tot + " / " + totMax + "</b></span>" : "") +
       (lowAr != null ? "<span>Lowest Armor <b>" + lowAr + "</b></span>" : "") +
-      '<span class="pgrun">Run by <b>' + esc(k.gmName || "the GM") + "</b></span></div>" : "";
+      "</div>" : "";
     var live = gm && A.combat && A.combat._G && A.combat._G.enc && A.combat._G.code === S.code;
     /* the invite code matters until someone has joined; after that it is a small chip that copies */
     var bigCode = gm && !live && !S.members.length;
@@ -35827,23 +35988,34 @@ body.log-open #logTab,body.log-open #notesTab{left:380px}
     var codeBox = bigCode ? '<div class="codebox"><span>Invite code</span>' + (S.hideCode ? '<b class="codemask">••••-••••</b><span id="campCodeTxt" hidden>' + esc(H.fmtCode(k.code)) + "</span>" : '<b id="campCodeTxt">' + esc(H.fmtCode(k.code)) + "</b>") +
       '<button class="btn" data-camp="copy">Copy</button><button class="btn" data-camp="eyecode">' + (S.hideCode ? "Show" : "Hide") + '</button><small>Players join by entering this on the Campaigns screen. You accept each one before they join.</small></div>' : (gm ? '<span id="campCodeTxt" hidden>' + esc(H.fmtCode(k.code)) + "</span>" : "");
     var tableBtn = !gm && A.table ? '<div class="tablecall"><div><b>The table</b><small>Play from your own sheet, with the party, the turn order and the log beside it. Fights find you there.</small></div><button class="btn big hotbtn" data-camp="table">▶ Go to the table</button></div>' : "";
-    var mineRow = !gm ? tableBtn + '<div class="camppanel wide"><b>Your character</b><div class="camprow2"><select id="campPick">' + charOptions() + '</select>' +
+    var mineRow = !gm ? tableBtn + '<div class="camppanel wide mycharbox"><b>Your character</b><div class="camprow2"><select id="campPick">' + charOptions() + '</select>' +
       '<button class="btn" data-camp="change"' + (S.busy ? " disabled" : "") + '>Play this one</button>' +
       '<button class="btn warn" data-camp="leave">' + (S.armed === "leave" ? "Really leave?" : "Leave campaign") + "</button></div></div>" : "";
     var gmFoot = gm ? '<div class="gmfoot"><button class="btn warn" data-camp="destroy">' + (S.armed === "destroy" ? "Really delete this campaign for everyone?" : "Delete campaign") + "</button></div>" : "";
     var combat = gm && A.combat ? (live ? A.combat.gmHTML() : gmBar(S.code)) : "";
-    var roster = '<div class="campsec">Party</div>' + glance + '<div class="roster partygrid">' + (rows || (gm ? '<div class="invitesteps"><b>No one has joined yet</b><ol><li>Send your players the invite code above (<b>Copy</b> puts it on your clipboard).</li><li>Each of them opens <b>Campaigns</b> and types it under <b>Join with a code</b>.</li><li>They choose a character, or build one right there, and appear here.</li></ol></div>' : '<div class="homenote">No one else is here yet.</div>')) + "</div>";
+    var players = S.members.filter(function (m) { return !isNpcUid(m.uid); });
+    var rwAll = gm && players.length > 1 ? '<button class="btn sm hotbtn rwallbtn" data-camp="rw" data-uid="*" title="The same reward for every player">Reward all</button>' : "";
+    var roster = '<div class="campsec"><span>Party</span><i class="secount">' + S.members.length + "</i>" + rwAll + "</div>" + glance + '<div class="roster partygrid">' + (rows || (gm ? '<div class="invitesteps"><b>No one has joined yet</b><ol><li>Send your players the invite code above (<b>Copy</b> puts it on your clipboard).</li><li>Each of them opens <b>Campaigns</b> and types it under <b>Join with a code</b>.</li><li>They choose a character, or build one right there, and appear here.</li></ol></div>' : '<div class="homenote">No one else is here yet.</div>')) + "</div>";
     if (live) { roster = '<details class="cbfold campros" data-fold="roster"' + (S.foldRoster ? " open" : "") + '><summary><b>Players (' + S.members.length + ")</b> <small>full sheets, Ailments, ArchSouls, remove players</small></summary>" + glance + '<div class="roster partygrid">' + rows + "</div></details>"; gmFoot = ""; }
     var mine2 = !gm ? tableBtn : "", pick = !gm ? mineRow.slice(tableBtn.length) : "";
     var reqs = gm ? reqHTML(k) : "", rwf = gm ? rewardHTML() : "";
+    /* NPCs: a compact box — on the GM page it sits in the side column, in a fight under the party */
+    var npcBox = "";
     if (gm) {
-      var mineC = DB.chars.filter(function (c) { return !c.npc && !c.campLock; });
-      rwf += '<div class="camppanel wide npcpanel"><b>NPCs</b><small> Characters you build with the same rules as a player’s and run yourself. They sit with the party, fight in the initiative order and take hits on their own sheet.</small>' +
-        '<div class="camprow2"><button class="btn hotbtn" data-camp="npcnew">＋ New NPC</button>' +
-        (mineC.length ? '<select id="npcFrom" aria-label="Make one of your characters an NPC">' + mineC.map(function (c) { return '<option value="' + esc(c.id) + '">' + esc(c.name || "Unnamed") + "</option>"; }).join("") + '</select><button class="btn" data-camp="npcfrom">Copy as an NPC</button>' : "") + "</div></div>";
+      var mineC = DB.chars.filter(function (c) { return !c.npc && !c.campLock; }), npcs = S.members.filter(function (m) { return isNpcUid(m.uid); });
+      npcBox = '<section class="gsbox npcbox"><h4>NPCs <i class="gscount">' + npcs.length + "</i></h4>" +
+        '<p class="gsp2">Built with the same rules as a player’s character; you run them. They sit with the party and fight in the order.</p>' +
+        (npcs.length ? '<div class="npclist">' + npcs.map(function (m) { return '<button class="npcchip" data-camp="npcopen" data-uid="' + esc(m.uid) + '" title="Open its sheet">' + esc(m.charName) + "</button>"; }).join("") + "</div>" : "") +
+        '<button class="btn hotbtn npcnew" data-camp="npcnew">＋ New NPC</button>' +
+        (mineC.length ? '<div class="npcfrom"><select id="npcFrom" aria-label="One of your characters">' + mineC.map(function (c) { return '<option value="' + esc(c.id) + '">' + esc(c.name || "Unnamed") + "</option>"; }).join("") + '</select><button class="btn sm" data-camp="npcfrom">Copy as an NPC</button></div>' : "") + "</section>";
     }
-    if (gm && !live) return '<div class="homeinner gmpage">' + top + msgHTML() + codeBox + reqs + combat + '<div class="gmgrid"><div class="gmmain">' + rwf + roster + "</div>" + gmSide(S.code) + "</div>" + gmFoot + "</div>";
-    return '<div class="homeinner' + (live ? " wide" : "") + '">' + top + msgHTML() + codeBox + reqs + mine2 + combat + rwf + roster + pick + gmFoot + "</div>";
+    /* the line under the title: who runs it, who is in it, whether it is live */
+    var nP = S.members.filter(function (m) { return !isNpcUid(m.uid); }).length;
+    var sub = '<div class="campsubline"><span>Run by <b>' + esc(k.gmName || "the GM") + "</b></span><span>" + nP + " player" + (nP === 1 ? "" : "s") + "</span>" +
+      (isLive ? '<span class="cslive">● Live</span>' : "") + (live ? '<span class="csfight">⚔ Fight in progress</span>' : "") + "</div>";
+    if (gm && !live) return '<div class="homeinner gmpage">' + top + sub + msgHTML() + codeBox + reqs + combat + '<div class="gmgrid"><div class="gmmain">' + rwf + roster + "</div>" +
+      gmSide(S.code).replace('<aside class="gmside">', '<aside class="gmside">' + npcBox) + "</div>" + gmFoot + "</div>";
+    return '<div class="homeinner' + (live ? " wide" : "") + (gm ? " gmpage" : " plpage") + '">' + top + sub + msgHTML() + codeBox + reqs + mine2 + combat + rwf + roster + (gm && live ? '<div class="npcrow">' + npcBox + "</div>" : "") + pick + gmFoot + "</div>";
   }
 
   /* ---- clicks and typing (everything arrives through Home's container) ---------- */
@@ -35887,7 +36059,7 @@ body.log-open #logTab,body.log-open #notesTab{left:380px}
       else if (a === "npcfrom") { var fs = $("#npcFrom"), fc = fs && DB.chars.find(function (x) { return x.id === fs.value; }); if (fc) newNpc(fc); }
       else if (a === "npcopen") { var nch = npcChar(b.getAttribute("data-uid")); if (nch) openNpc(nch); }
       else if (a === "eyecode") { S.hideCode = !S.hideCode; try { localStorage.setItem("archsoul-hidecode", S.hideCode ? "1" : "0"); } catch (er) {} rerender(); }
-      else if (a === "accept") { var au = b.getAttribute("data-uid"); (async function () { try { await c.accept(S.code, au); var rq = S.reqs.find(function (x) { return x.uid === au; }); say("Accepted " + ((rq && rq.charName) || "them") + " — they join in a moment."); } catch (er) { setMsg(errText(er), true); } await refreshCamp(); rerender(); })(); }
+      else if (a === "accept") { var au = b.getAttribute("data-uid"); (async function () { try { await c.accept(S.code, au); var rq = S.reqs.find(function (x) { return x.uid === au; }); if (A.log && A.log.record) A.log.record("Party", ((rq && rq.charName) || "A character") + " (" + ((rq && rq.name) || "a player") + ") joins the party", { gm: true }); say("Accepted " + ((rq && rq.charName) || "them") + " — they join in a moment."); } catch (er) { setMsg(errText(er), true); } await refreshCamp(); rerender(); })(); }
       else if (a === "decline") { var du = b.getAttribute("data-uid"); armed("decline" + du, async function () { await c.decline(S.code, du); await refreshCamp(); }); }
       else if (a === "rw") { var ru = b.getAttribute("data-uid"); S.rw = (S.rw && S.rw.uid === ru) ? null : { uid: ru, kind: "level", n: 1, cat: "weapon", rar: "Common", mat: (typeof MATERIALS !== "undefined" ? MATERIALS[0] : ""), tgt: "stat:accuracy", text: "" }; rerender(); setTimeout(function () { var el = $(".rwpanel"); if (el && el.scrollIntoView) el.scrollIntoView({ block: "nearest" }); }, 30); }
       else if (a === "rwx") { S.rw = null; rerender(); }
@@ -35928,6 +36100,11 @@ body.log-open #logTab,body.log-open #notesTab{left:380px}
   /* "Create and join": keep the new character, then join with it */
   function qbCreate() { if (A.qb && S.join) A.qb.finish(function (id) { S.pick = id; doAttach(S.join.camp); }); }
   A.campUI = { refresh: function () { setMsg(""); return refreshCamp().then(function () { rerender(); }); }, _qbCreate: qbCreate, html: html, enter: enter, leave: function () { if (A.qb) A.qb.cancel(); if (A.combat) A.combat.leave(); stopPoll(); }, exitView: exitView, _state: S, _factsOf: factsOf, openCode: openCamp, npcChar: npcChar, isNpcUid: isNpcUid, pushNow: function () { return pushNow(); },
+    checkRewards: function () { return checkRewards(); },
+    reqsChanged: async function (code) {
+      var u = user(), c = camp(); if (!u || !c || !c.requests || S.code !== code || !S.camp || S.camp.gm !== u.uid) return;
+      try { S.reqs = await c.requests(code); rerender(); if (S.reqs.length && typeof sfx === "function") sfx("ok"); } catch (e) {}
+    },
     refreshIfOpen: function (code) { if (S.screen === "campaign" && S.code === code && document.body.classList.contains("shellhome")) refreshCamp().then(rerender); } };
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot); else boot();
 })(typeof globalThis !== "undefined" ? globalThis : window);
@@ -36103,7 +36280,7 @@ body.log-open #logTab,body.log-open #notesTab{left:380px}
     return { status: enc.status, round: enc.round | 0, turn: enc.turn | 0, rollId: enc.rollId || "", updatedAt: Date.now(),
       order: enc.order.map(function (o) {
         return { id: o.id, kind: o.kind, name: String(o.name || ""), uid: o.uid || "", init: (typeof o.init === "number" && isFinite(o.init)) ? o.init : null, hide: !!o.hide, hw: o.hw || "", kn: o.kn || {}, cn: (o.cn || []).slice(0, 10), cd: o.cd || {}, pv: o.pv || null };
-      }), log: (enc.log || []).slice(-8) };
+      }), log: (enc.log || []).slice(-8).map(function (l) { return maskHidden(l, enc); }) };
   }
   /* creature Health is the GM's alone: kept on this device, never in the encounter document. Players see only a word. */
   function privKey() { return "archsoul-encpriv-" + G.code; }
@@ -36111,7 +36288,34 @@ body.log-open #logTab,body.log-open #notesTab{left:380px}
   function privSave() { try { localStorage.setItem(privKey(), JSON.stringify(G.priv)); } catch (e) {} }
   function hwOf(p) { if (!p) return ""; if (p.hp <= 0) return "down"; if (p.hp >= p.max) return "unhurt"; return p.hp / p.max <= 0.25 ? "near death" : "wounded"; }
   function refreshHw(o) { o.hw = hwOf(G.priv[o.id]); privSave(); }
-  function log(line) { G.enc.log = (G.enc.log || []).concat([String(line).slice(0, 200)]).slice(-20); }
+  /* which Stat Block a creature is stays on the GM's device (with its Health), not in the encounter document.
+     Every time the fight comes back from the cloud — a reload, returning to the campaign, a live update —
+     each creature gets its Stat Block back, so its abilities are there and not only a custom strike. (16 Nov) */
+  function rehydrate(e) {
+    if (!e || !e.order) return e;
+    var all = (typeof sbAll === "function") ? sbAll() : [];
+    e.order.forEach(function (o) {
+      if (o.kind !== "monster") return;
+      var p = G.priv[o.id] || {};
+      if (!o.blockId && p.blockId) o.blockId = p.blockId;
+      if (!o.base && p.base) o.base = p.base;
+      if (!o.grp && p.grp) o.grp = p.grp;
+      /* a fight from before this was kept: find the block by the creature's name ("Reaper — Juvenile 2" → "Reaper — Juvenile") */
+      if (!o.blockId || !all.some(function (b) { return b.id === o.blockId; })) {
+        var nm = String(o.base || o.name || "").replace(/\s+\d+$/, "").trim(), b = all.find(function (x) { return (x.name || "").trim() === nm; });
+        if (b) { o.blockId = b.id; o.base = o.base || b.name; G.priv[o.id] = Object.assign(p, { blockId: b.id, base: o.base }); }
+      }
+    });
+    privSave();
+    return e;
+  }
+  /* a hidden creature is "???" to everyone but the GM: in the shared fight log and in the campaign Log */
+  function maskHidden(line, e) {
+    var out = String(line || "");
+    ((e || G.enc || {}).order || []).forEach(function (o) { if (o.kind === "monster" && o.hide && o.name) out = out.split(o.name).join("???"); });
+    return out;
+  }
+  function log(line) { G.enc.log = (G.enc.log || []).concat([String(line).slice(0, 200)]).slice(-20); if (A.log && A.log.record) A.log.record("Combat", maskHidden(line), { gm: true }); }
   async function push() { var c = api(); if (!c || !G.enc) return; var x = clean(G.enc); G.enc.updatedAt = x.updatedAt; await c.set(G.code, x); }
   async function guard(fn) {
     if (G.busy) return; G.busy = true; G.msg = "";
@@ -36135,13 +36339,13 @@ body.log-open #logTab,body.log-open #notesTab{left:380px}
     if (G.code === code && G.enc && G.enc.status !== "ended") { G.away = false; startGmPoll(); rerender(); return; }
     G.away = false; G.code = code; G.enc = null; G.rolls = []; G.turns = []; G.msg = ""; privLoad();
     if (!c) return;
-    try { var e = await c.get(code); G.enc = e && e.status !== "ended" ? e : null; } catch (er) {}
+    try { var e = await c.get(code); G.enc = e && e.status !== "ended" ? rehydrate(e) : null; } catch (er) {}
     startGmPoll(); rerender();
   }
   /* the encounter changed under the GM (another of the GM's own devices, or a player's "I am done") */
-  async function gmReload() {
+  async function gmReload(doc) {
     var c = api(); if (!c || !G.code) return;
-    try { var e = await c.get(G.code); if (e && e.status !== "ended" && (!G.enc || (e.updatedAt || 0) > (G.enc.updatedAt || 0))) { G.enc = e; rerender(); } } catch (er) {}
+    try { var e = doc !== undefined ? doc : await c.get(G.code); if (e && e.status !== "ended" && (!G.enc || (e.updatedAt || 0) > (G.enc.updatedAt || 0))) { G.enc = rehydrate(e); rerender(); } } catch (er) {}
   }
   /* Leaving the campaign screen does not stop a fight: the GM looks at sheets, the notes, their own character,
      and the turns must keep moving. Only a campaign with no fight running is let go. */
@@ -36266,7 +36470,7 @@ body.log-open #logTab,body.log-open #notesTab{left:380px}
     o.kn = o.kn || {}; if (o.kn[k] != null) { delete o.kn[k]; } else { var st = sbStats(b); o.kn[k] = k === "armor" ? Math.round(+st.armor || 0) : k === "res" ? Math.round(+sbSubVal(b, "resistance") || 0) : k === "prot" ? Math.round(+sbSubVal(b, "protection") || 0) : Math.round(+sbSubVal(b, "evade") || 0); }
     guard(push);
   }
-  function blockOf(o) { return (typeof sbAll === "function" ? sbAll() : []).find(function (x) { return x.id === o.blockId; }); }
+  function blockOf(o) { var all = typeof sbAll === "function" ? sbAll() : [], b = all.find(function (x) { return x.id === o.blockId; }); if (!b && G.enc) { rehydrate(G.enc); b = all.find(function (x) { return x.id === o.blockId; }); } return b; }
   function next() {
     if (!G.enc || G.enc.status !== "active") return;
     var o = cur(); if (o) log(o.name + (o.kind === "player" && waiting() ? "’s turn is ended by the GM." : " resolves."));
@@ -36292,8 +36496,8 @@ body.log-open #logTab,body.log-open #notesTab{left:380px}
       var ent = { id: "m" + rid(), kind: "monster", base: base, blockId: b.id, name: (n > 1 || have) ? base + " " + num : base, init: d20roll() + initBonusOf(b), hide: false };
       var hp = 0; try { hp = Math.max(1, Math.round(+sbStats(b).health || 1)); } catch (e) { hp = 1; }
       var shared = false; try { shared = /Shared Action Pool/i.test(JSON.stringify(b.feats || [])); } catch (e) {}
-      G.priv[ent.id] = { hp: hp, max: hp, leg: Math.max(0, +b.legCount || 0) }; refreshHw(ent);
-      if (shared) { ent.grp = base; if (!G.priv["pool:" + base]) G.priv["pool:" + base] = { n: 0 }; privSave(); }
+      G.priv[ent.id] = { hp: hp, max: hp, leg: Math.max(0, +b.legCount || 0), blockId: b.id, base: base }; refreshHw(ent);
+      if (shared) { ent.grp = base; G.priv[ent.id].grp = base; if (!G.priv["pool:" + base]) G.priv["pool:" + base] = { n: 0 }; privSave(); }
       if (G.addHide) ent.hide = true;
       G.enc.order.push(ent);
     }
@@ -36505,12 +36709,16 @@ body.log-open #logTab,body.log-open #notesTab{left:380px}
     try { await c.postRoll(code, u.uid, { rollId: enc.rollId, total: total, note: note }); say("Initiative: " + total); }
     catch (e) { delete rolled[code]; }
   }
-  async function pollPlayer(liveCode, fresh) {
-    var c = api(), u = user(), st = camp(); if (!c || !u || !st || !st.loaded || document.hidden) return;
-    var mine = st.mine.filter(function (m) { return m.role === "player"; });
+  /* encDoc: the encounter as the live push delivered it — only that campaign is handled, with no fetch */
+  async function pollPlayer(liveCode, fresh, encDoc) {
+    var c = api(), u = user(), st = camp(); if (!c || !u || !st || !st.loaded) return;
+    var pushed = encDoc !== undefined && liveCode;
+    if (document.hidden && !pushed) return;
+    var mine = st.mine.filter(function (m) { return m.role === "player" && (!pushed || m.code === liveCode); });
     for (var i = 0; i < mine.length; i++) {
       try {
-        var enc = await c.get(mine[i].code);
+        var enc = pushed ? encDoc : await c.get(mine[i].code);
+        if (pushed && !fresh) fresh = [];                  /* strikes come on their own push: no extra fetch for them here */
         E[mine[i].code] = enc && enc.status !== "ended" ? enc : null;
         if (enc && enc.status === "rolling" && rolled[mine[i].code] !== enc.rollId) await rollMine(mine[i].code, mine[i], enc);
         if (enc && (enc.status === "active" || enc.status === "eor" || enc.status === "rolling") && opened[mine[i].code] !== enc.rollId) { opened[mine[i].code] = enc.rollId; if (A.table) A.table.sit(mine[i].code); else if (activate(mine[i].code) && A.shell && A.shell.hide) A.shell.hide(); }
@@ -36692,7 +36900,7 @@ body.log-open #logTab,body.log-open #notesTab{left:380px}
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot); else boot();
 
-  A.combat = { live: live, gmHTML: gmHTML, gmEnter: gmEnter, leave: gmLeave, wire: wire, onResolve: onResolve, _initBonusOf: initBonusOf, _api: { G: G, privSave: privSave, push: function () { return push(); }, guard: guard, cur: cur, log: log, refreshHw: refreshHw }, _G: G, _E: E, _poll: pollPlayer, _sort: sortOrder,
+  A.combat = { live: live, gmHTML: gmHTML, gmEnter: gmEnter, leave: gmLeave, wire: wire, onResolve: onResolve, _initBonusOf: initBonusOf, _rehydrate: rehydrate, _api: { G: G, privSave: privSave, push: function () { return push(); }, guard: guard, cur: cur, log: log, refreshHw: refreshHw }, _G: G, _E: E, _poll: pollPlayer, _sort: sortOrder,
     _enc: function (code) { return E[code] || null; }, _gmTick: gmTick, _pollLive: pollPlayer, _gmReload: gmReload, _start: start,
     _addBlock: function (id, n, hide) { var p = G.pick, nn = G.n; G.pick = id; G.n = n; G.addHide = !!hide; G.noPush = true; try { addMonster(); } finally { G.pick = p; G.n = nn; G.addHide = false; G.noPush = false; } }, _party: partyHTML, _pcard: pcard, _memberOf: memberOf, _members: loadMembers,
     _ribbon: ribbonHTML, _timer: timerHTML, _logList: logList, _memberList: function (code) { return (P[code] && P[code].list) || []; }, _prompts: myPrompts, _draw: function () { drawBar(); } };
@@ -37007,7 +37215,14 @@ body.log-open #logTab,body.log-open #notesTab{left:380px}
 
   /* ================= GM side ================= */
   function E() { return A.combat && A.combat._api; }
-  function blockOf(o) { var all = (typeof sbAll === "function") ? sbAll() : []; return all.find(function (b) { return b.id === o.blockId; }); }
+  /* the Stat Block behind a creature: by its id, and failing that (a fight that came back from the cloud
+     before this device knew which block it was) by its name */
+  function blockOf(o) {
+    var all = (typeof sbAll === "function") ? sbAll() : [];
+    var b = o.blockId && all.find(function (x) { return x.id === o.blockId; });
+    if (!b && A.combat && A.combat._rehydrate && A.combat._G && A.combat._G.enc) { A.combat._rehydrate(A.combat._G.enc); b = o.blockId && all.find(function (x) { return x.id === o.blockId; }); }
+    return b;
+  }
 
   /* ================= a creature's own abilities =================
      The Stat Block's Actions and Legendary Actions, read by the same reader the players' abilities use,
@@ -37357,6 +37572,7 @@ body.log-open #logTab,body.log-open #notesTab{left:380px}
       } else line = s.fromName + (s.label ? " uses " + s.label + " on " : " strikes at ") + name + " — " + (s.fumble ? "a fumble" : "misses") + ".";
       await c.resolveStrike(inc.code, s.id, { status: status, result: line });
       if (A.ann) A.ann.echo(inc.code, line, s.toId, name);
+      if (A.log && A.log.record) A.log.record(status === "missed" ? "Missed" : "Hit", line);
     } catch (e) { say("Could not apply that strike."); }
     S.done[s.id] = 1; S.applying = false; S.incoming = null; showIncoming();
     setTimeout(function () { if (inc.as) playerPoll(inc.code, inc.as.uid, null, inc.as); else if (u) playerPoll(inc.code, u.uid, []); }, 300);
@@ -37688,7 +37904,11 @@ body.log-open #logTab,body.log-open #notesTab{left:380px}
       Object.keys(dt).forEach(function (k) { s[k] = dt[k]; });
       try { await c.postStrike(f.code, s); sent++; } catch (e) { say("Could not reach the cloud."); break; }
     }
-    if (sent) say(data.label + " sent to " + sent + (sent === 1 ? " target" : " targets") + ".");
+    if (sent) {
+      say(data.label + " sent to " + sent + (sent === 1 ? " target" : " targets") + ".");
+      var tnames = ids.map(function (id) { var o = f.enc.order.find(function (x) { return x.id === id; }); return o ? (o.kind === "monster" && o.hide ? "???" : o.name) : ""; }).filter(Boolean);
+      if (A.log && A.log.record) A.log.record("Uses", (data.label || "an ability") + " on " + tnames.join(", "));
+    }
     if (A.react) A.react.posted(f.code);
     if (A.textab && A.textab.afterUse) A.textab.afterUse(base, f, ids, data);
     slumber(f, base, data);
@@ -38543,6 +38763,8 @@ body.log-open #logTab,body.log-open #notesTab{left:380px}
       try { await c.postStrike(code, s); X.mine[s.id] = key; } catch (er) { say("Could not reach the cloud."); return; }
     }
     X.open = true; say(lab + " called — " + list.length + (list.length === 1 ? " player." : " players."));
+    /* a secret call stays the GM's own */
+    if (!f.secret && A.log && A.log.record) A.log.record("Call", "Calls for " + (type === "rest" ? "a Rest" : lab + (diff ? " (Difficulty " + diff + ")" : "")) + " — " + list.map(function (m) { return m.charName || m.name; }).join(", "), { gm: true });
     rerender();
   }
   /* answers coming back (pushed by the live listener) */
@@ -39187,7 +39409,7 @@ body.log-open #logTab,body.log-open #notesTab{left:380px}
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot); else boot();
 
-  A.table = { _fit: fit, sit: sit, stand: stand, render: render, code: function () { return T.code; }, _T: T };
+  A.table = { _fit: fit, sit: sit, stand: stand, render: render, code: function () { return T.code; }, members: function (code) { if (T.code === code) loadMembers(true); }, _T: T };
 })(typeof globalThis !== "undefined" ? globalThis : window);
 
 /* ArchSoul — the campaign's notes. A tab on the left edge of the screen, there only while you are
@@ -39449,12 +39671,15 @@ body.log-open #logTab,body.log-open #notesTab{left:380px}
 
   /* ---- catching rolls ------------------------------------------------------------ */
   function segText(sg) { return (sg.label ? sg.label + " " : "") + sg.value + (sg.tag ? " (" + sg.tag + ")" : ""); }
-  function record(kind, text) {
-    if (A.viewing) return;                                   /* the GM reading a player's sheet is not rolling */
+  /* opt.gm: the GM's own doings (the fight, rewards, calls) are signed "GM" whatever sheet is open */
+  function record(kind, text, opt) {
+    opt = opt || {};
+    if (A.viewing && !opt.gm) return;                        /* the GM reading a player's sheet is not acting */
     var ctx = context(); if (!ctx) return;
     var who = ctx.gm ? "GM" : ((typeof C !== "undefined" && C && C.name) || ctx.uname);
-    if (ctx.gm && typeof C !== "undefined" && C && C.npc) who = C.name || "NPC";
-    var e = { by: ctx.uid, byName: who, kind: String(kind || "Roll").slice(0, 40), text: String(text || "").slice(0, 600), at: Date.now() };
+    if (ctx.gm && !opt.gm && typeof C !== "undefined" && C && C.npc && C.npc.code === ctx.code) who = C.name || "NPC";
+    var e = { by: ctx.uid, byName: who, kind: String(kind || "Roll").slice(0, 40), text: String(text || "").replace(/\s+/g, " ").trim().slice(0, 600), at: Date.now() };
+    if (!e.text && !e.kind) return;
     /* the same pop-up drawn twice in a moment is one roll */
     var sig = e.kind + "|" + e.text; if (L.seen[sig] && Date.now() - L.seen[sig] < 800) return; L.seen[sig] = Date.now();
     (L.list[ctx.code] = L.list[ctx.code] || []).unshift(Object.assign({ id: "local" + e.at, pending: true }, e));
@@ -39466,31 +39691,24 @@ body.log-open #logTab,body.log-open #notesTab{left:380px}
     while (L.queue.length) {
       var q = L.queue[0];
       try { await c.postLog(q[0], q[1]); L.err = ""; }
-      catch (e) { L.err = /permission/.test(String(e && (e.code || e.message))) ? "The roll log is not switched on in the cloud yet." : "Could not reach the cloud."; break; }
+      catch (e) { L.err = /permission/.test(String(e && (e.code || e.message))) ? "The log is not switched on in the cloud yet." : "Could not reach the cloud."; break; }
       L.queue.shift();
     }
     L.sending = false;
   }
+  /* The sheet already writes everything a player does into its own log (logIt): every roll and ability,
+     Rest, Resolve, New Round, Initiative, Action Dice, damage taken and healed, Spell Rip, Death Rolls…
+     That one call is followed, so nothing is written twice and nothing new has to be remembered. */
   function hook() {
-    var pr = root.popRoll, pp = root.pop;
-    if (typeof pr === "function" && !pr._log) {
-      var w = function (o) { try { o = o || {}; record(o.title || "Roll", (o.segs || []).map(segText).join(", ") + (o.crit ? " — CRITICAL" : o.fumble ? " — FUMBLE" : "")); } catch (e) {} return pr.apply(this, arguments); };
-      w._log = true; root.popRoll = w;
-    }
-    if (typeof pp === "function" && !pp._log) {
-      var w2 = function (o) {
-        try {
-          o = o || {};
-          /* a pop with a number in its total is a roll; one without (a message, a reward) is not */
-          if (o.total !== undefined && o.total !== null && String(o.total).trim() !== "" && /\d/.test(String(o.total)))
-            record(o.title || "Roll", String(o.total) + (o.suffix ? " " + o.suffix : "") + ((o.lines || []).length ? " — " + o.lines.slice(0, 3).join("; ") : "") + (o.crit ? " — CRITICAL" : o.fumble ? " — FUMBLE" : ""));
-        } catch (e) {}
-        return pp.apply(this, arguments);
+    var li = root.logIt;
+    if (typeof li === "function" && !li._camp) {
+      var w = function (t, b, dd, cls) {
+        try { record(t || "Sheet", String(b == null ? "" : b) + (dd ? " — " + dd : "") + (cls === "crit" ? " — CRITICAL" : cls === "fumble" ? " — FUMBLE" : "")); } catch (e) {}
+        return li.apply(this, arguments);
       };
-      w2._log = true; root.pop = w2;
+      w._camp = true; root.logIt = w;
     }
   }
-
   /* ---- reading it ------------------------------------------------------------------ */
   async function load(code) {
     var c = api(); if (!c || L.busy) return;
@@ -39498,15 +39716,28 @@ body.log-open #logTab,body.log-open #notesTab{left:380px}
     try {
       var got = await c.logs(code), local = (L.list[code] || []).filter(function (x) { return x.pending && !got.some(function (g) { return g.by === x.by && g.text === x.text && Math.abs(g.at - x.at) < 60000; }); });
       L.list[code] = local.concat(got); L.err = "";
-    } catch (e) { L.err = /permission/.test(String(e && (e.code || e.message))) ? "The roll log is not switched on in the cloud yet." : "Could not reach the cloud."; }
+    } catch (e) { L.err = /permission/.test(String(e && (e.code || e.message))) ? "The log is not switched on in the cloud yet." : "Could not reach the cloud."; }
     L.busy = false; render();
+  }
+  /* new lines pushed by the live listener */
+  function ingest(code, docs) {
+    var list = L.list[code] = L.list[code] || [];
+    docs.forEach(function (d) {
+      if (list.some(function (x) { return x.id === d.id; })) return;
+      /* our own line, already shown while it was on its way */
+      var i = list.findIndex(function (x) { return x.pending && x.by === d.by && x.text === d.text; });
+      if (i >= 0) list.splice(i, 1);
+      list.push(d);
+    });
+    list.sort(function (a, b) { return (b.at || 0) - (a.at || 0); });
+    render();
   }
   function render() {
     var ctx = context(), tab = $("#logTab"), drw = $("#logDrawer");
     if (!ctx) { if (tab) tab.remove(); if (drw) drw.remove(); document.body.classList.remove("log-open", "has-logtab"); L.open = false; return; }
     if (L.code !== ctx.code) { L.code = ctx.code; L.who = ""; }
-    if (!tab) { tab = document.createElement("button"); tab.id = "logTab"; tab.setAttribute("data-lg", "toggle"); tab.title = "Every roll at the table"; document.body.appendChild(tab); }
-    tab.innerHTML = '<span class="ntlbl">Rolls</span>';
+    if (!tab) { tab = document.createElement("button"); tab.id = "logTab"; tab.setAttribute("data-lg", "toggle"); tab.title = "Everything that happens at the table"; document.body.appendChild(tab); }
+    tab.innerHTML = '<span class="ntlbl">Log</span>';
     tab.setAttribute("aria-expanded", L.open ? "true" : "false"); tab.classList.toggle("on", L.open);
     document.body.classList.add("has-logtab");
     document.body.classList.toggle("log-open", L.open);
@@ -39514,33 +39745,45 @@ body.log-open #logTab,body.log-open #notesTab{left:380px}
     var all = L.list[ctx.code] || [], names = [];
     all.forEach(function (e) { if (names.indexOf(e.byName) < 0) names.push(e.byName); });
     var shown = all.filter(function (e) { return !L.who || e.byName === L.who; }).slice(0, 300);
-    var html = '<div class="ndhead"><b>Rolls</b><span class="ndcamp">' + esc(ctx.name) + '</span><button class="btn sm" data-lg="toggle" aria-label="Close the roll log">✕</button></div>' +
-      '<div class="ndsub">Every roll anyone in the campaign makes, newest first.</div>' +
+    var html = '<div class="ndhead"><b>Log</b><span class="ndcamp">' + esc(ctx.name) + '</span><button class="btn sm" data-lg="toggle" aria-label="Close the log">✕</button></div>' +
+      '<div class="ndsub">Everything the players and the GM do — rolls, abilities, hits, turns, rests, rewards — newest first.</div>' +
       (names.length > 1 ? '<div class="nchips"><button class="nchip' + (L.who ? "" : " on") + '" data-lg="who" data-w="">Everyone</button>' + names.map(function (n) { return '<button class="nchip' + (L.who === n ? " on" : "") + '" data-lg="who" data-w="' + esc(n) + '">' + esc(n) + "</button>"; }).join("") + "</div>" : "") +
       (L.err ? '<div class="campmsg bad">' + esc(L.err) + "</div>" : "") +
       '<div class="ndlist lglist">' + (shown.length ? shown.map(function (e) {
         var crit = /CRITICAL/.test(e.text), fum = /FUMBLE/.test(e.text);
         return '<div class="lgrow' + (e.by === ctx.uid ? " me" : "") + (crit ? " crit" : fum ? " fum" : "") + '"><div class="nhead"><span class="nby">' + esc(e.byName || "Someone") + '</span><span class="lgkind">' + esc(e.kind) + '</span><span class="nwhen" title="' + esc(new Date(e.at).toLocaleString()) + '">' + esc(ago(e.at)) + "</span></div>" +
           '<div class="lgtext">' + esc(e.text || "") + "</div></div>";
-      }).join("") : '<div class="ndempty">' + (L.busy && !all.length ? "Loading…" : "No rolls yet. Every roll made from a sheet in this campaign appears here.") + "</div>") + "</div>";
-    if (!drw) { drw = document.createElement("aside"); drw.id = "logDrawer"; drw.setAttribute("aria-label", "Roll log"); document.body.appendChild(drw); }
+      }).join("") : '<div class="ndempty">' + (L.busy && !all.length ? "Loading…" : "Nothing yet. Every roll, ability, hit and turn in this campaign appears here.") + "</div>") + "</div>";
+    if (!drw) { drw = document.createElement("aside"); drw.id = "logDrawer"; drw.setAttribute("aria-label", "Campaign log"); document.body.appendChild(drw); }
     if (drw._h !== html) { var sc = drw.querySelector(".ndlist"), top = sc ? sc.scrollTop : 0; drw.innerHTML = html; drw._h = html; var sc2 = drw.querySelector(".ndlist"); if (sc2) sc2.scrollTop = top; }
   }
   function onClick(ev) {
     var b = ev.target.closest && ev.target.closest("[data-lg]"); if (!b) return;
     var a = b.getAttribute("data-lg"), ctx = context(); if (!ctx) return;
-    if (a === "toggle") { L.open = !L.open; if (L.open) { if (A.notes && A.notes._N && A.notes._N.open) A.notes.open(false); load(ctx.code); } render(); }
+    if (a === "toggle") { L.open = !L.open; if (L.open) { if (A.notes && A.notes._N && A.notes._N.open) A.notes.open(false); load(ctx.code); L.lastTick = Date.now(); } render(); if (A.live && A.live.sync) A.live.sync(); }
     else if (a === "who") { L.who = b.getAttribute("data-w"); render(); }
   }
   function tick() {
     hook();
     var ctx = context();
-    if (ctx && L.open && !document.hidden && Date.now() - L.lastTick >= POLL_OPEN) { L.lastTick = Date.now(); load(ctx.code); }
+    /* with the live link up the drawer is fed by pushes; the full read is only a slow safety net */
+    var liveOn = A.live && A.live.on && A.live.on(ctx && ctx.code);
+    if (ctx && L.open && !document.hidden && Date.now() - L.lastTick >= (liveOn ? 30000 : POLL_OPEN)) { L.lastTick = Date.now(); load(ctx.code); }
     if (L.queue.length) flush();
     render();
   }
   function boot() {
     document.addEventListener("click", onClick);
+    /* Dormant or Awakened: read once the sheet has made the change */
+    document.addEventListener("click", function (e) {
+      var t = e.target.closest && e.target.closest("[data-state],[data-combat]"); if (!t) return;
+      var was = (typeof C !== "undefined" && C) ? [C.vit.state, !!C.combat] : null;
+      setTimeout(function () {
+        if (!was || typeof C === "undefined" || !C) return;
+        if (C.vit.state !== was[0] && C.vit.state) record(C.vit.state === "awakened" ? "Awakened" : "Dormant", C.vit.state === "awakened" ? "Becomes Awakened" : "Goes Dormant");
+        if (!!C.combat !== was[1]) record("Combat", C.combat ? "Enters combat" : "Leaves combat");
+      }, 60);
+    }, true);
     /* the Notes tab closes the log: one drawer on the left at a time */
     document.addEventListener("click", function (e) { var t = e.target.closest && e.target.closest('[data-nt="toggle"]'); if (t && L.open) { L.open = false; render(); } }, true);
     document.addEventListener("keydown", function (e) { if (e.key === "Escape" && L.open) { L.open = false; render(); } });
@@ -39548,7 +39791,7 @@ body.log-open #logTab,body.log-open #notesTab{left:380px}
     hook(); setInterval(tick, 2500); setTimeout(render, 1500);
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot); else boot();
-  A.log = { render: render, open: function (v) { L.open = v !== false; var c = context(); if (L.open && c) load(c.code); render(); }, _L: L, _record: record };
+  A.log = { record: record, ingest: ingest, render: render, open: function (v) { L.open = v !== false; var c = context(); if (L.open && c) load(c.code); render(); }, _L: L, _record: record };
 })(typeof globalThis !== "undefined" ? globalThis : window);
 
 /* ArchSoul — instant updates and who is here.
@@ -39560,7 +39803,7 @@ body.log-open #logTab,body.log-open #notesTab{left:380px}
   "use strict";
   var A = root.ArchCloud = root.ArchCloud || {};
   var BEAT_MS = 40000, HERE_MS = 95000, IDLE_MS = 6 * 60000;
-  var L = { subs: {}, seen: {}, gmSeen: {}, online: true, lastBeat: {}, kicks: 0, err: "" };
+  var L = { subs: {}, seen: {}, gmSeen: {}, online: true, lastBeat: {}, kicks: 0, err: "", memSig: {} };
 
   function user() { return A.ui && A.ui._state && A.ui._state.user; }
   function ad() { return A.ui && A.ui.adapter && A.ui.adapter(); }
@@ -39581,11 +39824,14 @@ body.log-open #logTab,body.log-open #notesTab{left:380px}
   function sync() {
     var a = ad(), w = wanted();
     if (!a || !a.live || !a.live.watch) return;
-    Object.keys(L.subs).forEach(function (code) { if (!w[code] || L.subs[code].gm !== w[code].gm) { L.subs[code].stop(); delete L.subs[code]; } });
+    /* the Log's listener comes and goes with its drawer */
+    var logCode = A.log && A.log._L && A.log._L.open ? A.log._L.code : null;
+    Object.keys(L.subs).forEach(function (code) { if (!w[code] || L.subs[code].gm !== w[code].gm || L.subs[code].log !== (logCode === code)) { L.subs[code].stop(); delete L.subs[code]; } });
     Object.keys(w).forEach(function (code) {
       if (L.subs[code]) return;
       var gm = w[code].gm;
-      L.subs[code] = { gm: gm, stop: a.live.watch(code, function (kind, info) { kick(code, gm, kind, info || {}); }, { gm: gm }) };
+      var u = user(), lg = !!(A.log && A.log._L && A.log._L.open && A.log._L.code === code);
+      L.subs[code] = { gm: gm, log: lg, stop: a.live.watch(code, function (kind, info) { kick(code, gm, kind, info || {}); }, { gm: gm, uid: u && u.uid, log: lg }) };
       beat(code, gm, true);
       if (A.table) setTimeout(A.table.render, 50);
     });
@@ -39598,7 +39844,22 @@ body.log-open #logTab,body.log-open #notesTab{left:380px}
     if (kind === "error") { L.err = info.code || "error"; return; }
     if (info.pending && (kind === "enc" || kind === "gm" || kind === "notes")) return;   /* our own write echoing back */
     if (info.fromCache !== undefined) { var was = L.online; if (!info.fromCache) L.online = true; else if (navigator.onLine === false) L.online = false; if (was !== L.online) paint(); }
-    if (kind === "members" && info.docs) { info.docs.forEach(function (d) { L.seen[code + "|" + d.uid] = d.seen || 0; }); paint(); }
+    if (kind === "members" && info.docs) {
+      info.docs.forEach(function (d) { L.seen[code + "|" + d.uid] = d.seen || 0; }); paint();
+      /* a heartbeat only moves "seen": the dots are enough, nothing needs fetching again */
+      var sig = info.docs.map(function (d) { return d.uid + ":" + d.updatedAt + ":" + d.charId; }).sort().join(",");
+      if (L.memSig[code] === sig) return; L.memSig[code] = sig;
+    }
+    if (kind === "requests") { if (A.campUI && A.campUI.reqsChanged) A.campUI.reqsChanged(code); return; }
+    if (kind === "rewards") { if (!info.pending && A.campUI && A.campUI.checkRewards) A.campUI.checkRewards(); return; }
+    if (kind === "log") { if (info.docs && info.docs.length && A.log && A.log.ingest) A.log.ingest(code, info.docs); return; }
+    /* the fight: handled at once, with the document that came with the push */
+    if (kind === "enc") {
+      var doc = info.docs;
+      if (gm) { if (A.combat && A.combat._gmReload) A.combat._gmReload(doc); }
+      else if (A.combat && A.combat._pollLive) A.combat._pollLive(code, null, doc === undefined ? undefined : doc);
+      return;
+    }
     if (kind === "camp" && info.docs) { L.gmSeen[code] = info.docs.seen || 0; paint(); }
     if (kind === "strikes" && info.docs && info.docs.length) {
       if (A.react && A.react.ingest) A.react.ingest(code, info.docs);
@@ -39614,7 +39875,7 @@ body.log-open #logTab,body.log-open #notesTab{left:380px}
       delete pend[k];
       if (kind === "enc") { if (gm) { if (A.combat && A.combat._gmReload) A.combat._gmReload(); } else if (A.combat && A.combat._pollLive) A.combat._pollLive(); }
       else if (kind === "rolls" || kind === "turns") { if (A.combat && A.combat._gmTick) A.combat._gmTick(null, kind); }
-      else if (kind === "members") { if (A.combat && A.combat._members) A.combat._members(code, true); if (A.campUI && A.campUI.refreshIfOpen) A.campUI.refreshIfOpen(code); }
+      else if (kind === "members") { if (A.combat && A.combat._members) A.combat._members(code, true); if (A.campUI && A.campUI.refreshIfOpen) A.campUI.refreshIfOpen(code); if (A.table && A.table.members) A.table.members(code); }
       else if (kind === "notes") { if (A.notes && A.notes._load) A.notes._load(code); }
       else if (kind === "gm") { if (A.gmset && A.gmset.reload) A.gmset.reload(code); }
     }, 120);
