@@ -16005,6 +16005,7 @@ function setArchSoulAt(i,name){
 const qbBuilding=()=>!!(window.ArchCloud&&ArchCloud.qb&&ArchCloud.qb.isOpen&&ArchCloud.qb.isOpen());
 function firstDomainAsk(name){
   if(!C||!name||!ASDOM[name]||qbBuilding()||document.getElementById("choicePop")) return;
+  if(document.getElementById("crlayer")||window.CR_LIMIT) return;   /* the creator has its own Domain step */
   if(SPELLSEC.some(([k])=>C.domUnlocked&&C.domUnlocked[k])) return;
   if(typeof domGrantsAvail==="function"&&domGrantsAvail()<1) return;
   const opts=(domOf(name)||[]).filter(k=>SPELLSEC.some(x=>x[0]===k)); if(!opts.length) return;
@@ -31090,6 +31091,9 @@ let CR_RACEFOR = "";          /* the Lineage whose Race popup is open */
 
 function crOpen(){
   if(document.getElementById("crlayer")){ crDraw(); return; }
+  if(!document.getElementById("crLimitCss")){ const st=document.createElement("style"); st.id="crLimitCss";
+    st.textContent=".crbtn.crtaken{opacity:.45;filter:grayscale(.6)}.crbtn .crdis,.crbtn .crfill{display:block;font-style:normal;font-size:11px;margin-top:3px}.crbtn .crdis{color:#d9534f}.crbtn .crfill{color:#7fc97f}.crcamp{font-size:13px;color:#c9a24a;margin:0 0 10px}";
+    document.head.appendChild(st); }
   const d=document.createElement("div");
   d.id="crlayer"; d.className="crlayer";
   d.innerHTML=`<div class="crhead">
@@ -31126,6 +31130,9 @@ function crClose(){
   const d=document.getElementById("crlayer"); if(d) d.remove();
   document.documentElement.classList.remove("crmode");
   CR_RACEFOR="";
+  /* made for a campaign: hand it over (the lobby attaches it) */
+  const lim=window.CR_LIMIT; window.CR_LIMIT=null;
+  if(lim&&typeof lim.onDone==="function"){ setTimeout(()=>{ try{ lim.onDone(C); }catch(e){ console.error(e); } },0); }
   /* the sheet behind was drawn before any of this, so it is redrawn now —
      otherwise it still reads "not chosen" for everything just picked, which
      looks exactly like the screen having thrown the work away */
@@ -31168,21 +31175,39 @@ function crWeaponGrant(){
 const crWpnHeld=()=>["primary","secondary"].filter(s=>(C.weapons[s].name||"").trim());
 
 /* ---- one row of choices ------------------------------------------------ */
+/* ---- a campaign's limits on this character (the lobby sets them, 17 Nov) ---------------------------
+   window.CR_LIMIT = { camp, lock:{cls,lin,race,as0}, taken:{cls:{},lin:{},race:{},as:{}} (name → who has it),
+                       gap:(kind,id)=>["Healer",…], onDone:(ch)=>… }
+   A locked choice cannot be changed, a taken one cannot be picked, and every option is labelled with the
+   party roles it would fill. With no CR_LIMIT the creator is exactly what it was. */
+function crLimit(kind,id){
+  const L=window.CR_LIMIT; if(!L) return {};
+  const lk=L.lock||{}, tk=L.taken||{};
+  const lockTo={cls:lk.cls,lin:lk.lin,race:lk.race,as:lk.as0}[kind];
+  const out={};
+  if(lockTo&&lockTo!==id) out.dis="Locked: "+lockTo;
+  /* Races are claimed per Lineage: the key is "Lineage|Race", the same one the lobby keeps */
+  const key=kind==="race"?((CR_RACEFOR||C.info.lineage||"")+"|"+(id||"")):id;
+  if(!out.dis&&!lockTo&&tk[kind]&&tk[kind][key]&&!(kind==="as"&&(C.as||[]).some(a=>a.n===id))) out.dis="Taken by "+tk[kind][key];
+  if(!out.dis&&typeof L.gap==="function"){ try{ const g=L.gap(kind,id)||[]; if(g.length) out.tag="Fills: "+g.slice(0,3).join(", ")+(g.length>3?" +"+(g.length-3):""); }catch(e){} }
+  return out;
+}
 function crRow(opts){
-  /* opts: {key,title,note,items,on,pick,wide} — items are {id,name,sub,col,face} */
+  /* opts: {key,title,note,items,on,pick,wide} — items are {id,name,sub,col,face,dis,tag} */
   const done=opts.items.some(x=>opts.on(x));
   return `<section class="crstep${done?" done":""}" data-crstep="${opts.key}">
     <h3><span class="crnum">${opts.num}</span>${esc(opts.title)}
       ${opts.count?`<em class="crcount">${esc(opts.count)}</em>`:""}</h3>
     ${opts.note?`<p class="crnote">${opts.note}</p>`:""}
     <div class="crgrid${opts.wide?" wide":""}">${opts.items.map(x=>
-      `<button class="crbtn${opts.on(x)?" on":""}" data-crpick="${opts.key}|${esc(x.id)}"
-         style="--c:${x.col||"var(--hot)"}">
+      `<button class="crbtn${opts.on(x)?" on":""}${x.dis?" crtaken":""}" data-crpick="${opts.key}|${esc(x.id)}"
+         style="--c:${x.col||"var(--hot)"}"${x.dis&&!opts.on(x)?` aria-disabled="true" title="${esc(x.dis)}"`:""}>
         ${x.face!==false?`<span class="crface">${
           CR_FACE[x.id]?`<img src="${esc(CR_FACE[x.id])}" alt="">`
             :`<i>${esc((x.name||"?").slice(0,1))}</i>`}</span>`:""}
         <span class="crnm">${esc(x.name)}</span>
         ${x.sub?`<small>${esc(x.sub)}</small>`:""}
+        ${x.dis&&!opts.on(x)?`<em class="crdis">${esc(x.dis)}</em>`:x.tag?`<em class="crfill">${esc(x.tag)}</em>`:""}
       </button>`).join("")}</div>
   </section>`;
 }
@@ -31197,13 +31222,13 @@ function crDraw(){
       +(crLin()&&RACES[crLin().name]?` <b>${esc(crLin().name)} offers Races</b> — press it again to choose one.`:""),
     count:C.race?esc(C.race):"",
     items:LINEAGES.map(L=>({id:L.name,name:L.name,col:L.color,
-      sub:RACES[L.name]?(RACES[L.name].required?"Race required":"Races offered"):""})),
+      sub:RACES[L.name]?(RACES[L.name].required?"Race required":"Races offered"):"",...crLimit("lin",L.name)})),
     on:x=>C.info.lineage===x.id});
 
   /* 2 — Class */
   html+=crRow({num:++n,key:"cls",title:"Class",
     note:"Your Class sets your Ability Slots, your Reactions and how you cast.",
-    items:CLASSES.map(K=>({id:K.name,name:K.name,col:K.color,sub:K.role})),
+    items:(window.CR_LIMIT&&typeof clsList==="function"?clsList():CLASSES).map(K=>({id:K.name,name:K.name,col:K.color,sub:K.role,...crLimit("cls",K.name)})),
     on:x=>C.info.cls===x.id});
 
   /* 3 — Origin */
@@ -31222,7 +31247,7 @@ function crDraw(){
     /* asList(), not ARCHSOULS — the creation screen must honour the same
        release gate the sheet's own picker does, or it would offer the seven
        that are disabled while they are being reworked. */
-    items:asList().map(r=>({id:r[0],name:r[0],col:r[1],sub:r[2]})),
+    items:asList().map(r=>({id:r[0],name:r[0],col:r[1],sub:r[2],...crLimit("as",r[0])})),
     on:x=>(C.as||[]).some(a=>a.n===x.id), wide:true});
 
   /* 5 — Domain, out of the ones the chosen ArchSouls open */
@@ -31267,6 +31292,7 @@ function crDraw(){
       </div>`;}).join("")}</div>
   </section>`;
 
+  if(window.CR_LIMIT&&window.CR_LIMIT.camp) html=`<p class="crcamp">Making a character for <b>${esc(window.CR_LIMIT.camp)}</b>${window.CR_LIMIT.lock&&Object.values(window.CR_LIMIT.lock).some(Boolean)?" — your lobby picks are locked in":""}. Green notes show what the party is missing.</p>`+html;
   main.innerHTML=html;
   crSide(); crStats(); crWire();
 }
@@ -31328,12 +31354,12 @@ function crRacePop(linName){
   pop.innerHTML=`<div class="crpopbox">
     <h3>${esc(linName)} — choose a Race${R.required?"":" <em>optional</em>"}</h3>
     ${R.note?`<p class="crnote">${esc(R.note)}</p>`:""}
-    <div class="crgrid wide">${R.races.map(x=>
-      `<button class="crbtn${x.name===C.race?" on":""}" data-crrace="${esc(x.name)}">
+    <div class="crgrid wide">${R.races.map(x=>{ const lm=crLimit("race",x.name); return `<button class="crbtn${x.name===C.race?" on":""}${lm.dis?" crtaken":""}" data-crrace="${esc(x.name)}"${lm.dis?` title="${esc(lm.dis)}"`:""}>
         <span class="crnm">${esc(x.name)}</span>
         <small>${esc(Object.entries(x.mods||{}).map(([k,v])=>
           (STATS.find(s=>s.k===k)||{n:k}).n+" "+v).join(" · ").slice(0,90))}</small>
-      </button>`).join("")}</div>
+        ${lm.dis?`<em class="crdis">${esc(lm.dis)}</em>`:""}
+      </button>`; }).join("")}</div>
     <div class="crpopfoot">
       ${R.required?"":`<button class="btn" data-crnorace>No Race</button>`}
       <button class="btn" data-crpopclose>Close</button>
@@ -31372,9 +31398,10 @@ function crWire(){
   const pop=document.getElementById("crpop");
   if(pop&&!pop.hidden){
     pop.querySelectorAll("[data-crrace]").forEach(b=>b.onclick=()=>{
+      const lm=crLimit("race",b.dataset.crrace); if(lm.dis){ toast(lm.dis); return; }
       setRace(b.dataset.crrace); crPopClose(); crDraw(); });
     const nr=pop.querySelector("[data-crnorace]");
-    if(nr) nr.onclick=()=>{ setRace(""); crPopClose(); crDraw(); };
+    if(nr) nr.onclick=()=>{ const lm=crLimit("race",""); if(lm.dis){ toast(lm.dis); return; } setRace(""); crPopClose(); crDraw(); };
     pop.querySelector("[data-crpopclose]").onclick=()=>{ crPopClose(); crDraw(); };
     pop.onmousedown=e=>{ if(e.target===pop){ crPopClose(); crDraw(); } };
   }
@@ -31384,6 +31411,13 @@ function crWire(){
    pressing another replaces it. Everything goes through the sheet's own
    setter so the sheet behind is already correct before this redraws. */
 function crPick(key,id){
+  { const kind={lin:"lin",cls:"cls",as:"as"}[key];
+    if(kind){ const lm=crLimit(kind,id);
+      const isOn=kind==="lin"?C.info.lineage===id:kind==="cls"?C.info.cls===id:(C.as||[]).some(a=>a.n===id);
+      /* a locked choice cannot be cleared either */
+      const lk=(window.CR_LIMIT&&window.CR_LIMIT.lock)||{};
+      if(isOn&&({lin:lk.lin,cls:lk.cls,as:lk.as0}[kind])===id&&!(kind==="lin"&&RACES[id])){ toast("Locked by the campaign: "+id); return; }
+      if(!isOn&&lm.dis){ toast(lm.dis); return; } } }
   if(key==="lin"){
     if(C.info.lineage===id){
       /* already yours: a Lineage with Races opens them again, one without
@@ -33563,6 +33597,10 @@ function printGo(){
 #bar #bDup,#bar #bDel,#bar #bTut,#bar #bPrint,#bar #bExport,#bar #bImport,
 #bar #modeBtn,#bar #gmTab,#bar #cloudBtn,#bar #sfxWrap,#bar .shellsep{display:none !important}
 #shellLogo{cursor:pointer}
+#shellHome{padding:4px 10px;font-size:13px;line-height:1.2;margin-left:8px;white-space:nowrap}
+#shellHome span{font-size:15px}
+#shellHome.on{border-color:var(--hot);color:var(--hot)}
+.shellver{margin-top:12px;padding-top:8px;border-top:1px solid var(--line);font-size:11.5px;color:var(--ink-faint,#888);text-align:right}
 #shellLogo:hover{filter:brightness(1.25)}
 #shellSec{font-size:.8em;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-dim);
   padding-left:10px;border-left:1px solid var(--line);margin-left:2px}
@@ -33647,6 +33685,7 @@ html.shell-lock,html.shell-lock body{overflow:hidden !important;overscroll-behav
 @media (max-width:700px){
   .homeinner{padding:22px 14px 30px}.homecard{min-height:130px}
   #shellSec{display:none}
+  #shellHome{margin-left:4px;padding:4px 9px}#shellHome .hmtx{display:none}
 }
 #bar > #zoomWrap{display:none !important}
 body.shellhome #tabbar{display:none !important}
@@ -34471,6 +34510,63 @@ body.has-logtab #homeWrap .homeinner{padding-left:max(22px,56px)}
 #keepNudge .kntxt{color:var(--ink,#ddd)}
 #keepNudge .kx{all:unset;cursor:pointer;padding:2px 6px;color:var(--ink-dim,#999)}
 
+/* ---- 17 Nov: the lobby and the role pop-up ---- */
+.lbhero{display:flex;flex-direction:column;gap:4px;padding:12px 14px;margin:8px 0 12px;border:1px solid #c9a24a66;border-radius:10px;background:linear-gradient(180deg,#221c12,#16130e)}
+.lbhero b{font-family:var(--disp,inherit);letter-spacing:.12em;text-transform:uppercase;color:#c9a24a}
+.lbhero span{color:var(--ink-dim,#bbb);font-size:14px}
+.lbstart{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:10px 0}
+.lbstart small{color:var(--ink-dim,#aaa)}
+.lbgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;margin:8px 0}
+.lbgrid label{min-width:0;display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--ink-dim,#aaa);text-transform:uppercase;letter-spacing:.05em}
+.lbgrid label small{text-transform:none;color:#c9a24a}
+.lbgrid select{font:inherit;font-size:14px;padding:6px 8px;width:100%;min-width:0;background:var(--sunk,#14110d);color:var(--ink,#e8dcc0);border:1px solid var(--line,#4a3f2c);border-radius:6px}
+.lbgrid select:disabled{opacity:.75;cursor:not-allowed}
+.lbgrid select option{background:#14110d;color:#e8dcc0}
+.lbgrid select option:disabled{color:#7a6f5c}
+.lbprob{margin:6px 0;padding-left:18px;color:#e8a33d;font-size:13px}
+.lbcards{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(220px,100%),1fr));gap:10px}
+.lbcard{border:1px solid var(--line,#333);border-radius:10px;padding:10px 12px;background:#15130f}
+.lbks{font-style:normal;font-size:.85em;color:#c9a24a;margin-left:4px}.lbks.later{color:#888;border-bottom:1px dashed #666}
+.lbnote{font-size:12.5px;color:var(--ink-dim,#aaa);margin:4px 0 6px}
+.lbcard.you{border-color:#c9a24a88}
+.lbch{display:flex;align-items:center;gap:6px}
+.lbst{margin-left:auto;font-size:11px;padding:2px 8px;border-radius:999px;border:1px solid}
+.lbst.ok{color:#7fc97f;border-color:#7fc97f88}.lbst.wait{color:#aaa;border-color:#555}
+.lbpk{display:flex;gap:10px;margin:6px 0 4px;font-size:14px}.lbpk span{color:var(--ink,#ddd)}
+.lbas{display:flex;flex-wrap:wrap;gap:4px}.lbas i{font-style:normal;font-size:12px;padding:2px 7px;border-radius:999px;background:#222;border:1px solid #333}
+.lbas i.prim{border-color:#c9a24a;color:#e6c46a}
+.lbwarn{margin-top:6px;font-size:12px;color:#e8a33d}
+.lbmake{border-color:#7fc97f66}
+.rosterrow.nochar{opacity:.85;border-style:dashed}
+.rolewrap{position:relative;display:inline-flex;align-items:center;gap:2px;margin-left:8px}
+.rolechip{all:unset;cursor:pointer;display:inline-flex;gap:4px;align-items:center;padding:2px 8px;border-radius:999px;border:1px solid #444;background:#1a1712;font-size:12px}
+.rolechip.quiet{cursor:default;color:#888;border-style:dashed}
+.rolechip .rcok{color:#7fc97f;font-weight:600}
+.rcd{font-style:normal;min-width:18px;text-align:center;border-radius:999px;padding:0 5px;font-weight:700;color:#111}
+.rcd.red{background:#d9534f}.rcd.orange{background:#e8a33d}.rcd.yellow{background:#e6d24a}
+.roleinfo{all:unset;cursor:pointer;color:#c9a24a;display:inline-grid;place-items:center;width:20px;height:20px;border:1.5px solid #c9a24a;border-radius:50%;font:italic 700 13px/1 Georgia,serif;margin-left:2px}
+.roleinfo:hover,.roleinfo:focus-visible{background:#2a2214}
+.rolepop{position:absolute;top:calc(100% + 6px);left:0;z-index:60;min-width:260px;max-width:min(360px,86vw);padding:8px;border:1px solid #444;border-radius:10px;background:#15130fF5;box-shadow:0 10px 24px #000a;display:flex;flex-direction:column;gap:4px}
+.rolepop,.roleinfobox{text-transform:none;letter-spacing:normal;font-weight:400;line-height:1.35;color:var(--ink,#e8dcc0)}
+.lbw{font-size:13px;padding:4px 8px;border-left:3px solid;border-radius:4px;background:#1e1b16}
+.lbw .lbwg{display:block;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#888}
+.lbw.red{border-color:#d9534f}.lbw.orange{border-color:#e8a33d}.lbw.yellow{border-color:#e6d24a}.lbw.green{border-color:#7fc97f}
+.roleinfobox{margin:8px 0 12px;padding:10px 12px;border:1px solid #444;border-radius:10px;background:#141210}
+.rih{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.riwho{margin:6px 0 10px;padding-left:18px;font-size:13px}.riwho small{color:#888}
+.lbrg{border-top:1px solid var(--line,#333);margin-top:10px;padding-top:2px}
+.roleinfobox .gsp{font-size:13px}
+.lbrg h4{margin:10px 0 4px;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:#c9a24a}
+.ritem{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px;font-size:13px;padding:3px 0}
+.ritem small{color:#999}
+.ritem .rdot{width:9px;height:9px;border-radius:50%;flex:0 0 auto;transform:translateY(1px)}
+.ritem.red .rdot{background:#d9534f}.ritem.orange .rdot{background:#e8a33d}.ritem.green .rdot{background:#7fc97f}.ritem.yellow .rdot{background:#e6d24a}
+.rfill{flex-basis:100%;margin-left:15px;font-size:12px;color:#8fa8c0}
+.lbset h4{margin:14px 0 4px;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:#c9a24a}
+.lbset .gsrow3{display:flex;flex-wrap:wrap;gap:4px 12px;align-items:center;margin:4px 0}
+.lbset .gsrow3>span{min-width:70px;color:#aaa;font-size:13px}
+@media (max-width:760px){.lbgrid{grid-template-columns:repeat(2,minmax(0,1fr))}.rolepop{left:auto;right:-40px}}
+
 /*CLOUD-CSS:END*/</style>
 <script id="cloud-js">/*CLOUD:BEGIN*/
 /* ArchSoul cloud sync — the engine.
@@ -34892,12 +34988,13 @@ body.has-logtab #homeWrap .homeinner{padding-left:max(22px,56px)}
       /* Campaigns. A campaign's document id IS its invite code. */
       camp: {
         /* false when that code is already taken, so the caller picks another */
-        create: async function (uid, gmName, name, code) {
+        create: async function (uid, gmName, name, code, rules) {
           await init();
           var ref = F.doc(db, "campaigns", code);
           if ((await F.getDoc(ref)).exists()) return false;
           var now = Date.now();
-          await F.setDoc(ref, { name: name, gm: uid, gmName: gmName || "", createdAt: now });
+          var doc0 = { name: name, gm: uid, gmName: gmName || "", createdAt: now }; if (rules) doc0.rules = rules;
+          await F.setDoc(ref, doc0);
           await F.setDoc(F.doc(db, "users", uid, "campaigns", code), { code: code, name: name, role: "gm", at: now });
           return true;
         },
@@ -35005,6 +35102,11 @@ body.has-logtab #homeWrap .homeinner{padding-left:max(22px,56px)}
           await F.updateDoc(F.doc(db, "campaigns", camp.code), d);
         },
         /* rewrite your own roster row with your username and no email, keeping everything else as it was */
+        /* the lobby: a player's picks (Class, Lineage, Race, ArchSouls) ride in their own member row's summary */
+        setClaim: async function (code, uid, sum) {
+          await init();
+          await F.updateDoc(F.doc(db, "campaigns", code, "members", uid), { sum: sum || {}, updatedAt: Date.now() });
+        },
         setMemberName: async function (code, m, uname) {
           await init();
           await F.setDoc(F.doc(db, "campaigns", code, "members", m.uid),
@@ -35493,6 +35595,9 @@ body.has-logtab #homeWrap .homeinner{padding-left:max(22px,56px)}
       v.sp = Math.round((cs && cs.speed) || 0); v.rm = +ch.vit.reactMax || 0; v.arl = [+ch.vit.arl || 0, +ch.vit.arlMax || 0];
       v.co = +ch.corruption || 0; var ai = ch.ail || {}; v.ai = [+ai.minor || 0, +ai.major || 0, +ai.fatal || 0];
       v.as = (ch.as || []).map(function (x) { return x && x.n; }).filter(Boolean);
+      if (ch.race) v.race = String(ch.race);
+      /* the Keystones it holds, as "Class|Keystone" — the party's role check reads them */
+      if ((ch.keystones || []).length) v.ks = ch.keystones.map(function (k) { var p = String(k).split("|"); return (p.length >= 4 ? p[1] : ((ch.info || {}).cls || "")) + "|" + p[p.length - 1]; });
       if (A.cic && A.cic.snapshot) v.cd = A.cic.snapshot();
       f.v = v;
     } catch (e) {} finally { C = prev; }
@@ -35578,7 +35683,8 @@ body.has-logtab #homeWrap .homeinner{padding-left:max(22px,56px)}
     if (S.busy) return; S.busy = true; setMsg("Creating…"); rerender();
     try {
       var code = null;
-      for (var i = 0; i < 6 && !code; i++) { var t = H.genCode(); if (await c.create(u.uid, u.name, name, t)) code = t; }
+      var rules0 = A.lobby && !window.__noLobby ? A.lobby.newRules() : null;   /* __noLobby: the older tests make a campaign the old way */
+      for (var i = 0; i < 6 && !code; i++) { var t = H.genCode(); if (await c.create(u.uid, u.name, name, t, rules0)) code = t; }
       if (!code) throw new Error("no code");
       S.nameIn = ""; await loadMine(); S.busy = false; await openCamp(code);
     } catch (e) { S.busy = false; setMsg(errText(e), true); rerender(); }
@@ -35640,7 +35746,37 @@ body.has-logtab #homeWrap .homeinner{padding-left:max(22px,56px)}
     await c.attach(u.uid, u.name, k, r.rec, r.sheet);
     grantStart(k, ch);
   }
+  /* a campaign made with the lobby: you ask to join with no character — you claim, or make one, once you are in */
+  function lobbyStyle(k) { return !!(k && k.rules && k.rules.lobby); }
+  async function doJoinEmpty(k) {
+    var u = user(), c = camp(); if (!u || !c || S.busy) return;
+    S.busy = true; setMsg("Asking to join…"); rerender();
+    try {
+      var fresh = await c.get(k.code) || k, rec = { charId: "", charName: "", sum: {}, updatedAt: Date.now() };
+      if ((fresh.allow || []).indexOf(u.uid) < 0 && c.request) { await c.request(u.uid, u.name, fresh, rec); fresh = await c.get(k.code) || fresh; }
+      if ((fresh.allow || []).indexOf(u.uid) >= 0) { await attachEmpty(fresh); S.join = null; S.codeIn = ""; await loadMine(); S.busy = false; await openCamp(k.code); }
+      else { S.join = null; S.codeIn = ""; await loadMine(); S.busy = false; setMsg("Asked to join " + k.name + ". " + (k.gmName || "The GM") + " has to accept you — you join the moment they do."); startPending(); rerender(); }
+    } catch (e) { S.busy = false; setMsg(errText(e), true); rerender(); }
+  }
+  async function attachEmpty(k) {
+    var u = user(), c = camp(), now = Date.now();
+    await c.attach(u.uid, u.name, k, { charId: "", charName: "", sum: { claim: { as: [], t: {} } }, updatedAt: now }, { data: "", updatedAt: now });
+  }
+  /* a character made (or brought) after joining: the same steps as joining with it */
+  async function attachInto(k, ch) {
+    var u = user(), c = camp(); if (!u || !c || !ch) return false;
+    var lp = levelProblem(k, ch); if (lp) { say(lp); return false; }
+    if (!recordFor(ch)) { say("That character is too large to share."); return false; }
+    try {
+      var copied = "";
+      if (rulesOf(k).lock && ch.campLock !== k.code) { ch = campCopy(ch, k); copied = ch.name; }
+      await attachNow(k, ch); await loadMine(); await refreshCamp(); rerender();
+      say("Now playing " + ch.name + " in " + k.name + "." + (copied ? " This campaign plays its own copy." : ""));
+      return true;
+    } catch (e) { say(errText(e)); return false; }
+  }
   async function doAttach(k) {
+    if (lobbyStyle(k)) return doJoinEmpty(k);
     var u = user(), c = camp(), ch = DB.chars.find(function (x) { return x.id === S.pick; });
     if (!ch) { setMsg("Pick one of your characters.", true); rerender(); return; }
     var lp = levelProblem(k, ch); if (lp) { setMsg(lp, true); rerender(); return; }
@@ -35679,6 +35815,7 @@ body.has-logtab #homeWrap .homeinner{padding-left:max(22px,56px)}
       try {
         var k = await c.get(m.code);
         if (!k) { await c.forget(u.uid, m.code); say("That campaign no longer exists."); continue; }
+        if ((k.allow || []).indexOf(u.uid) >= 0 && !m.charId) { await attachEmpty(k); say((k.gmName || "The GM") + " accepted you into " + k.name + "."); continue; }
         if ((k.allow || []).indexOf(u.uid) >= 0) {
           var ch = DB.chars.find(function (x) { return x.id === m.charId; });
           if (!ch) { setMsg("You were accepted into " + k.name + ", but the character you asked with is gone from this device. Pick one to bring.", true); S.join = { camp: k }; S.pick = (DB.chars[0] || {}).id || ""; continue; }
@@ -35751,6 +35888,7 @@ body.has-logtab #homeWrap .homeinner{padding-left:max(22px,56px)}
   async function doChange() {
     var u = user(), c = camp(), ch = DB.chars.find(function (x) { return x.id === S.pick; });
     if (!ch || !S.camp) return;
+    if (lobbyStyle(S.camp) && A.lobby) { var pr = A.lobby.fits(S.camp, S.members, u.uid, ch); if (pr.length) { setMsg(pr[0], true); rerender(); return; } }
     var r = recordFor(ch); if (!r) { setMsg("That character is too large to share.", true); rerender(); return; }
     S.busy = true; rerender();
     try { await c.attach(u.uid, u.name, S.camp, r.rec, r.sheet); await loadMine(); await refreshCamp(); setMsg("Now playing " + r.rec.charName + "."); }
@@ -35901,18 +36039,19 @@ body.has-logtab #homeWrap .homeinner{padding-left:max(22px,56px)}
     if (S.screen === "campaign") return campaignHTML(u);
     var list = S.mine.slice().sort(function (a, b) { return (+b.at || 0) - (+a.at || 0); }).map(function (m) {
       if (m.role === "pending") return '<div class="campcard pending"><span class="cctop"><b>' + esc(m.name) + '</b><span class="ccrole pend">Waiting</span></span>' +
-        '<span class="camprole">You asked to join with <b>' + esc(m.charName || "a character") + "</b>. The GM has to accept you — you join the moment they do.</span>" +
+        '<span class="camprole">' + (m.charId ? "You asked to join with <b>" + esc(m.charName || "a character") + "</b>. " : "You asked to join. ") + "The GM has to accept you — you join the moment they do.</span>" +
         '<span class="ccfoot"><small>' + esc(H.fmtCode(m.code)) + '</small><button class="btn sm" data-camp="withdraw" data-code="' + esc(m.code) + '">Withdraw</button></span></div>';
       var gmr = m.role === "gm", ch = !gmr && DB.chars.find(function (x) { return x.id === m.charId; }), i = (ch && ch.info) || {};
       var e = A.combat && A.combat._enc && A.combat._enc(m.code), live = e && (e.status === "active" || e.status === "eor" || e.status === "rolling");
       if (gmr && A.combat && A.combat._G && A.combat._G.code === m.code && A.combat._G.enc) live = true;
-      var who = gmr ? "You run this campaign" : "You play <b>" + esc(m.charName || "a character") + "</b>" +
+      var noChar = !gmr && !m.charId;
+      var who = gmr ? "You run this campaign" : noChar ? "<b>No character yet</b> — open it to claim or make one" : "You play <b>" + esc(m.charName || "a character") + "</b>" +
         (ch ? ' <span class="ccsub">' + esc([i.lineage, i.cls, i.level ? "Level " + i.level : ""].filter(Boolean).join(" · ")) + "</span>" : "");
       return '<button class="campcard' + (live ? " live" : "") + '" data-camp="open" data-code="' + esc(m.code) + '">' +
         '<span class="cctop"><b>' + esc(m.name) + '</b><span class="ccrole ' + (gmr ? "gm" : "pl") + '">' + (gmr ? "GM" : "Player") + "</span></span>" +
         '<span class="camprole">' + who + "</span>" +
         (live ? '<span class="cclive">⚔ A fight is on</span>' : "") +
-        '<span class="ccfoot"><small>' + esc(H.fmtCode(m.code)) + "</small><span class=\"ccgo\">" + (gmr ? "Open the table →" : "Sit down →") + "</span></span></button>";
+        '<span class="ccfoot"><small>' + esc(H.fmtCode(m.code)) + "</small><span class=\"ccgo\">" + (gmr ? "Open the table →" : noChar ? "Open →" : "Sit down →") + "</span></span></button>";
     }).join("");
     var nameBox = u.name ? "" : '<div class="camppanel wide"><b>Choose a username</b>' +
       '<div class="campsub">Other players and the GM see this instead of your email. Your email stays linked to your account for signing in.</div>' +
@@ -35935,6 +36074,16 @@ body.has-logtab #homeWrap .homeinner{padding-left:max(22px,56px)}
   function joinHTML() {
     var k = S.join.camp;
     if (A.qb && A.qb.isOpen()) return A.qb.html();
+    if (lobbyStyle(k) && A.lobby) {
+      var LC = A.lobby.cfg(k), cancel = '<button class="btn" data-camp="cancel">Cancel</button>';
+      if (LC.phase === "lobby") return '<div class="camppanel wide"><b>Join ' + esc(k.name) + "</b>" +
+        '<div class="campsub">Run by ' + esc(k.gmName || "the GM") + ". It has not started: you join its <b>lobby</b>, claim the Class, Lineage and ArchSouls you plan to play, and make your character when the GM starts it. The GM accepts you first.</div>" +
+        '<div class="camprow2"><button class="btn hotbtn" data-camp="attach"' + (S.busy ? " disabled" : "") + ">Ask to join the lobby</button>" + cancel + "</div></div>";
+      if (!LC.late) return '<div class="camppanel wide"><b>' + esc(k.name) + '</b><div class="campmsg bad">This campaign has started and is not taking new players.</div><div class="camprow2">' + cancel + "</div></div>";
+      return '<div class="camppanel wide"><b>Join ' + esc(k.name) + "</b>" +
+        '<div class="campsub">Run by ' + esc(k.gmName || "the GM") + ". It has already started. Once the GM accepts you, you make your character — or bring one you have — and the creator shows what the party is missing.</div>" +
+        '<div class="camprow2"><button class="btn hotbtn" data-camp="attach"' + (S.busy ? " disabled" : "") + ">Ask to join</button>" + cancel + "</div></div>";
+    }
     var R = rulesOf(k), notes = [];
     if (+R.start > 0) notes.push("Characters start at <b>Level " + esc(R.start) + "</b> — bring one at that Level or lower, or build one here.");
     if (+R.souls > 0 || (R.items || []).length) notes.push("Starting bonuses: " + [+R.souls > 0 ? "<b>+" + esc(R.souls) + " Souls</b>" : ""].concat((R.items || []).map(function (it) { return "<b>" + esc((+it.n || 1) + "× " + it.rar + " " + ({ weapon: "Weapon", armor: "Armour", gem: "Gem" }[it.cat] || it.cat)) + "</b>"; })).filter(Boolean).join(", ") + " — you choose the Magic Items yourself, in Crafting.");
@@ -36002,6 +36151,8 @@ body.has-logtab #homeWrap .homeinner{padding-left:max(22px,56px)}
         gm ? '<span class="pcbtns"><button class="btn sm" data-camp="view" data-uid="' + esc(m.uid) + '">View sheet</button>' +
           '<button class="btn sm hotbtn" data-camp="rw" data-uid="' + esc(m.uid) + '" title="Give Levels, Souls, a Magic Item, Materials or a custom bonus">Reward</button>' +
           '<button class="btn sm warn" data-camp="kick" data-uid="' + esc(m.uid) + '">' + (S.armed === "kick" + m.uid ? "Really remove?" : "Remove") + "</button></span>" : "") + "</div>";
+      if (!m.charId && !isNpcUid(m.uid) && A.lobby) { var cp = A.lobby.picksOf(m); return '<div class="rosterrow nochar"><div class="rname"><b>' + esc(m.name || "A player") + "</b>" + (mine ? ' <span class="youtag">you</span>' : "") + "<small>making a character</small></div>" +
+        '<div class="rsum">' + esc([cp.cls, cp.lin, (cp.as || []).filter(Boolean).join(" + ")].filter(Boolean).join(" · ") || "No picks") + "</div>" + foot + "</div>"; }
       if (card) return card(m, false, { full: true, you: mine, foot: foot, code: S.code, calm: !(gm && A.combat && A.combat._G && A.combat._G.enc && A.combat._G.code === S.code) });
       return '<div class="rosterrow"><div class="rname"><b>' + esc(m.charName) + "</b>" + (mine ? ' <span class="youtag">you</span>' : "") +
         "<small>" + esc(m.name || "Player") + "</small></div>" + '<div class="rsum">' + sumLine(m.sum) + "</div>" + hpBar(m.sum) + foot + "</div>";
@@ -36028,14 +36179,18 @@ body.has-logtab #homeWrap .homeinner{padding-left:max(22px,56px)}
     var codeBox = bigCode ? '<div class="codebox"><span>Invite code</span>' + (S.hideCode ? '<b class="codemask">••••-••••</b><span id="campCodeTxt" hidden>' + esc(H.fmtCode(k.code)) + "</span>" : '<b id="campCodeTxt">' + esc(H.fmtCode(k.code)) + "</b>") +
       '<button class="btn" data-camp="copy">Copy</button><button class="btn" data-camp="eyecode">' + (S.hideCode ? "Show" : "Hide") + '</button><small>Players join by entering this on the Campaigns screen. You accept each one before they join.</small></div>' : (gm ? '<span id="campCodeTxt" hidden>' + esc(H.fmtCode(k.code)) + "</span>" : "");
     var tableBtn = !gm && A.table ? '<div class="tablecall"><div><b>The table</b><small>Play from your own sheet, with the party, the turn order and the log beside it. Fights find you there.</small></div><button class="btn big hotbtn" data-camp="table">▶ Go to the table</button></div>' : "";
+    var meRow = S.members.find(function (m) { return m.uid === u.uid; });
+    if (!gm && meRow && !meRow.charId && A.lobby) tableBtn = A.lobby.makeHTML(k, S.members, u);
     var mineRow = !gm ? tableBtn + '<div class="camppanel wide mycharbox"><b>Your character</b><div class="camprow2"><select id="campPick">' + charOptions() + '</select>' +
       '<button class="btn" data-camp="change"' + (S.busy ? " disabled" : "") + '>Play this one</button>' +
       '<button class="btn warn" data-camp="leave">' + (S.armed === "leave" ? "Really leave?" : "Leave campaign") + "</button></div></div>" : "";
+    if (!gm && meRow && !meRow.charId && A.lobby) mineRow = tableBtn + '<div class="gatebtns"><button class="btn warn" data-camp="leave">' + (S.armed === "leave" ? "Really leave?" : "Leave campaign") + "</button></div>";
     var gmFoot = gm ? '<div class="gmfoot"><button class="btn warn" data-camp="destroy">' + (S.armed === "destroy" ? "Really delete this campaign for everyone?" : "Delete campaign") + "</button></div>" : "";
     var combat = gm && A.combat ? (live ? A.combat.gmHTML() : gmBar(S.code)) : "";
     var players = S.members.filter(function (m) { return !isNpcUid(m.uid); });
     var rwAll = gm && players.length > 1 ? '<button class="btn sm hotbtn rwallbtn" data-camp="rw" data-uid="*" title="The same reward for every player">Reward all</button>' : "";
-    var roster = '<div class="campsec"><span>Party</span><i class="secount">' + S.members.length + "</i>" + rwAll + "</div>" + glance + '<div class="roster partygrid">' + (rows || (gm ? '<div class="invitesteps"><b>No one has joined yet</b><ol><li>Send your players the invite code above (<b>Copy</b> puts it on your clipboard).</li><li>Each of them opens <b>Campaigns</b> and types it under <b>Join with a code</b>.</li><li>They choose a character, or build one right there, and appear here.</li></ol></div>' : '<div class="homenote">No one else is here yet.</div>')) + "</div>";
+    var roleChip = A.lobby ? A.lobby.chipHTML(k, S.members) : "", roleInfo = A.lobby ? A.lobby.infoHTML(k, S.members) : "";
+    var roster = '<div class="campsec"><span>Party</span><i class="secount">' + S.members.length + "</i>" + roleChip + rwAll + "</div>" + roleInfo + glance + '<div class="roster partygrid">' + (rows || (gm ? '<div class="invitesteps"><b>No one has joined yet</b><ol><li>Send your players the invite code above (<b>Copy</b> puts it on your clipboard).</li><li>Each of them opens <b>Campaigns</b> and types it under <b>Join with a code</b>.</li><li>They choose a character, or build one right there, and appear here.</li></ol></div>' : '<div class="homenote">No one else is here yet.</div>')) + "</div>";
     if (live) { roster = '<details class="cbfold campros" data-fold="roster"' + (S.foldRoster ? " open" : "") + '><summary><b>Players (' + S.members.length + ")</b> <small>full sheets, Ailments, ArchSouls, remove players</small></summary>" + glance + '<div class="roster partygrid">' + rows + "</div></details>"; gmFoot = ""; }
     var mine2 = !gm ? tableBtn : "", pick = !gm ? mineRow.slice(tableBtn.length) : "";
     var reqs = gm ? reqHTML(k) : "", rwf = gm ? rewardHTML() : "";
@@ -36050,6 +36205,7 @@ body.has-logtab #homeWrap .homeinner{padding-left:max(22px,56px)}
         (mineC.length ? '<div class="npcfrom"><select id="npcFrom" aria-label="One of your characters">' + mineC.map(function (c) { return '<option value="' + esc(c.id) + '">' + esc(c.name || "Unnamed") + "</option>"; }).join("") + '</select><button class="btn sm" data-camp="npcfrom">Copy as an NPC</button></div>' : "") + "</section>";
     }
     /* the line under the title: who runs it, who is in it, whether it is live */
+    if (A.lobby && A.lobby.isLobby(k)) return A.lobby.pageHTML(u, k, S.members, { top: top, msg: msgHTML(), codeBox: codeBox, reqs: reqs, armedLeave: S.armed === "leave" });
     var nP = S.members.filter(function (m) { return !isNpcUid(m.uid); }).length;
     var sub = '<div class="campsubline"><span>Run by <b>' + esc(k.gmName || "the GM") + "</b></span><span>" + nP + " player" + (nP === 1 ? "" : "s") + "</span>" +
       (isLive ? '<span class="cslive">● Live</span>' : "") + (live ? '<span class="csfight">⚔ Fight in progress</span>' : "") + "</div>";
@@ -36139,7 +36295,7 @@ body.has-logtab #homeWrap .homeinner{padding-left:max(22px,56px)}
 
   /* "Create and join": keep the new character, then join with it */
   function qbCreate() { if (A.qb && S.join) A.qb.finish(function (id) { S.pick = id; doAttach(S.join.camp); }); }
-  A.campUI = { refresh: function () { setMsg(""); return refreshCamp().then(function () { rerender(); }); }, _qbCreate: qbCreate, html: html, enter: enter, leave: function () { if (A.qb) A.qb.cancel(); if (A.combat) A.combat.leave(); stopPoll(); }, exitView: exitView, _state: S, _factsOf: factsOf, openCode: openCamp, npcChar: npcChar, isNpcUid: isNpcUid, pushNow: function () { return pushNow(); },
+  A.campUI = { refresh: function () { setMsg(""); return refreshCamp().then(function () { rerender(); }); }, _qbCreate: qbCreate, html: html, enter: enter, leave: function () { if (A.qb) A.qb.cancel(); if (A.combat) A.combat.leave(); stopPoll(); }, exitView: exitView, _state: S, _factsOf: factsOf, attachInto: attachInto, openCode: openCamp, npcChar: npcChar, isNpcUid: isNpcUid, pushNow: function () { return pushNow(); },
     checkRewards: function () { return checkRewards(); },
     reqsChanged: async function (code) {
       var u = user(), c = camp(); if (!u || !c || !c.requests || S.code !== code || !S.camp || S.camp.gm !== u.uid) return;
@@ -39324,7 +39480,9 @@ body.has-logtab #homeWrap .homeinner{padding-left:max(22px,56px)}
   }
   async function saveRules(code) {
     var R = rulesDraft(code), a = A.ui && A.ui.adapter && A.ui.adapter(), c = a && a.camp; if (!c || !c.setRules) return;
-    var out = { start: Math.max(0, Math.round(+R.start || 0)), souls: Math.max(0, Math.round(+R.souls || 0)), items: R.items.map(function (x) { return { cat: x.cat, rar: x.rar, n: Math.max(1, Math.round(+x.n || 1)) }; }), lock: !!R.lock };
+    /* keep whatever else the rules carry (the lobby's settings live there too) and change only these */
+    var st0 = cs(), cur = (st0 && st0.camp && st0.code === code && st0.camp.rules) || {};
+    var out = Object.assign({}, cur, { start: Math.max(0, Math.round(+R.start || 0)), souls: Math.max(0, Math.round(+R.souls || 0)), items: R.items.map(function (x) { return { cat: x.cat, rar: x.rar, n: Math.max(1, Math.round(+x.n || 1)) }; }), lock: !!R.lock });
     try { await c.setRules(code, out); R.dirty = false; say("Campaign rules saved."); if (A.campUI) await A.campUI.refresh(); }
     catch (e) { say(/permission/.test(String(e && (e.code || e.message))) ? "The cloud refused — the new campaign rules need the updated Firestore Rules." : "Could not reach the cloud."); }
     draw();
@@ -39339,9 +39497,9 @@ body.has-logtab #homeWrap .homeinner{padding-left:max(22px,56px)}
     document.querySelectorAll("[data-gsbtn]").forEach(function (b) { b.classList.toggle("on", D.open); });
     if (!c || !D.open) { if (dr) dr.remove(); document.body.classList.remove("gs-open"); return; }
     if (!D.loaded[c.code]) load(c.code);
-    var body = D.tab === "rules" ? rulesHTML(c.code) : D.tab === "journal" ? journalHTML(c.code) : D.tab === "enc" ? encHTML(c.code) : D.tab === "blocks" ? blocksHTML(c.code) : settingsHTML(c.code);
+    var body = D.tab === "lobby" && A.lobby ? A.lobby.settingsHTML(c.code) : D.tab === "rules" ? rulesHTML(c.code) : D.tab === "journal" ? journalHTML(c.code) : D.tab === "enc" ? encHTML(c.code) : D.tab === "blocks" ? blocksHTML(c.code) : settingsHTML(c.code);
     var html = '<div class="gsh"><b>Campaign settings</b><span>' + esc(c.name) + '</span><button class="btn sm" data-gs="close" aria-label="Close">✕</button></div>' +
-      '<div class="gstabs" role="tablist">' + tabBtn("rules", "Rules") + tabBtn("journal", "Creature journal") + tabBtn("enc", "Encounters") + tabBtn("blocks", "Stat blocks") + tabBtn("set", "Settings") + "</div>" +
+      '<div class="gstabs" role="tablist">' + tabBtn("rules", "Rules") + (A.lobby ? tabBtn("lobby", "Lobby & roles") : "") + tabBtn("journal", "Creature journal") + tabBtn("enc", "Encounters") + tabBtn("blocks", "Stat blocks") + tabBtn("set", "Settings") + "</div>" +
       (D.err ? '<div class="campmsg bad">' + esc(D.err) + "</div>" : "") +
       '<div class="gsbody">' + (D.loaded[c.code] ? body : '<div class="gsempty">Loading…</div>') + "</div>";
     if (!dr) { dr = document.createElement("aside"); dr.id = "gmDrawer"; dr.setAttribute("aria-label", "Campaign settings"); document.body.appendChild(dr); }
@@ -39421,7 +39579,840 @@ body.has-logtab #homeWrap .homeinner{padding-left:max(22px,56px)}
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot); else boot();
 
-  A.gmset = { encs: function (code) { return encs(code).map(function (r) { var d = parse(r.data) || {}; return { id: r.id, name: r.name || "Encounter", folder: r.folder || "", summary: encSummary(d), at: r.at || 0 }; }); }, runEnc: runEnc, journalList: function (code) { var j = journal(code).entries || {}; return Object.keys(j).map(function (k) { return j[k]; }); }, loaded: function (code) { return !!D.loaded[code]; }, reload: function (code) { if (!D.busy) load(code, true); }, beforeEnd: beforeEnd, draw: draw, keepBlock: keepBlock, open: function (t) { D.open = true; if (t) D.tab = t; draw(); }, _D: D, recapText: recapText };
+  A.gmset = { redraw: function () { draw(); }, openTab: function (t) { D.open = true; D.tab = t; draw(); }, encs: function (code) { return encs(code).map(function (r) { var d = parse(r.data) || {}; return { id: r.id, name: r.name || "Encounter", folder: r.folder || "", summary: encSummary(d), at: r.at || 0 }; }); }, runEnc: runEnc, journalList: function (code) { var j = journal(code).entries || {}; return Object.keys(j).map(function (k) { return j[k]; }); }, loaded: function (code) { return !!D.loaded[code]; }, reload: function (code) { if (!D.busy) load(code, true); }, beforeEnd: beforeEnd, draw: draw, keepBlock: keepBlock, open: function (t) { D.open = true; if (t) D.tab = t; draw(); }, _D: D, recapText: recapText };
+})(typeof globalThis !== "undefined" ? globalThis : window);
+
+/* ArchSoul — party roles.
+   ---------------------------------------------------------------------------------------------------------------
+   C.J.'s role list (17 Nov 2026, the "ArchSoul Party Roles" doc). One table per kind of pick and one engine that
+   reads a party's picks against his targets, rating each role 0 (none, red), 1 (weak, orange), 2 (fine, green)
+   or 3 (too much, yellow).
+
+   Roles a Class or Keystone fills — these exact names:
+     Damage dealers       Burst DPS, Sustain DPS, Area DPS, Summon DPS, Ranged DPS
+                          "(Soul)", "(Physical)" or "(True)" after one = it delivers that type more than most Classes
+     Supports and Utility Healer, Cleanser, Enabler, Controller, Saboteur, Scout, Leader
+     Tanks                Bruiser, Protector, Self-Sustain, Frontline
+   ArchSouls fill Domains and Conditions only. Lineages fill nothing: the party is warned when too many share one.
+
+   Targets, for 4 or more players (1-3 players get no role warnings at all):
+     Classes    1 Tank, 1 Support, 1 Martial, 1 Mage per 4 players, from the Class's own type; a Keystone that adds
+                a Tank role to a Class that is not a Tank counts as half a Tank
+                1 Healer and 1 Damage dealer per 3 players
+     Domains    all nine present somewhere in the party
+     Conditions a way to apply every Condition (Slot Abilities count at half weight: they are optional picks)
+     Damage     1 high Soul, 1 high Physical and 1 high True damage dealer (the parentheses above)
+     Support    each Support and Utility role somewhere — no target of C.J.'s, so a missing one is only "weak"
+     Lineages   more than a third of the party on one Lineage is "too much"
+   A role filled by one kind (a Burst DPS) is filled: a bigger party is pointed at a different kind.
+   --------------------------------------------------------------------------------------------------------------- */
+(function (root) {
+  var A = root.ArchCloud = root.ArchCloud || {};
+
+  var COND = [
+    ["bleeding", "Bleeding"], ["ailment", "Ailments"], ["slowed", "Slowed"], ["stuck", "Stuck"], ["unstable", "Unstable"],
+    ["fear", "Fear"], ["unconscious", "Unconscious"], ["suppressed", "Suppressed"], ["nullified", "Nullified"],
+    ["blinded", "Rendered (Blinded)"], ["deafened", "Rendered (Deafened)"], ["muted", "Rendered (Muted)"],
+    ["tremoring", "Rendered (Tremoring)"], ["dazed", "Rendered (Dazed)"], ["sinking", "Rendered (Sinking)"],
+    ["exposed", "Exposed"], ["weakened", "Weakened"], ["corruption", "Corruption"]
+  ];
+  var RENDER = ["blinded", "deafened", "muted", "tremoring", "dazed", "sinking"];
+  var COND_GROUPS = [
+    ["dot", "Bleeding & Ailments", ["bleeding", "ailment"]],
+    ["move", "Movement control", ["slowed", "stuck", "unstable"]],
+    ["mind", "Fear & Sleep", ["fear", "unconscious"]],
+    ["shut", "Suppress & Nullify", ["suppressed", "nullified"]],
+    ["rend", "Rendered", RENDER],
+    ["deb", "Expose, Weaken & Corruption", ["exposed", "weakened", "corruption"]]
+  ];
+  var DOMAINS = [["destruction", "Destruction"], ["restoration", "Restoration"], ["enchantment", "Enchantment"], ["ward", "Ward"],
+    ["illusion", "Illusion"], ["conjuration", "Conjuration"], ["divination", "Divination"], ["resonance", "Resonance"], ["weaponart", "Weapon Art"]];
+  var DPS = ["Burst DPS", "Sustain DPS", "Area DPS", "Summon DPS", "Ranged DPS"];
+  var SUPPORT = ["Healer", "Cleanser", "Enabler", "Controller", "Saboteur", "Scout", "Leader"];
+  var TANKR = ["Bruiser", "Protector", "Self-Sustain", "Frontline"];
+  var DMG = [["soul", "Soul"], ["phys", "Physical"], ["true", "True"]];
+  var DMGWORD = { Soul: "soul", Physical: "phys", True: "true" };
+  var TYPES = [["Tank", "Tank"], ["Support", "Support"], ["Martial", "Martial"], ["Spellcaster", "Mage"]];
+
+  /* the Slot Ability lists every Class of a type can reach (optional picks → half weight) */
+  var SLOT_CONDS = {
+    Martial: ["bleeding", "ailment", "exposed", "weakened", "unstable", "blinded", "deafened", "muted", "tremoring", "dazed", "fear"],
+    Spellcaster: ["exposed", "weakened", "slowed", "ailment"],
+    Tank: ["stuck", "ailment", "bleeding"],
+    Support: []
+  };
+
+  /* ---- Classes: roles from the doc; conds = every Condition the Class can apply, its Keystones' included ---- */
+  var R_CLS = {
+    Artist: { roles: ["Healer", "Enabler"], conds: ["slowed", "exposed", "suppressed"] },
+    Assassin: { roles: ["Burst DPS (Physical)"], conds: ["exposed", "fear", "suppressed", "dazed"] },
+    Banished: { roles: ["Saboteur", "Controller"], conds: ["blinded", "deafened", "muted", "tremoring", "dazed", "sinking", "slowed", "exposed", "weakened", "suppressed"] },
+    Fighter: { roles: ["Sustain DPS (Physical)"], conds: ["bleeding", "ailment", "corruption", "exposed", "weakened"] },
+    Guardian: { roles: ["Frontline", "Protector"], conds: ["fear", "ailment"] },
+    Kindred: { roles: ["Summon DPS"], conds: ["exposed", "bleeding", "slowed", "ailment"] },
+    Mage: { roles: ["Burst DPS (Soul)", "Ranged DPS"], conds: [] },
+    Priest: { roles: ["Healer", "Cleanser"], conds: ["nullified", "deafened"] },
+    Ranger: { roles: ["Ranged DPS (True)", "Scout"], conds: ["exposed", "weakened", "slowed", "ailment"] },
+    Volatile: { roles: ["Bruiser", "Self-Sustain"], conds: ["tremoring"] },
+    Warden: { roles: ["Controller", "Enabler"], conds: ["slowed", "nullified", "exposed", "weakened"] }
+  };
+
+  /* ---- Keystones: "Class|Keystone" → the roles it adds (the doc's second table) and the Conditions it brings.
+     A Keystone's role with the same name as one of the Class's replaces it (Twin Fang's Summon DPS (Physical));
+     `convert` says its damage type replaces the Class's rather than joining it (Arcane Blade turns Physical to
+     Soul). When a Keystone is known, Conditions the Class only had through a DIFFERENT Keystone drop out. ---- */
+  var R_KS = {
+    "Artist|Bard": { adds: ["Leader"] },
+    "Artist|Blade Dancer": { adds: ["Sustain DPS"], conds: ["exposed", "slowed", "suppressed"] },
+    "Artist|Rune Scribe": { adds: ["Scout"] },
+    "Artist|Arcane Poet": { adds: ["Leader", "Saboteur"], conds: ["slowed"] },
+    "Assassin|Shade": { adds: ["Controller"], conds: ["fear"] },
+    "Assassin|Tactician": { adds: ["Self-Sustain", "Scout"] },
+    "Assassin|Inquisitor": { adds: ["Saboteur"], conds: ["suppressed", "dazed"] },
+    "Assassin|Rogue": { adds: [] },
+    "Banished|Curse of the Body": { adds: ["Bruiser"] },
+    "Banished|Curse of the Mind": { adds: [] },
+    "Banished|Curse of the Heart": { adds: ["Frontline"] },
+    "Banished|Curse of the Blade": { adds: ["Self-Sustain"] },
+    "Fighter|Arcane Blade": { adds: ["Sustain DPS (Soul)"], convert: true, conds: ["bleeding", "exposed", "weakened"] },
+    "Fighter|Dragon Strike": { adds: ["Burst DPS", "Area DPS"], conds: ["ailment"] },
+    "Fighter|Perfect Stance": { adds: ["Protector"], conds: ["exposed", "weakened"] },
+    "Guardian|Student of the Blade": { adds: [], borrows: "Fighter" },
+    "Guardian|Covenant": { adds: ["Healer", "Cleanser"], conds: ["ailment"] },
+    "Kindred|Bond of the Dragon Rider": { adds: ["Scout"] },
+    "Kindred|Bond of the Twin Fang": { adds: ["Summon DPS (Physical)"], conds: ["exposed", "bleeding", "ailment", "slowed"] },
+    "Kindred|Bond of the Lifebinder": { adds: ["Healer"] },
+    "Kindred|Bond of the Drakescourge": { adds: ["Saboteur"] },
+    "Mage|Wizard": { adds: [] },
+    "Mage|Sorcerer": { adds: ["Burst DPS (True)"] },
+    "Mage|Witch": { adds: ["Saboteur"] },
+    "Mage|Warlock": { adds: ["Saboteur"], conds: ["blinded", "deafened", "muted", "tremoring", "dazed", "sinking"] },
+    "Priest|Priest of Light": { adds: [] },
+    "Priest|Priest of Fear": { adds: [] },
+    "Priest|Priest of Life": { adds: [] },
+    "Priest|Priest of Death": { adds: ["Protector"] },
+    "Priest|Priest of Power": { adds: ["Enabler"] },
+    "Priest|Priest of Eternity": { adds: [] },
+    "Priest|Priest of The Void": { adds: ["Enabler"] },
+    "Ranger|Sharpshooter": { adds: ["Burst DPS"] },
+    "Ranger|Strider": { adds: ["Sustain DPS"] },
+    "Ranger|Sniper": { adds: [] },
+    "Volatile|Divine Frenzy": { adds: [] },
+    "Volatile|Controlled Frenzy": { adds: ["Sustain DPS"] },
+    "Volatile|Bloodied Frenzy": { adds: [] },
+    "Warden|Domain": { adds: [] },
+    "Warden|Improve": { adds: [] },
+    "Warden|Empower": { adds: ["Healer"] },
+    "Warden|Architect": { adds: [] },
+    "Warden|Inscribe": { adds: ["Saboteur"] }
+  };
+
+  /* ---- ArchSouls: Domains (read from the sheet) and the Conditions their Spells and Soul Effects apply ------- */
+  var R_AS = {
+    Abyss: { conds: ["fear", "sinking", "slowed", "stuck", "bleeding", "muted", "suppressed"] },
+    Air: { conds: ["unstable", "slowed", "deafened", "tremoring", "dazed"] },
+    Darkness: { conds: ["unconscious", "blinded", "slowed", "weakened", "suppressed", "nullified", "muted", "stuck"] },
+    Dread: { conds: ["fear", "sinking", "slowed", "weakened", "exposed", "ailment", "dazed"] },
+    Dreams: { conds: ["unconscious", "dazed", "stuck", "slowed"] },
+    Earth: { conds: ["tremoring", "unstable", "slowed", "weakened"] },
+    Fire: { conds: ["exposed", "dazed", "blinded"] },
+    Grace: { conds: ["bleeding", "exposed", "weakened", "ailment"] },
+    Lightning: { conds: ["slowed", "exposed", "dazed"] },
+    Pain: { conds: ["bleeding", "ailment", "slowed", "corruption", "fear", "deafened"] },
+    /* the old shape (Developer Mode only) */
+    Blood: { conds: ["bleeding", "ailment", "slowed", "stuck", "corruption", "dazed"], dev: true },
+    Hate: { conds: ["weakened", "corruption", "muted", "slowed", "fear", "dazed", "exposed"], dev: true },
+    Ice: { conds: ["slowed", "stuck"], dev: true },
+    Rifts: { conds: ["nullified", "slowed", "stuck", "fear", "blinded"], dev: true },
+    Vitality: { conds: [], dev: true },
+    Water: { conds: ["slowed", "muted", "stuck", "suppressed"], dev: true },
+    /* no Spells written yet: the Soul Effect is all that is known; never suggested as a filler */
+    Beasts: { partial: true, conds: ["ailment", "exposed"] },
+    Chaos: { partial: true, conds: ["unstable"] },
+    Echo: { partial: true, conds: [] },
+    Fate: { partial: true, conds: ["nullified", "muted"] },
+    Plants: { partial: true, conds: ["sinking"] },
+    Plasma: { partial: true, conds: [] },
+    Poison: { partial: true, conds: ["dazed"] },
+    Rot: { partial: true, conds: ["bleeding"] },
+    Silence: { partial: true, conds: ["nullified", "muted"] },
+    Spirits: { partial: true, conds: ["ailment", "exposed"] },
+    Undeath: { partial: true, conds: ["dazed"] },
+    Wither: { partial: true, conds: ["weakened", "corruption"] }
+  };
+
+  /* ---- reading a role: "Burst DPS (Soul, True)" → name and damage types ------------------------------------- */
+  function parseRole(s) {
+    var m = /^(.*?)\s*\(([^)]*)\)\s*$/.exec(String(s));
+    var name = m ? m[1] : String(s), dmg = {};
+    if (m) m[2].split(/\s*,\s*/).forEach(function (w) { if (DMGWORD[w]) dmg[DMGWORD[w]] = true; });
+    return { name: name, dmg: dmg };
+  }
+  function roleText(r) {
+    var t = Object.keys(r.dmg).map(function (k) { return { soul: "Soul", phys: "Physical", "true": "True" }[k]; });
+    return r.name + (t.length ? " (" + t.join(", ") + ")" : "");
+  }
+
+  /* ---- Keystone keys ---------------------------------------------------------------------------------------- */
+  function ksOfClass(cls) { return Object.keys(R_KS).filter(function (k) { return k.split("|")[0] === cls; }); }
+  /* a lobby pick "Student of the Blade: Perfect Stance" → both keys */
+  function ksKeys(cls, pick) {
+    if (!cls || !pick) return [];
+    var parts = String(pick).split(": "), own = cls + "|" + parts[0], out = R_KS[own] ? [own] : [];
+    if (parts[1] && R_KS[own] && R_KS[own].borrows) { var b = R_KS[own].borrows + "|" + parts[1]; if (R_KS[b]) out.push(b); }
+    return out;
+  }
+
+  /* ---- the sheet's own data ------------------------------------------------------------------------------- */
+  function classType(name) {
+    try { var k = (typeof CLASSES !== "undefined" ? CLASSES : []).find(function (c) { return c.name === name; }); return k ? k.role : (FALLBACK_TYPE[name] || ""); } catch (e) { return FALLBACK_TYPE[name] || ""; }
+  }
+  var FALLBACK_TYPE = { Artist: "Support", Assassin: "Martial", Banished: "Spellcaster", Fighter: "Martial", Guardian: "Tank", Kindred: "Spellcaster",
+    Mage: "Spellcaster", Priest: "Support", Ranger: "Martial", Volatile: "Tank", Warden: "Support" };
+  function domainsOf(as) {
+    try {
+      var AS = typeof ASDOM !== "undefined" ? ASDOM : root.ASDOM;
+      var a = AS && AS[as]; if (!a) return [];
+      return (a.domains || []).map(function (d) { return d.key; }).filter(Boolean);
+    } catch (e) { return []; }
+  }
+
+  /* ---- one player's picks → what they bring ---------------------------------------------------------------- */
+  /* picks: {cls, lin, race, as:[...], ks:["Class|Keystone", …]} */
+  function bring(p) {
+    var out = { type: "", roles: [], dmg: { soul: 0, phys: 0, "true": 0 }, conds: {}, doms: {}, half: {}, ks: [], lin: p.lin || "", labels: [] };
+    function addConds(list, w) { (list || []).forEach(function (k) { out.conds[k] = Math.max(out.conds[k] || 0, w); }); }
+    if (p.cls && R_CLS[p.cls]) {
+      out.type = classType(p.cls);
+      var base = R_CLS[p.cls], ks = (p.ks || []).filter(function (k) { return R_KS[k]; });
+      var roles = base.roles.map(parseRole), conds = (base.conds || []).slice();
+      if (ks.length) {
+        var mine = ks.map(function (k) { return R_KS[k]; });
+        var others = ksOfClass(p.cls).filter(function (k) { return ks.indexOf(k) < 0; }).map(function (k) { return R_KS[k]; });
+        var inAny = function (list, c) { return list.some(function (o) { return (o.conds || []).indexOf(c) >= 0; }); };
+        conds = conds.filter(function (c) { return !(inAny(others, c) && !inAny(mine, c)); });
+        mine.forEach(function (o) {
+          (o.adds || []).map(parseRole).forEach(function (r) {
+            var same = roles.filter(function (x) { return x.name === r.name; })[0];
+            if (!same) { roles.push(r); if (TANKR.indexOf(r.name) >= 0 && out.type !== "Tank") out.half.Tank = 0.5; return; }
+            if (o.convert) same.dmg = r.dmg;
+            else Object.keys(r.dmg).forEach(function (d) { same.dmg[d] = true; });
+          });
+          conds = conds.concat(o.conds || []);
+        });
+        out.ks = ks;
+      }
+      out.roles = roles;
+      roles.forEach(function (r) { Object.keys(r.dmg).forEach(function (d) { out.dmg[d] = 1; }); });
+      addConds(conds, 1);
+      addConds(SLOT_CONDS[out.type] || [], 0.5);
+      out.labels = roles.map(roleText);
+    }
+    (p.as || []).filter(Boolean).forEach(function (n) {
+      addConds((R_AS[n] || {}).conds, 1);
+      domainsOf(n).forEach(function (d) { out.doms[d] = 1; });
+    });
+    return out;
+  }
+  function has(pl, name) { return pl.roles.some(function (r) { return r.name === name; }); }
+  function isDps(pl) { return pl.roles.some(function (r) { return DPS.indexOf(r.name) >= 0; }); }
+
+  /* ---- the party → ratings ---------------------------------------------------------------------------------- */
+  /* 3 ("too much") when most of the party — three in four or more — does the same thing */
+  function rate(c, T, n) {
+    if (c <= 0) return 0;
+    if (c < T) return 1;
+    if (c > T && c >= n * 0.75) return 3;
+    return 2;
+  }
+  function per(n, k) { return Math.floor(n / k); }
+  function sumOf(players, fn) { return players.reduce(function (s, p) { return s + fn(p); }, 0); }
+
+  /* where a gap could be filled from: every Class, Keystone ("Class: Keystone") or ArchSoul that brings it */
+  function fillers(test) {
+    var out = [];
+    Object.keys(R_CLS).forEach(function (k) { var b = bring({ cls: k }); if (test(b, "cls", k)) out.push({ kind: "cls", name: k }); });
+    Object.keys(R_KS).forEach(function (k) {
+      if (R_KS[k].borrows) return;
+      var c = k.split("|")[0], b = bring({ cls: c, ks: [k] }), b0 = bring({ cls: c });
+      if (test(b, "ks", k) && !test(b0, "cls", c)) out.push({ kind: "ks", name: c + ": " + k.split("|")[1] });
+    });
+    Object.keys(R_AS).forEach(function (k) { if (!R_AS[k].partial && !R_AS[k].dev && test(bring({ as: [k] }), "as", k)) out.push({ kind: "as", name: k }); });
+    return out;
+  }
+
+  /* nFor: judge against the targets of a party this size (the creator asks "what would I fill if I joined") */
+  function evaluate(picksList, nFor) {
+    var players = picksList.map(bring), n = Math.max(players.length, nFor || 0);
+    var res = { n: n, active: n >= 4, groups: [] };
+    if (!res.active) return res;
+    var g;
+    /* Classes: the four types (a tanking Keystone is half a Tank), Healers and Damage dealers */
+    g = { key: "classes", label: "Classes", items: [] };
+    TYPES.forEach(function (t) {
+      var T = Math.max(1, per(n, 4)), c = players.filter(function (p) { return p.type === t[0]; }).length + sumOf(players, function (p) { return p.type === t[0] ? 0 : (p.half[t[0]] || 0); });
+      var it = { key: "type:" + t[0], label: t[1], c: c, T: T, r: rate(c, T, n), fill: fillers(function (b, kind) { return kind === "cls" ? b.type === t[0] : !!b.half[t[0]]; }) };
+      if (t[0] === "Tank") {
+        var haveT = []; players.forEach(function (p) { p.roles.forEach(function (r) { if (TANKR.indexOf(r.name) >= 0 && haveT.indexOf(r.name) < 0) haveT.push(r.name); }); });
+        it.have = haveT;
+      }
+      g.items.push(it);
+    });
+    (function () {
+      var T = Math.max(1, per(n, 3)), c = players.filter(function (p) { return has(p, "Healer"); }).length;
+      g.items.push({ key: "healer", label: "Healer", c: c, T: T, r: rate(c, T, n), fill: fillers(function (b) { return has(b, "Healer"); }) });
+      var cd = players.filter(isDps).length, have = [];
+      players.forEach(function (p) { p.roles.forEach(function (r) { if (DPS.indexOf(r.name) >= 0 && have.indexOf(r.name) < 0) have.push(r.name); }); });
+      /* once one kind is in, point a bigger party at a different kind */
+      g.items.push({ key: "dps", label: "Damage dealer", c: cd, T: T, r: rate(cd, T, n), have: have,
+        fill: fillers(function (b) { return b.roles.some(function (r) { return DPS.indexOf(r.name) >= 0 && (!have.length || have.indexOf(r.name) < 0); }); }) });
+    })();
+    res.groups.push(g);
+    /* Domains */
+    g = { key: "domains", label: "Domains", items: [] };
+    DOMAINS.forEach(function (d) {
+      var c = players.filter(function (p) { return p.doms[d[0]]; }).length;
+      g.items.push({ key: "dom:" + d[0], label: d[1], c: c, T: 1, r: c ? 2 : 0,
+        fill: Object.keys(R_AS).filter(function (a) { return !R_AS[a].partial && !R_AS[a].dev && domainsOf(a).indexOf(d[0]) >= 0; }).map(function (a) { return { kind: "as", name: a }; }) });
+    });
+    res.groups.push(g);
+    /* Conditions: one row per group, the missing ones named inside it */
+    g = { key: "conditions", label: "Conditions", items: [] };
+    var anyCond = false;
+    COND_GROUPS.forEach(function (cg) {
+      var miss = [], weak = [];
+      cg[2].forEach(function (k) {
+        var c = sumOf(players, function (p) { return p.conds[k] || 0; });
+        if (c > 0) anyCond = true;
+        if (c <= 0) miss.push(k); else if (c < 1) weak.push(k);
+      });
+      var r = miss.length === cg[2].length ? 0 : (miss.length || weak.length) ? 1 : 2;
+      g.items.push({ key: "cond:" + cg[0], label: cg[1], r: r, miss: miss, weak: weak, conds: cg[2],
+        fill: fillers(function (b) { return miss.concat(weak).some(function (k) { return (b.conds[k] || 0) >= 1; }); }) });
+    });
+    g.none = !anyCond;
+    res.groups.push(g);
+    /* Damage: the parentheses */
+    g = { key: "damage", label: "Damage", items: [] };
+    DMG.forEach(function (d) {
+      var c = players.filter(function (p) { return p.dmg[d[0]]; }).length;
+      g.items.push({ key: "dmg:" + d[0], label: "High " + d[1] + " damage", c: c, T: 1, r: c >= 1 ? 2 : 0,
+        fill: fillers(function (b) { return !!b.dmg[d[0]]; }) });
+    });
+    res.groups.push(g);
+    /* Support and Utility: no target of C.J.'s, so a missing one is weak, not none */
+    g = { key: "support", label: "Support & Utility", items: [] };
+    SUPPORT.filter(function (s) { return s !== "Healer"; }).forEach(function (s) {
+      var c = players.filter(function (p) { return has(p, s); }).length;
+      g.items.push({ key: "sup:" + s, label: s, c: c, T: 1, r: c ? 2 : 1, fill: fillers(function (b) { return has(b, s); }) });
+    });
+    res.groups.push(g);
+    /* Lineages: a diversity warning when more than a third of the party shares one */
+    g = { key: "lineages", label: "Lineages", items: [] };
+    var byLin = {};
+    players.forEach(function (p) { if (p.lin) byLin[p.lin] = (byLin[p.lin] || 0) + 1; });
+    Object.keys(byLin).sort().forEach(function (l) {
+      var c = byLin[l];
+      g.items.push({ key: "lin:" + l, label: l, c: c, T: Math.floor(n / 3) || 1, r: c > n / 3 ? 3 : 2 });
+    });
+    res.groups.push(g);
+    return res;
+  }
+
+  /* the lines the pop-up shows: red and orange always; yellow for Classes, Damage and Lineages */
+  function warnings(res) {
+    var out = [];
+    if (!res || !res.active) return out;
+    res.groups.forEach(function (g) {
+      if (g.key === "conditions" && g.none) { out.push({ g: g.label, r: 0, t: "No Conditions" }); return; }
+      if (g.key === "domains") {
+        var miss = g.items.filter(function (i) { return i.r === 0; }).map(function (i) { return i.label; });
+        if (miss.length) out.push({ g: g.label, r: 0, t: "No " + miss.join(", ") });
+        return;
+      }
+      if (g.key === "support") {
+        var sm = g.items.filter(function (i) { return i.r < 2; }).map(function (i) { return i.label; });
+        if (sm.length) out.push({ g: g.label, r: 1, t: "No " + sm.join(", ") });
+        return;
+      }
+      if (g.key === "lineages") {
+        g.items.forEach(function (i) { if (i.r === 3) out.push({ g: g.label, r: 3, t: i.c + " of " + res.n + " are " + i.label }); });
+        return;
+      }
+      g.items.forEach(function (i) {
+        if (i.r === 0) out.push({ g: g.label, r: 0, t: g.key === "conditions" ? "No " + i.label : "No " + i.label.replace(/^High /, "high ") });
+        else if (i.r === 1) out.push({ g: g.label, r: 1, t: g.key === "conditions" ? "Few " + i.label + (i.miss.length ? " — no " + i.miss.map(condName).join(", ") : " — " + i.weak.map(condName).join(", ") + " only from Slot Abilities") : "Weak " + i.label.replace(/^High /, "high ") + (i.key === "type:Tank" && i.c > 0 ? " — only a Keystone" : "") });
+        else if (i.r === 3 && g.key === "classes") out.push({ g: g.label, r: 3, t: "Many " + i.label + "s" });
+      });
+    });
+    return out;
+  }
+  function condName(k) { var c = COND.find(function (x) { return x[0] === k; }); return c ? c[1].replace(/^Rendered \((.*)\)$/, "$1") : k; }
+
+  /* what one pick would fill in a party that does not have it yet (the creator and the lobby show this)
+     extra: the rest of this player's pick to judge with it — {ks:[…]} with a Class, or {cls} with a Keystone */
+  function gapsFilled(picksOthers, kind, name, onlyGroups, extra) {
+    var before = evaluate(picksOthers, picksOthers.length + 1);
+    if (!before.active) return [];
+    var me = { cls: kind === "cls" ? name : "", lin: kind === "lin" ? name : "", as: kind === "as" ? [name] : [], ks: [] };
+    if (kind === "ks") me.ks = [].concat(name || []);
+    if (extra) Object.keys(extra).forEach(function (k) { if (extra[k]) me[k] = extra[k]; });
+    var after = evaluate(picksOthers.concat([me]));
+    var was = {}; (before.groups || []).forEach(function (g) { g.items.forEach(function (i) { was[i.key] = i; }); });
+    var got = [];
+    after.groups.forEach(function (g) {
+      if (g.key === "lineages") return;
+      if (onlyGroups && onlyGroups.indexOf(g.key) < 0) return;
+      g.items.forEach(function (i) {
+        var b = was[i.key], br = b ? b.r : 0;
+        if (g.key === "conditions") {
+          /* a Condition the party could not apply before, named on its own */
+          var gone = (b ? b.miss.concat(b.weak) : i.conds).filter(function (k) { return i.miss.indexOf(k) < 0 && i.weak.indexOf(k) < 0; });
+          gone.forEach(function (k) { got.push(condName(k)); });
+          return;
+        }
+        if (g.key === "support") { if (br < 2 && i.r === 2) got.push(i.label); return; }
+        if ((br === 0 || br === 1) && i.r >= 1 && i.r > br) {
+          /* a Damage dealer of a kind the party does not have yet is named, so a bigger party is pointed at it */
+          var nk = i.key === "dps" ? (i.have || []).filter(function (h) { return ((b && b.have) || []).indexOf(h) < 0; })[0] : "";
+          got.push(nk ? i.label + " (" + nk + ")" : i.label);
+        }
+      });
+    });
+    return got;
+  }
+
+  A.roles = { COND: COND, COND_GROUPS: COND_GROUPS, DOMAINS: DOMAINS, DPS: DPS, SUPPORT: SUPPORT, TANKS: TANKR, DMG: DMG, TYPES: TYPES, SLOT_CONDS: SLOT_CONDS,
+    CLASSES: R_CLS, ARCHSOULS: R_AS, KEYSTONES: R_KS, ksOfClass: ksOfClass, ksKeys: ksKeys, parseRole: parseRole,
+    bring: bring, evaluate: evaluate, warnings: warnings, gapsFilled: gapsFilled, domainsOf: domainsOf, classType: classType, condName: condName };
+})(typeof globalThis !== "undefined" ? globalThis : window);
+
+/* ArchSoul — the campaign lobby (17 Nov 2026).
+   ---------------------------------------------------------------------------------------------------------------
+   A new campaign opens as a lobby. Players join it without a character, CLAIM a Class, a Lineage (and Race) and up
+   to four ArchSouls (the first is their primary), and see each other's claims and what the party lacks. They do not
+   see the GM's rules there. When the GM presses Start, each player makes their character in the creator with the
+   campaign's limits on it — or brings one they already have, if it fits.
+
+   Where things live (no Firestore Rules change):
+     the settings and the phase  → campaigns/{code}.rules.lobby      (the GM's own rules map)
+     a player's claims           → campaigns/{code}/members/{uid}.sum.claim   (their own row's summary)
+   A campaign made before the lobby existed has no rules.lobby: it is already started, takes late joins, and has
+   everything off but Role Suggestions — exactly how it behaved before.
+
+   Settings (C.J.):
+     Require Choice     Class / Lineage / first ArchSoul / the other three — no Ready without them
+     Locked Choices     the lobby claims are the character's, in the creator they cannot be changed
+     Late Player Joins  requests after Start are allowed
+     Forced Balanced    off / Class / ArchSoul / Both — at least one pick must fill something the party lacks
+     Claimed Roles      Class on/off · Lineage off/Lineage/Race · ArchSoul off/All/First
+     Role Suggestions   the warning pop-up beside the party
+   Forced Balanced Roles and Role Suggestions wait for a fourth player; the others always work.
+   --------------------------------------------------------------------------------------------------------------- */
+(function (root) {
+  var A = root.ArchCloud = root.ArchCloud || {};
+  var L = { open: false, info: false, busy: false, armed: "", msg: "", bad: false };
+
+  var DEF = { phase: "live", req: { cls: false, lin: false, as1: false, asMore: false }, locked: false, late: true, forced: "off",
+    claim: { cls: false, lin: "off", as: "off" }, sugg: true };
+
+  function $(s, r) { return (r || document).querySelector(s); }
+  function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
+  function clone(o) { return JSON.parse(JSON.stringify(o)); }
+  function user() { return A.ui && A.ui._state && A.ui._state.user; }
+  function camp() { var a = A.ui && A.ui.adapter && A.ui.adapter(); return a && a.camp; }
+  function cs() { return A.campUI && A.campUI._state; }
+  function say(m) { try { if (typeof toast === "function") toast(m); } catch (e) {} }
+  function rerender() { if (A.shell && A.shell.rerender) A.shell.rerender(); }
+  function isNpc(uid) { return /^npc_/.test(String(uid || "")); }
+
+  /* ---- settings --------------------------------------------------------------------------------------------- */
+  function cfg(k) {
+    var o = clone(DEF), x = k && k.rules && k.rules.lobby;
+    if (!x) return o;
+    o.phase = x.phase === "lobby" ? "lobby" : "live";
+    ["cls", "lin", "as1", "asMore"].forEach(function (q) { o.req[q] = !!(x.req && x.req[q]); });
+    o.locked = !!x.locked; o.late = x.late !== false; o.sugg = x.sugg !== false;
+    o.forced = ["off", "cls", "as", "both"].indexOf(x.forced) >= 0 ? x.forced : "off";
+    o.claim.cls = !!(x.claim && x.claim.cls);
+    o.claim.lin = ["off", "lin", "race"].indexOf(x.claim && x.claim.lin) >= 0 ? x.claim.lin : "off";
+    o.claim.as = ["off", "all", "first"].indexOf(x.claim && x.claim.as) >= 0 ? x.claim.as : "off";
+    if (x.startedAt) o.startedAt = x.startedAt;
+    return o;
+  }
+  /* what a brand-new campaign is made with: a lobby, everything off but Late joins and Role Suggestions */
+  function newRules() { var o = clone(DEF); o.phase = "lobby"; return { lobby: o }; }
+  function isLobby(k) { return cfg(k).phase === "lobby"; }
+
+  /* ---- the party: each player's picks — their character's once they have one, their claims until then ------- */
+  /* Keystones (17 Nov, C.J.): a player may claim one after their Class. It counts only once the character can
+     have it — Class Level 2 takes two Skill Points on top of Lineage 1, so Level 3 — so a campaign that starts
+     below Level 3 shows the claim as planned and leaves it out of the role check. A made character counts the
+     Keystones it actually holds. */
+  var KS_MIN_LEVEL = 3;
+  function ksOn(k) { var st = +((k && k.rules) || {}).start || 0; return !(st > 0 && st < KS_MIN_LEVEL); }
+  function ksKeysOf(cls, pick) { return A.roles && pick ? A.roles.ksKeys(cls, pick) : []; }
+  function ksOfChar(ch) {
+    var cls = ((ch && ch.info) || {}).cls || "";
+    return ((ch && ch.keystones) || []).map(function (k) { var p = String(k).split("|"); return (p.length >= 4 ? p[1] : cls) + "|" + p[p.length - 1]; });
+  }
+  function picksOf(m) {
+    var s = m.sum || {}, v = s.v || {}, c = s.claim || {};
+    if (m.charId && (s.cls || s.lin || (v.as || []).length)) {
+      var held = (v.ks || []).slice();
+      return { uid: m.uid, who: m.name || m.charName || "A player", cls: s.cls || "", lin: s.lin || "", race: v.race || "", as: (v.as || []).slice(0, 4), real: true, t: {},
+        ks: held, ksPick: held.map(function (x) { return x.split("|").pop(); }).join(", "), ksLater: false };
+    }
+    var on = ksOn((cs() || {}).camp), keys = ksKeysOf(c.cls, c.ks);
+    return { uid: m.uid, who: m.name || "A player", cls: c.cls || "", lin: c.lin || "", race: c.race || "", as: (c.as || []).slice(0, 4), real: false, ready: !!c.ready, t: c.t || {},
+      ks: on ? keys : [], ksPick: c.ks || "", ksLater: !!(c.ks && !on) };
+  }
+  function party(members) { return (members || []).filter(function (m) { return !isNpc(m.uid); }).map(picksOf); }
+  function asList0(p) { return (p.as || []).filter(Boolean); }
+  function rolePicks(list) { return list.map(function (p) { return { cls: p.cls, lin: p.lin, race: p.race, as: asList0(p), ks: p.ks || [] }; }); }
+  function hasRaces(lin) { try { return !!(typeof RACES !== "undefined" && RACES[lin]); } catch (e) { return false; } }
+
+  /* who else has each option, under this campaign's Claimed Roles. A clash goes to whoever claimed it first. */
+  function takenFor(k, members, uid, mine) {
+    var C2 = cfg(k), out = { cls: {}, lin: {}, race: {}, as: {} };
+    mine = mine || {}; var mt = mine.t || {};
+    function first(p, f, myField) { return !(mine[myField] && mt[f] && p.t && p.t[f] && mt[f] < p.t[f]); }
+    party(members).forEach(function (p) {
+      if (p.uid === uid) return;
+      if (C2.claim.cls && p.cls && (mine.cls !== p.cls || first(p, "cls", "cls"))) out.cls[p.cls] = p.who;
+      if (C2.claim.lin === "lin" && p.lin && (mine.lin !== p.lin || first(p, "lin", "lin"))) out.lin[p.lin] = p.who;
+      if (C2.claim.lin === "race" && p.lin) {
+        if (!hasRaces(p.lin)) { if (mine.lin !== p.lin || first(p, "lin", "lin")) out.lin[p.lin] = p.who; }
+        else out.race[p.lin + "|" + (p.race || "")] = p.who;
+      }
+      if (C2.claim.as === "all") asList0(p).forEach(function (a, i) { if ((mine.as || []).indexOf(a) < 0 || first(p, "as" + i, "as")) out.as[a] = p.who; });
+      if (C2.claim.as === "first" && (p.as || [])[0]) out.as[p.as[0]] = p.who;
+    });
+    return out;
+  }
+
+  /* everything standing between this player and Ready (or joining) */
+  function problems(k, members, uid, me, opts) {
+    var C2 = cfg(k), out = [], lobby = !!(opts && opts.lobby);
+    me = me || {};
+    if (lobby) {
+      if (C2.req.cls && !me.cls) out.push("Choose a Class.");
+      if (C2.req.lin && !me.lin) out.push("Choose a Lineage.");
+      if (C2.req.as1 && !(me.as || [])[0]) out.push("Choose your first ArchSoul.");
+      if (C2.req.asMore && asList0(me).length < 4) out.push("Choose all four ArchSouls.");
+    }
+    var tk = takenFor(k, members, uid, me);
+    if (me.cls && tk.cls[me.cls]) out.push(me.cls + " is taken by " + tk.cls[me.cls] + ".");
+    if (me.lin && tk.lin[me.lin]) out.push(me.lin + " is taken by " + tk.lin[me.lin] + ".");
+    if (me.lin && C2.claim.lin === "race" && hasRaces(me.lin) && tk.race[me.lin + "|" + (me.race || "")]) out.push((me.race || "That " + me.lin + " without a Race") + " is taken by " + tk.race[me.lin + "|" + (me.race || "")] + " — choose a different Race.");
+    asList0(me).forEach(function (a, i) { if (tk.as[a] && (C2.claim.as === "all" || i === 0)) out.push(a + " is taken by " + tk.as[a] + "."); });
+    /* Forced Balanced Roles: at least one pick that fills a gap — judged against the party without this player */
+    var others = party(members).filter(function (p) { return p.uid !== uid; }), n = others.length + 1;
+    if (C2.forced !== "off" && n >= 4 && A.roles) {
+      var before = A.roles.evaluate(rolePicks(others), n), lack = function (keys) {
+        return before.groups.filter(function (g) { return keys.indexOf(g.key) >= 0; }).some(function (g) { return g.items.some(function (i) { return i.r < 2; }); });
+      };
+      var clsLack = lack(["classes"]), asLack = lack(["domains", "conditions"]);
+      var fills = function (kind, id, groups, extra) { return A.roles.gapsFilled(rolePicks(others), kind, id, groups, extra); };
+      /* the Class is judged with its Keystone, when the Keystone counts */
+      var clsOk = !clsLack || (me.cls && fills("cls", me.cls, ["classes"], { ks: me.ks || [] }).length);
+      var asOk = !asLack || asList0(me).some(function (a) { return fills("as", a, ["domains", "conditions"]).length; });
+      if ((C2.forced === "cls" || C2.forced === "both") && !clsOk) out.push("Balanced roles: choose a Class that fills something the party lacks.");
+      if ((C2.forced === "as" || C2.forced === "both") && !asOk) out.push("Balanced roles: choose an ArchSoul that fills something the party lacks.");
+    }
+    return out;
+  }
+
+  /* what a pick would fill for the party as it stands without me */
+  function gapFn(members, uid) {
+    var others = rolePicks(party(members).filter(function (p) { return p.uid !== uid; }));
+    var memo = {};
+    return function (kind, id, extra) {
+      if (!A.roles || kind === "race") return [];
+      var key = kind + "|" + JSON.stringify(id) + "|" + JSON.stringify(extra || {}); if (memo[key]) return memo[key];
+      return (memo[key] = A.roles.gapsFilled(others, kind, id, null, extra));
+    };
+  }
+
+  /* ---- writing ---------------------------------------------------------------------------------------------- */
+  async function saveClaim(code, claim) {
+    var u = user(), c = camp(); if (!u || !c || !c.setClaim) return;
+    var S = cs(), m = S && (S.members || []).find(function (x) { return x.uid === u.uid; });
+    var sum = Object.assign({}, (m && m.sum) || {}, { claim: claim });
+    if (m) m.sum = sum;
+    try { await c.setClaim(code, u.uid, sum); } catch (e) { L.msg = "Could not reach the cloud."; L.bad = true; }
+    rerender();
+  }
+  async function setLobby(code, patch) {
+    var c = camp(), S = cs(), k = S && S.camp; if (!c || !k) return;
+    var cur = cfg(k), next = Object.assign({}, cur, patch);
+    if (patch.req) next.req = Object.assign({}, cur.req, patch.req);
+    if (patch.claim) next.claim = Object.assign({}, cur.claim, patch.claim);
+    var rules = Object.assign({}, k.rules || {}, { lobby: next });
+    k.rules = rules;
+    try { await c.setRules(code, rules); } catch (e) { say("Could not reach the cloud."); }
+    if (A.gmset && A.gmset.redraw) A.gmset.redraw();
+    rerender();
+  }
+
+  /* ---- option lists: only what the sheet offers ------------------------------------------------------------ */
+  function classOpts() { try { return (typeof clsList === "function" ? clsList() : CLASSES).map(function (c) { return c.name; }); } catch (e) { return []; } }
+  function linOpts() { try { return LINEAGES.map(function (l) { return l.name; }); } catch (e) { return []; } }
+  function raceOpts(lin) { try { return hasRaces(lin) ? RACES[lin].races.map(function (r) { return r.name; }) : []; } catch (e) { return []; } }
+  /* a Class's Level 2 Keystones; one that borrows another Class's (Student of the Blade) lists each it can take */
+  function ksOpts(cls) {
+    try {
+      var K = CLASSES.find(function (c) { return c.name === cls; }); if (!K) return [];
+      var isK = function (f) { return /keystone/i.test((f.type || "") + " " + (f.group || "")); };
+      var own = function (Kx) { return (Kx.feats || []).filter(function (f) { return f.pick && isK(f) && !/growth/i.test(f.group || ""); }).map(function (f) { return f.name; }); };
+      var out = [];
+      own(K).forEach(function (n) {
+        var R = A.roles && A.roles.KEYSTONES[cls + "|" + n];
+        if (R && R.borrows) { var B = CLASSES.find(function (c) { return c.name === R.borrows; }); (B ? own(B) : []).forEach(function (b) { out.push(n + ": " + b); }); }
+        else out.push(n);
+      });
+      return out;
+    } catch (e) { return []; }
+  }
+  function asOpts() { try { return (typeof asList === "function" ? asList() : ARCHSOULS).map(function (r) { return r[0]; }); } catch (e) { return []; } }
+
+  /* ---- the role pop-up and its info panel ----------------------------------------------------------------- */
+  var COL = ["red", "orange", "green", "yellow"];
+  function chipHTML(k, members) {
+    var C2 = cfg(k), pl = party(members);
+    if (!C2.sugg || !A.roles) return "";
+    if (pl.length < 4) return '<span class="rolechip quiet" title="Role suggestions start when a fourth player joins">Roles at 4 players</span>';
+    var res = A.roles.evaluate(rolePicks(pl)), w = A.roles.warnings(res);
+    var red = w.filter(function (x) { return x.r === 0; }).length, org = w.filter(function (x) { return x.r === 1; }).length, yel = w.filter(function (x) { return x.r === 3; }).length;
+    var face = !w.length ? '<b class="rcok">✓ Balanced</b>' : (red ? '<i class="rcd red">' + red + "</i>" : "") + (org ? '<i class="rcd orange">' + org + "</i>" : "") + (yel ? '<i class="rcd yellow">' + yel + "</i>" : "");
+    return '<span class="rolewrap"><button class="rolechip" data-lb="roles" aria-expanded="' + L.open + '" title="What the party lacks">' + face + '</button><button class="roleinfo" data-lb="info" title="Every role, and who fills it" aria-label="Every role, and who fills it">i</button>' +
+      (L.open ? '<div class="rolepop" role="dialog" aria-label="What the party lacks">' + (w.length ? w.map(function (x) { return '<div class="lbw ' + COL[x.r] + '"><span class="lbwg">' + esc(x.g) + "</span>" + esc(x.t) + "</div>"; }).join("") : '<div class="lbw green">Nothing is missing.</div>') +
+        '<button class="btn sm" data-lb="info">See every role</button></div>' : "") + "</span>";
+  }
+  function infoHTML(k, members) {
+    if (!L.info || !A.roles) return "";
+    var pl = party(members), res = A.roles.evaluate(rolePicks(pl));
+    var who = pl.map(function (p) { var b = A.roles.bring(p); return '<li><b>' + esc(p.who) + "</b> " + esc([p.cls + (p.ksPick ? " (" + p.ksPick + (p.ksLater ? ", later" : "") + ")" : ""), p.lin, asList0(p).join(" + ")].filter(Boolean).join(" · ") || "no picks yet") + (b.labels.length ? ' <small>' + esc(b.labels.slice(0, 4).join(", ")) + "</small>" : "") + "</li>"; }).join("");
+    var body = !res.active ? '<p class="gsp">Roles are judged from four players up. ' + pl.length + " so far.</p>" : res.groups.map(function (g) {
+      return '<section class="lbrg"><h4>' + esc(g.label) + "</h4>" + g.items.map(function (i) {
+        var detail = g.key === "lineages" ? " <small>" + i.c + " of " + res.n + "</small>" : i.T ? " <small>" + (Math.round((i.c || 0) * 10) / 10) + " / " + i.T + "</small>" : "";
+        if (g.key === "conditions") detail = i.miss.length ? " <small>no " + esc(i.miss.map(A.roles.condName).join(", ")) + "</small>" : i.weak.length ? " <small>" + esc(i.weak.map(A.roles.condName).join(", ")) + " only from Slot Abilities</small>" : "";
+        var fill = i.r < 2 && i.fill && i.fill.length ? '<div class="rfill">Filled by: ' + esc(i.fill.slice(0, 8).map(function (f) { return f.name; }).join(", ")) + (i.fill.length > 8 ? "…" : "") + "</div>" : "";
+        return '<div class="ritem ' + COL[i.r] + '"><span class="rdot"></span><b>' + esc(i.label) + "</b>" + detail + (i.have && i.have.length ? " <small>(" + esc(i.have.join(", ")) + ")</small>" : "") + fill + "</div>";
+      }).join("") + "</section>";
+    }).join("");
+    return '<div class="roleinfobox" role="dialog" aria-label="Party roles"><div class="rih"><b>Party roles</b><button class="btn sm" data-lb="infox">✕</button></div>' +
+      '<p class="gsp">Red: none. Orange: weak. Green: fine. Yellow: too much. Targets: 1 Tank, Support, Martial and Mage per 4 players (a Keystone that tanks is half a Tank); 1 Healer and Damage dealer per 3; every Domain and Condition somewhere; one high Soul, Physical and True damage dealer; no more than a third of the party on one Lineage.</p>' +
+      '<ul class="riwho">' + who + "</ul>" + body + "</div>";
+  }
+
+  /* ---- the lobby page --------------------------------------------------------------------------------------- */
+  function sel(name, opts, cur, label, tk, gap, keyFn, lockedTo) {
+    var o = '<option value="">' + esc(label) + "</option>" + opts.map(function (x) {
+      var key = keyFn ? keyFn(x) : x, who = tk && tk[key], g = gap ? gap(x) : [];
+      var dis = who && x !== cur;
+      return '<option value="' + esc(x) + '"' + (x === cur ? " selected" : "") + (dis ? " disabled" : "") + ">" + esc(x) +
+        (dis ? " — taken by " + esc(who) : g.length && x !== cur ? " — fills " + esc(g.slice(0, 2).join(", ")) : "") + "</option>";
+    }).join("");
+    return '<select data-lbp="' + name + '"' + (lockedTo ? " disabled" : "") + ">" + o + "</select>";
+  }
+  function mineHTML(k, members, u) {
+    var meM = (members || []).find(function (m) { return m.uid === u.uid; }); if (!meM) return "";
+    var me = picksOf(meM), C2 = cfg(k), tk = takenFor(k, members, u.uid, me), gf = gapFn(members, u.uid);
+    var probs = problems(k, members, u.uid, me, { lobby: true }), ready = me.ready && !probs.length;
+    var as = (me.as || []).concat(["", "", "", ""]).slice(0, 4);
+    var asTk = function (i) { return C2.claim.as === "all" || (C2.claim.as === "first" && i === 0) ? tk.as : null; };
+    return '<div class="camppanel wide lbmine"><b>Your picks</b>' +
+      '<div class="campsub">Claim what you plan to play. Everyone sees it. ' + (C2.locked ? "<b>These are locked in</b> — your character will be made with them." : "You can still change your mind when you make your character.") + "</div>" +
+      '<div class="lbgrid">' +
+        "<label>Class" + sel("cls", classOpts(), me.cls, "— Class —", tk.cls, function (x) { return gf("cls", x); }) + "</label>" +
+        (me.cls && ksOpts(me.cls).length ? "<label>Keystone <small>Class Level 2</small>" + sel("ks", ksOpts(me.cls), me.ksPick, "— later —", null, function (x) { return gf("ks", ksKeysOf(me.cls, x), { cls: me.cls }); }) + "</label>" : "") +
+        "<label>Lineage" + sel("lin", linOpts(), me.lin, "— Lineage —", tk.lin, function (x) { return gf("lin", x); }) + "</label>" +
+        (raceOpts(me.lin).length ? "<label>Race" + sel("race", raceOpts(me.lin), me.race, "— No Race —", C2.claim.lin === "race" ? tk.race : null, null, function (x) { return me.lin + "|" + x; }) + "</label>" : "") +
+        as.map(function (a, i) { return "<label>" + (i ? "ArchSoul " + (i + 1) : "First ArchSoul <small>primary</small>") + sel("as" + i, asOpts().filter(function (x) { return x === a || as.indexOf(x) < 0; }), a, i ? "— later —" : "— ArchSoul —", asTk(i), function (x) { return gf("as", x); }) + "</label>"; }).join("") +
+      "</div>" +
+      (me.ksLater ? '<p class="lbnote">Keystones open at Class Level 2. This campaign starts at Level ' + esc((k.rules || {}).start) + ", so your Keystone counts toward the party once your character reaches Class Level 2.</p>" : "") +
+      (probs.length ? '<ul class="lbprob">' + probs.map(function (p) { return "<li>" + esc(p) + "</li>"; }).join("") + "</ul>" : "") +
+      '<div class="camprow2"><button class="btn hotbtn" data-lb="ready"' + (probs.length ? " disabled" : "") + ">" + (ready ? "✓ Ready — waiting for the GM" : "I'm ready") + "</button>" +
+      (ready ? '<button class="btn" data-lb="unready">Not ready</button>' : "") + "</div></div>";
+  }
+  function cardHTML(k, members, p, u) {
+    var probs = problems(k, members, p.uid, p, { lobby: true }), ready = p.ready && !probs.length;
+    return '<div class="lbcard' + (p.uid === u.uid ? " you" : "") + '"><div class="lbch"><b>' + esc(p.who) + "</b>" + (p.uid === u.uid ? ' <span class="youtag">you</span>' : "") +
+      '<span class="lbst ' + (ready ? "ok" : "wait") + '">' + (ready ? "Ready" : "Choosing") + "</span></div>" +
+      '<div class="lbpk"><span>' + esc(p.cls || "—") + (p.ksPick ? ' <em class="lbks' + (p.ksLater ? " later" : "") + '" title="' + (p.ksLater ? "Keystone — counts once they reach Class Level 2" : "Keystone") + '">' + esc(p.ksPick) + "</em>" : "") + "</span><span>" + esc(p.lin ? p.lin + (p.race ? " (" + p.race + ")" : "") : "—") + "</span></div>" +
+      '<div class="lbas">' + (asList0(p).length ? asList0(p).map(function (a, i) { return '<i class="' + (i ? "" : "prim") + '">' + esc(a) + "</i>"; }).join("") : "<small>No ArchSoul yet</small>") + "</div>" +
+      (probs.length && p.uid !== u.uid ? '<div class="lbwarn">' + esc(probs[0]) + "</div>" : "") + "</div>";
+  }
+  /* the whole page while the campaign is a lobby; `pieces` are the campaign screen's own head, code box, requests */
+  function pageHTML(u, k, members, pieces) {
+    var gm = k.gm === u.uid, C2 = cfg(k), pl = party(members);
+    var notReady = pl.filter(function (p) { return !(p.ready && !problems(k, members, p.uid, p, { lobby: true }).length); });
+    var head = '<div class="lbhero"><b>Lobby</b><span>' + (gm ? "Your players are choosing what they will play. Start the campaign when everyone is ready — then they make their characters."
+      : "The campaign has not started. Claim what you plan to play; when " + esc(k.gmName || "the GM") + " starts it, you make your character.") + "</span></div>";
+    var start = gm ? '<div class="lbstart"><button class="btn big hotbtn" data-lb="start"' + (pl.length ? "" : " disabled") + ">" +
+      (L.armed === "start" ? "Start anyway — " + notReady.length + " not ready" : "▶ Start the campaign") + "</button>" +
+      '<button class="btn" data-lb="settings">Lobby settings</button>' +
+      "<small>" + (pl.length ? (notReady.length ? notReady.length + " of " + pl.length + " not ready yet." : "Everyone is ready.") : "No one has joined yet.") + "</small></div>" : "";
+    var cards = pl.length ? pl.map(function (p) { return cardHTML(k, members, p, u); }).join("") : '<div class="homenote">No players yet. ' + (gm ? "Share the invite code." : "") + "</div>";
+    var roster = '<div class="campsec"><span>Party</span><i class="secount">' + pl.length + "</i>" + chipHTML(k, members) + "</div>" + infoHTML(k, members) + '<div class="lbcards">' + cards + "</div>";
+    var leave = !gm ? '<div class="gatebtns"><button class="btn warn" data-camp="leave">' + (pieces.armedLeave ? "Really leave?" : "Leave the lobby") + "</button></div>" : "";
+    return '<div class="homeinner lbpage">' + pieces.top + head + (L.msg ? '<div class="campmsg' + (L.bad ? " bad" : "") + '">' + esc(L.msg) + "</div>" : "") + pieces.msg +
+      (gm ? pieces.codeBox + pieces.reqs + start : mineHTML(k, members, u)) + roster + leave + "</div>";
+  }
+
+  /* ---- after Start: the player without a character yet ---------------------------------------------------- */
+  function fits(k, members, uid, ch) {
+    var me = (members || []).find(function (m) { return m.uid === uid; }), claim = picksOf(me || { sum: {} }), C2 = cfg(k), out = [];
+    var i = (ch && ch.info) || {}, as = (ch.as || []).map(function (a) { return a && a.n; }).filter(Boolean);
+    var picks = { cls: i.cls || "", lin: i.lineage || "", race: ch.race || "", as: as, t: claim.t, ks: ksOfChar(ch) };
+    if (C2.locked && !claim.real) {
+      if (claim.cls && picks.cls !== claim.cls) out.push("Your Class is locked to " + claim.cls + ".");
+      if (claim.lin && picks.lin !== claim.lin) out.push("Your Lineage is locked to " + claim.lin + ".");
+      if (claim.race && picks.race !== claim.race) out.push("Your Race is locked to " + claim.race + ".");
+      if ((claim.as || [])[0] && as[0] !== claim.as[0]) out.push("Your first ArchSoul is locked to " + claim.as[0] + ".");
+    }
+    return out.concat(problems(k, members, uid, picks, {}));
+  }
+  function makeHTML(k, members, u) {
+    var me = (members || []).find(function (m) { return m.uid === u.uid; });
+    if (!me || me.charId) return "";
+    var ok = (typeof DB !== "undefined" ? DB.chars : []).filter(function (ch) { return !ch.npc && !fits(k, members, u.uid, ch).length; });
+    var cl = picksOf(me);
+    return '<div class="camppanel wide lbmake"><b>The campaign has started — make your character</b>' +
+      '<div class="campsub">' + (cl.cls || cl.lin || asList0(cl).length ? "Your lobby picks: <b>" + esc([cl.cls, cl.lin + (cl.race ? " (" + cl.race + ")" : ""), asList0(cl).join(" + ")].filter(Boolean).join(" · ")) + "</b>. " : "") +
+      (cfg(k).locked ? "They are locked in; the creator opens with them chosen." : "The creator opens with them chosen; you can change them.") + "</div>" +
+      '<div class="camprow2"><button class="btn big hotbtn" data-lb="make">＋ Make my character</button></div>' +
+      (ok.length ? '<div class="camprow2"><select id="lbExisting">' + ok.map(function (c) { return '<option value="' + esc(c.id) + '">' + esc(c.name || "Unnamed") + "</option>"; }).join("") + '</select><button class="btn" data-lb="bring">Play this one</button><small>Characters you already have that fit.</small></div>' : "") +
+      "</div>";
+  }
+  /* a fresh character, the claims chosen on it, the creator open with the campaign's limits */
+  function createFor(k, members, onDone) {
+    var u = user(); if (!u || typeof blank !== "function") return;
+    var me = (members || []).find(function (m) { return m.uid === u.uid; }), cl = me ? picksOf(me) : { as: [] }, C2 = cfg(k);
+    var ch = blank(u.name || "New Character");
+    try { if (typeof migrate === "function") ch = migrate(ch); } catch (e) {}
+    ch.name = u.name || "New Character"; if (ch.info) ch.info.name = ch.name;
+    DB.chars.push(ch);
+    try { setActiveAt(DB.chars.length - 1); } catch (e) {}
+    /* the limits first: the sheet's own Domain and Weapon questions stay quiet while the creator is the one asking */
+    var tk = takenFor(k, members, u.uid, cl), gf = gapFn(members, u.uid);
+    window.CR_LIMIT = { camp: k.name, lock: C2.locked && !cl.real ? { cls: cl.cls, lin: cl.lin, race: cl.race, as0: (cl.as || [])[0] || "" } : {},
+      taken: { cls: tk.cls, lin: tk.lin, race: tk.race, as: tk.as }, gap: gf, onDone: onDone };
+    try {
+      if (cl.lin) { var Lg = LINEAGES.find(function (l) { return l.name === cl.lin; }); if (Lg) setLineage(Lg); if (cl.race) setRace(cl.race); }
+      if (cl.cls) { var Kc = CLASSES.find(function (x) { return x.name === cl.cls; }); if (Kc) setClass(Kc); }
+      if ((cl.as || [])[0]) setArchSoulAt(0, cl.as[0]);
+      var st = +((k.rules || {}).start); if (st > 0) { C.info.level = st; onLevelChange(); }
+    } catch (e) { console.error("lobby prefill", e); }
+    try { save(); } catch (e) {}
+    if (A.shell && A.shell.hide) A.shell.hide();
+    if (typeof crOpen === "function") crOpen();
+  }
+  async function attachMade(k, ch) {
+    var S = cs(), u = user(); if (!S || !u) return;
+    var probs = fits(k, S.members, u.uid, ch);
+    if (probs.length) { say(probs[0] + " Fix it on your sheet, then choose it on the campaign page."); return false; }
+    if (A.campUI && A.campUI.attachInto) return A.campUI.attachInto(k, ch);
+    return false;
+  }
+
+  /* ---- the join panel's notes for a campaign that has started ---------------------------------------------- */
+  function joinNote(k, members) {
+    var C2 = cfg(k);
+    if (C2.phase === "lobby") return { lobby: true };
+    if (!C2.late) return { closed: true };
+    var res = A.roles && C2.sugg ? A.roles.evaluate(rolePicks(party(members)), party(members).length + 1) : null;
+    var w = res ? A.roles.warnings(res).filter(function (x) { return x.r < 2; }).map(function (x) { return x.t; }) : [];
+    return { lacks: w };
+  }
+  /* any limit worth the creator for a late join */
+  function hasLimits(k) { var C2 = cfg(k); return C2.claim.cls || C2.claim.lin !== "off" || C2.claim.as !== "off" || C2.forced !== "off" || C2.sugg; }
+
+  /* ---- the GM's settings tab --------------------------------------------------------------------------------- */
+  function settingsHTML(code) {
+    var S = cs(), k = S && S.camp; if (!k) return "";
+    var C2 = cfg(k), n = party(S.members).length, small = n < 4;
+    var chk = function (path, on, label, dis) { return '<label class="gsopt"><input type="checkbox" data-lbs="' + path + '"' + (on ? " checked" : "") + (dis ? " disabled" : "") + "> " + label + "</label>"; };
+    var rad = function (path, val, cur, label, dis) { return '<label class="gsopt"><input type="radio" name="lbs-' + path + '" data-lbs="' + path + '" value="' + val + '"' + (cur === val ? " checked" : "") + (dis ? " disabled" : "") + "> " + label + "</label>"; };
+    return '<div class="gsset lbset">' +
+      '<p class="gsp">' + (C2.phase === "lobby" ? "This campaign is a <b>lobby</b>: players claim Classes, Lineages and ArchSouls, then you start it." : "This campaign has <b>started</b>. These settings still apply to anyone who joins late.") + "</p>" +
+      "<h4>Require Choice</h4><p class=\"gsp2\">A player cannot be Ready without these.</p>" +
+      chk("req.cls", C2.req.cls, "Class") + chk("req.lin", C2.req.lin, "Lineage") + chk("req.as1", C2.req.as1, "ArchSoul (the first)") + chk("req.asMore", C2.req.asMore, "Additional ArchSouls (the other three)") +
+      "<h4>Locked Choices</h4>" + chk("locked", C2.locked, "Lobby picks are locked: the character is made with them and they cannot be changed in the creator") +
+      "<h4>Late Player Joins</h4>" + chk("late", C2.late, "Players can ask to join after the campaign starts") +
+      "<h4>Forced Balanced Roles</h4><p class=\"gsp2\">A player must pick at least one thing the party lacks. " + (small ? "<b>Waits for a fourth player</b> (" + n + " now)." : "") + "</p>" +
+      rad("forced", "off", C2.forced, "Off", small) + rad("forced", "cls", C2.forced, "Class only", small) + rad("forced", "as", C2.forced, "ArchSoul only", small) + rad("forced", "both", C2.forced, "Both — a Class and an ArchSoul", small) +
+      "<h4>Claimed Roles</h4><p class=\"gsp2\">Once claimed, no one else can take it.</p>" +
+      chk("claim.cls", C2.claim.cls, "Class") +
+      '<div class="gsrow3"><span>Lineage</span>' + rad("claim.lin", "off", C2.claim.lin, "Off") + rad("claim.lin", "lin", C2.claim.lin, "Lineage") + rad("claim.lin", "race", C2.claim.lin, "Race (same Lineage, different Race)") + "</div>" +
+      '<div class="gsrow3"><span>ArchSoul</span>' + rad("claim.as", "off", C2.claim.as, "Off") + rad("claim.as", "all", C2.claim.as, "All ArchSouls") + rad("claim.as", "first", C2.claim.as, "First ArchSoul only") + "</div>" +
+      "<h4>Role Suggestions</h4>" + chk("sugg", C2.sugg, "Show what the party lacks, beside the party" + (small ? " — <b>waits for a fourth player</b>" : ""), false) +
+      (C2.phase === "lobby" ? "" : '<p class="gsp2">Started ' + (C2.startedAt ? new Date(C2.startedAt).toLocaleDateString() : "before the lobby existed") + ".</p>") +
+      "</div>";
+  }
+
+  /* ---- events ----------------------------------------------------------------------------------------------- */
+  function onClick(e) {
+    var b = e.target.closest && e.target.closest("[data-lb]"); if (!b) {
+      if (L.open && !(e.target.closest && e.target.closest(".rolewrap"))) { L.open = false; rerender(); }
+      return;
+    }
+    var a = b.getAttribute("data-lb"), S = cs(), u = user(), k = S && S.camp; if (!k || !u) return;
+    if (a === "roles") { L.open = !L.open; rerender(); }
+    else if (a === "info") { L.info = true; L.open = false; rerender(); }
+    else if (a === "infox") { L.info = false; rerender(); }
+    else if (a === "settings") { if (A.gmset && A.gmset.openTab) A.gmset.openTab("lobby"); }
+    else if (a === "ready" || a === "unready") {
+      var me = (S.members || []).find(function (m) { return m.uid === u.uid; }); if (!me) return;
+      var cl = Object.assign({}, (me.sum && me.sum.claim) || {}); cl.ready = a === "ready";
+      if (cl.ready && problems(k, S.members, u.uid, picksOf({ uid: u.uid, sum: { claim: cl } }), { lobby: true }).length) return;
+      saveClaim(k.code, cl);
+    }
+    else if (a === "start") {
+      var pl = party(S.members), nr = pl.filter(function (p) { return !(p.ready && !problems(k, S.members, p.uid, p, { lobby: true }).length); });
+      if (nr.length && L.armed !== "start") { L.armed = "start"; rerender(); setTimeout(function () { if (L.armed === "start") { L.armed = ""; rerender(); } }, 6000); return; }
+      L.armed = ""; setLobby(k.code, { phase: "live", startedAt: Date.now() }).then(function () { say("The campaign has started. Your players make their characters now."); });
+    }
+    else if (a === "make") createFor(k, S.members, function (ch) { attachMade(k, ch); });
+    else if (a === "bring") { var sv = $("#lbExisting"), ch = sv && DB.chars.find(function (x) { return x.id === sv.value; }); if (ch) attachMade(k, ch); }
+  }
+  function onChange(e) {
+    var t = e.target; if (!t || !t.getAttribute) return;
+    var S = cs(), u = user(), k = S && S.camp; if (!k || !u) return;
+    var p = t.getAttribute("data-lbp");
+    if (p) {
+      var me = (S.members || []).find(function (m) { return m.uid === u.uid; }); if (!me) return;
+      var cl = Object.assign({ as: [], t: {} }, clone((me.sum && me.sum.claim) || {})); cl.t = cl.t || {}; cl.as = (cl.as || []).slice(0, 4);
+      while (cl.as.length < 4) cl.as.push("");
+      var now = Date.now(), v = t.value;
+      if (p === "cls") { if (cl.cls !== v) cl.ks = ""; cl.cls = v; cl.t.cls = now; }
+      else if (p === "ks") { cl.ks = v; cl.t.ks = now; }
+      else if (p === "lin") { if (cl.lin !== v) cl.race = ""; cl.lin = v; cl.t.lin = now; }
+      else if (p === "race") { cl.race = v; cl.t.lin = now; }
+      else if (/^as\d$/.test(p)) { var i = +p.slice(2); cl.as[i] = v; cl.t["as" + i] = now; }
+      /* no gaps in the ArchSoul list: the first is always the primary */
+      cl.as = cl.as.filter(Boolean); cl.ready = false;
+      saveClaim(k.code, cl);
+      return;
+    }
+    var s = t.getAttribute("data-lbs");
+    if (s) {
+      var val = t.type === "checkbox" ? t.checked : t.value, patch = {};
+      if (s.indexOf(".") > 0) { var a2 = s.split("."); patch[a2[0]] = {}; patch[a2[0]][a2[1]] = val; }
+      else patch[s] = val;
+      setLobby(k.code, patch);
+    }
+  }
+  function boot() {
+    document.addEventListener("click", onClick);
+    document.addEventListener("change", onChange);
+  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot); else boot();
+
+  A.lobby = { cfg: cfg, newRules: newRules, isLobby: isLobby, party: party, picksOf: picksOf, takenFor: takenFor, problems: problems,
+    gapFn: gapFn, fits: fits, pageHTML: pageHTML, chipHTML: chipHTML, infoHTML: infoHTML, makeHTML: makeHTML, joinNote: joinNote,
+    hasLimits: hasLimits, createFor: createFor, settingsHTML: settingsHTML, _L: L };
 })(typeof globalThis !== "undefined" ? globalThis : window);
 
 /* ArchSoul — the table. A player at a campaign plays from their own sheet, with the campaign
@@ -39449,7 +40440,7 @@ body.has-logtab #homeWrap .homeinner{padding-left:max(22px,56px)}
 
   /* ---- sitting down and standing up ------------------------------------------------ */
   function sit(code) {
-    var m = mineRec(code); if (!m) return false;
+    var m = mineRec(code); if (!m || !m.charId) return false;   /* no character yet (lobby): the campaign page, not the table */
     var i = DB.chars.findIndex(function (x) { return x.id === m.charId; });
     if (i < 0) { say("The character you joined with is not on this device."); return false; }
     T.code = code; remember();
@@ -40245,8 +41236,15 @@ body.has-logtab #homeWrap .homeinner{padding-left:max(22px,56px)}
     var bar = $("#bar"); if (!bar) return;
     var brand = $(".brand", bar);
     if (brand) { brand.id = "shellLogo"; brand.title = "Home"; brand.addEventListener("click", goHome); }
+    /* C.J., 17 Nov: the version number beside the logo is gone; a Home button takes its place (the version now
+       sits at the foot of Settings, for checking that an update arrived) */
+    var ver = $("#appVer"); if (ver) ver.remove();
+    var home = document.createElement("button"); home.className = "btn"; home.id = "shellHome"; home.type = "button";
+    home.title = "Back to the main screen"; home.innerHTML = '<span aria-hidden="true">⌂</span><span class="hmtx"> Home</span>'; home.setAttribute("aria-label", "Home");
+    home.addEventListener("click", function (e) { e.stopPropagation(); goHome(); });
+    (brand || bar.firstElementChild).insertAdjacentElement("afterend", home);
     var sec = document.createElement("span"); sec.id = "shellSec";
-    var ver = $("#appVer"); (ver || brand).insertAdjacentElement("afterend", sec);
+    home.insertAdjacentElement("afterend", sec);
 
     /* the little "..." menu: the things you use now and then */
     var more = document.createElement("button");
@@ -40307,7 +41305,8 @@ body.has-logtab #homeWrap .homeinner{padding-left:max(22px,56px)}
         '<button class="btn' + (light ? "" : " on") + '" data-theme="dark">Dark</button>' +
         '<button class="btn' + (light ? " on" : "") + '" data-theme="light">Light</button></span></div>' +
       '<div class="shellrow"><span>Sheet size</span><span id="shellSize"></span></div>' +
-      '<div id="shellSheetSet"></div>';
+      '<div id="shellSheetSet"></div>' +
+      (typeof APP_V !== "undefined" ? '<div class="shellver">Sheet version ' + APP_V + "</div>" : "");
     document.body.appendChild(s);
     var r = $("#shellGear").getBoundingClientRect();
     s.style.top = (r.bottom + 6) + "px";
@@ -40434,7 +41433,8 @@ body.has-logtab #homeWrap .homeinner{padding-left:max(22px,56px)}
     var acct = $("#shellAcct");
     if (acct) { acct.textContent = acctText(); var st = A.ui ? A.ui.status() : ""; acct.classList.toggle("err", st === "error"); acct.classList.toggle("on", !!cloud().user && st === "synced"); }
     var sec = $("#shellSec");
-    if (sec) sec.textContent = homeOpen ? "Home" : document.body.classList.contains("viewonly") ? "Viewing sheet" : gmIsOpen() ? "Monsters" : arenaIsOn() ? "Arena" : "Characters";
+    if (sec) { sec.textContent = homeOpen ? "" : document.body.classList.contains("viewonly") ? "Viewing sheet" : gmIsOpen() ? "Monsters" : arenaIsOn() ? "Arena" : "Characters"; sec.hidden = homeOpen; }
+    var hb = $("#shellHome"); if (hb) { hb.classList.toggle("on", homeOpen); hb.setAttribute("aria-current", homeOpen ? "page" : "false"); }
     document.body.classList.toggle("shellgm", gmIsOpen());
     document.body.classList.toggle("shellarena", arenaIsOn());
     if (homeOpen) renderHome();
