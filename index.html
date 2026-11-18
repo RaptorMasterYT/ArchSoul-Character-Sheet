@@ -34567,6 +34567,22 @@ body.has-logtab #homeWrap .homeinner{padding-left:max(22px,56px)}
 .lbset .gsrow3>span{min-width:70px;color:#aaa;font-size:13px}
 @media (max-width:760px){.lbgrid{grid-template-columns:repeat(2,minmax(0,1fr))}.rolepop{left:auto;right:-40px}}
 
+/* ---- seats: extra characters and hand-overs (17 Nov) ---- */
+#seatDrawer{position:fixed;right:0;top:0;bottom:0;width:440px;z-index:906;display:flex;flex-direction:column;background:var(--panel);border-left:1px solid var(--line);box-shadow:-6px 0 24px #000a;color:var(--ink);--ink-faint:#8f887e}
+#seatDrawer .gsbody{overflow:auto;padding:4px 16px 20px;flex:1}
+@media (max-width:760px){ #seatDrawer{width:100%;top:auto;height:88vh;border-left:0;border-top:1px solid var(--line);border-radius:12px 12px 0 0} }
+.seatset h4{margin:14px 0 6px;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--hot);font-weight:600}
+.seatrow{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding:8px 10px;margin:6px 0;border:1px solid var(--line);border-radius:8px;background:color-mix(in srgb,var(--panel) 80%,#000)}
+.seatrow>div:first-child{flex:1 1 160px;min-width:0}
+.seatrow b{display:block}
+.seatrow small{display:block;color:var(--ink-dim);font-size:12px;margin-top:2px}
+.seatrow.seatout{border-color:color-mix(in srgb,var(--hot) 55%,var(--line))}
+.seatsel{display:flex;flex-direction:column;gap:2px;font-size:11px;color:var(--ink-dim);text-transform:uppercase;letter-spacing:.06em}
+.seatsel select{font:inherit;font-size:13px;text-transform:none;letter-spacing:normal;background:var(--sunk,#14110d);color:var(--ink,#e8dcc0);border:1px solid var(--line);border-radius:6px;padding:4px 6px;max-width:220px}
+.gsk2{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px solid var(--line)}
+.pcplayed{font-size:11px;color:var(--hot);border:1px solid color-mix(in srgb,var(--hot) 50%,transparent);border-radius:9px;padding:0 7px;margin-left:6px;white-space:nowrap}
+#seatDrawer .btn{min-height:34px}
+
 /*CLOUD-CSS:END*/</style>
 <script id="cloud-js">/*CLOUD:BEGIN*/
 /* ArchSoul cloud sync — the engine.
@@ -34967,7 +34983,7 @@ body.has-logtab #homeWrap .homeinner{padding-left:max(22px,56px)}
             });
             /* the whole member row rides on the push (the same shape members() returns), so a change costs the one
                document that changed instead of everyone re-reading the whole party (16 Nov read audit) */
-            on("members", F.collection(db, "campaigns", code, "members"), function (snap) { return snap.docs.map(function (d) { var x = d.data(); return { uid: d.id, name: x.name || "", legacy: x.email !== undefined || x.name === undefined, charId: x.charId || "", charName: x.charName, sum: x.sum || {}, updatedAt: x.updatedAt || 0, seen: x.seen || 0, full: true }; }); });
+            on("members", F.collection(db, "campaigns", code, "members"), function (snap) { return snap.docs.map(function (d) { var x = d.data(); return { uid: d.id, name: x.name || "", legacy: x.email !== undefined || x.name === undefined, charId: x.charId || "", charName: x.charName, sum: x.sum || {}, updatedAt: x.updatedAt || 0, seen: x.seen || 0, ctl: x.ctl || "", ret: x.ret || 0, full: true }; }); });
             on("notes", F.query(F.collection(db, "campaigns", code, "notes"), F.where("at", ">", t0)));
             if (opts.gm) { on("gm", F.collection(db, "campaigns", code, "gm")); on("rolls", F.collection(db, "campaigns", code, "rolls")); on("turns", F.collection(db, "campaigns", code, "turns"));
               on("requests", F.collection(db, "campaigns", code, "requests")); }
@@ -35076,7 +35092,7 @@ body.has-logtab #homeWrap .homeinner{padding-left:max(22px,56px)}
           await init();
           var code = camp.code;
           await F.setDoc(F.doc(db, "campaigns", code, "members", uid),
-            { name: uname || "", charId: rec.charId, charName: rec.charName, sum: rec.sum, updatedAt: rec.updatedAt, seen: Date.now() });
+            { name: uname || "", charId: rec.charId, charName: rec.charName, sum: rec.sum, updatedAt: rec.updatedAt, seen: Date.now() }, { merge: true });
           await F.setDoc(F.doc(db, "campaigns", code, "sheets", uid), { data: sheet.data, updatedAt: sheet.updatedAt });
           await F.setDoc(F.doc(db, "users", uid, "campaigns", code),
             { code: code, name: camp.name, role: "player", charId: rec.charId, charName: rec.charName, at: Date.now() });
@@ -35085,13 +35101,29 @@ body.has-logtab #homeWrap .homeinner{padding-left:max(22px,56px)}
         refresh: async function (uid, uname, code, rec, sheet) {
           await init();
           await F.setDoc(F.doc(db, "campaigns", code, "members", uid),
-            { name: uname || "", charId: rec.charId, charName: rec.charName, sum: rec.sum, updatedAt: rec.updatedAt, seen: Date.now() });
+            { name: uname || "", charId: rec.charId, charName: rec.charName, sum: rec.sum, updatedAt: rec.updatedAt, seen: Date.now() }, { merge: true });
           await F.setDoc(F.doc(db, "campaigns", code, "sheets", uid), { data: sheet.data, updatedAt: sheet.updatedAt });
+        },
+        /* an extra character: a seat of its own ("x_<you>_<id>"), asked for like joining, written like your own row */
+        requestSeat: async function (code, seat, uname, rec) {
+          await init();
+          await F.setDoc(F.doc(db, "campaigns", code, "requests", seat), { name: uname || "", charId: rec.charId || "", charName: rec.charName || "", sum: rec.sum || {}, at: Date.now() });
+        },
+        attachSeat: async function (seat, uname, code, rec, sheet) {
+          await init();
+          await F.setDoc(F.doc(db, "campaigns", code, "members", seat),
+            { name: uname || "", charId: rec.charId || "", charName: rec.charName || "", sum: rec.sum || {}, updatedAt: rec.updatedAt || Date.now(), seen: Date.now() }, { merge: true });
+          if (sheet) await F.setDoc(F.doc(db, "campaigns", code, "sheets", seat), { data: sheet.data, updatedAt: sheet.updatedAt });
+        },
+        /* the GM hands a character to someone (ctl), or gives it back (ret: when, so the owner pulls the latest sheet) */
+        setCtl: async function (code, seat, uid) {
+          await init();
+          await F.updateDoc(F.doc(db, "campaigns", code, "members", seat), uid ? { ctl: uid } : { ctl: F.deleteField(), ret: Date.now() });
         },
         members: async function (code) {
           await init();
           var snap = await F.getDocs(F.collection(db, "campaigns", code, "members"));
-          return snap.docs.map(function (d) { var x = d.data(); return { uid: d.id, name: x.name || "", legacy: x.email !== undefined || x.name === undefined, charId: x.charId, charName: x.charName, sum: x.sum || {}, updatedAt: x.updatedAt || 0, seen: x.seen || 0 }; });
+          return snap.docs.map(function (d) { var x = d.data(); return { uid: d.id, name: x.name || "", legacy: x.email !== undefined || x.name === undefined, charId: x.charId, charName: x.charName, sum: x.sum || {}, updatedAt: x.updatedAt || 0, seen: x.seen || 0, ctl: x.ctl || "", ret: x.ret || 0 }; });
         },
         /* rewrite the campaign's own document with the GM's username and no email (also scrubs older ones) */
         setGmName: async function (camp, gmName) {
@@ -35632,7 +35664,7 @@ body.has-logtab #homeWrap .homeinner{padding-left:max(22px,56px)}
       var k = await c.get(S.code);
       if (!k) { S.gone = "This campaign no longer exists."; S.camp = null; return; }
       S.camp = k;
-      try { S.members = await c.members(S.code); S.gone = ""; }
+      try { S.members = await c.members(S.code); S.gone = ""; if (A.seats) A.seats.sync(S.code, S.members, k); }
       catch (e) {
         if (e && e.code === "permission-denied") { S.gone = "You are no longer in this campaign."; S.members = []; } else throw e;
       }
@@ -35865,10 +35897,16 @@ body.has-logtab #homeWrap .homeinner{padding-left:max(22px,56px)}
   }
   async function checkRewards0() {
     var u = user(), c = camp(); if (!u || !c || !c.rewards || A.viewing) return;
-    var mine = S.mine.filter(function (m) { return m.role === "player"; });
+    var mine = [];
+    /* your own character, and each extra character of yours: rewards go to the seat, and its owner claims them */
+    S.mine.filter(function (m) { return m.role === "player"; }).forEach(function (m) {
+      mine.push({ code: m.code, name: m.name, seat: u.uid, charId: m.charId });
+      DB.chars.forEach(function (ch) { var b = A.seats && A.seats.bound(ch); if (b && b.code === m.code && b.kind === "extra") mine.push({ code: m.code, name: m.name, seat: b.uid, charId: ch.id }); });
+    });
     for (var i = 0; i < mine.length; i++) {
       var m = mine[i], list;
-      try { list = (await c.rewards(m.code, u.uid)).filter(function (r) { return r.status === "new"; }); } catch (e) { continue; }
+      if (A.seats && A.seats.handedOut(m.code, m.seat)) continue;   /* waits until the GM gives it back, so it lands on the sheet that comes back */
+      try { list = (await c.rewards(m.code, m.seat)).filter(function (r) { return r.status === "new"; }); } catch (e) { continue; }
       if (!list.length) continue;
       var ch = DB.chars.find(function (x) { return x.id === m.charId; }); if (!ch || typeof campReward !== "function") continue;
       var lines = [];
@@ -35947,7 +35985,7 @@ body.has-logtab #homeWrap .homeinner{padding-left:max(22px,56px)}
     if (A.viewing || !user() || !S.loaded) return;
     if (typeof C === "undefined" || !C || C._viewonly) return;
     var codes = S.mine.filter(function (m) { return m.role === "player" && m.charId === C.id; });
-    if (!codes.length && !npcCodeOf(C)) return;
+    if (!codes.length && !npcCodeOf(C) && !seatCodeOf(C)) return;
     clearTimeout(pushT); pushT = setTimeout(pushNow, (A.combat && A.combat.live && A.combat.live()) ? 500 : PUSH_MS);
   }
   async function pushNow() {
@@ -35955,11 +35993,21 @@ body.has-logtab #homeWrap .homeinner{padding-left:max(22px,56px)}
     var ch = C, r = recordFor(ch); if (!r) return;
     var codes = S.mine.filter(function (m) { return m.role === "player" && m.charId === ch.id; });
     for (var i = 0; i < codes.length; i++) {
+      /* handed to someone else for now: they write it, and this copy is replaced when it comes back */
+      if (A.seats && A.seats.handedOut(codes[i].code, u.uid)) continue;
       try { await c.refresh(u.uid, u.name, codes[i].code, r.rec, r.sheet); } catch (e) { /* the campaign screen shows problems; a silent retry comes with the next save */ }
     }
+    /* an extra character of yours, or one the GM handed you: its own seat */
+    var sb = seatCodeOf(ch);
+    if (sb) { var row0 = A.seats.rowOf(sb.code, sb.uid); try { await c.refresh(sb.uid, (row0 && row0.name) || u.name, sb.code, r.rec, r.sheet); } catch (e) {} }
     /* an NPC the GM runs: the GM writes its row, under its own id */
     var nc = npcCodeOf(ch);
-    if (nc) { try { await c.refresh(ch.npc.uid, "NPC", nc, r.rec, r.sheet); } catch (e) {} }
+    if (nc && !(A.seats && A.seats.handedOut(nc, ch.npc.uid))) { try { await c.refresh(ch.npc.uid, "NPC", nc, r.rec, r.sheet); } catch (e) {} }
+  }
+  /* the seat this character plays when it is not your own (an extra one, or one handed to you) and you play it now */
+  function seatCodeOf(ch) {
+    var b = A.seats && A.seats.bound(ch); if (!b || b.kind === "npc") return null;
+    return A.seats.controls(b.code, b.uid) ? b : null;
   }
   /* ---- NPCs: characters the GM builds with the same rules and runs at the table ---- */
   function isNpcUid(uid) { return /^npc_/.test(String(uid || "")); }
@@ -36103,10 +36151,11 @@ body.has-logtab #homeWrap .homeinner{padding-left:max(22px,56px)}
   }
   function reqHTML(k) {
     if (!S.reqs || !S.reqs.length) return "";
-    return '<div class="camppanel wide reqpanel"><b>Asking to join — ' + S.reqs.length + "</b>" +
+    var anyX = A.seats && S.reqs.some(function (r) { return A.seats.isExtra(r.uid); });
+    return '<div class="camppanel wide reqpanel"><b>' + (anyX ? "Asking" : "Asking to join") + " — " + S.reqs.length + "</b>" +
       S.reqs.map(function (r) {
         var x = r.sum || {}, over = +rulesOf(k).start > 0 && +x.lvl > +rulesOf(k).start;
-        return '<div class="reqrow"><div><b>' + esc(r.charName || "A character") + "</b> <small>played by " + esc(r.name || "a player") + "</small>" +
+        return '<div class="reqrow"><div><b>' + esc(r.charName || "A character") + "</b> <small>" + (A.seats && A.seats.isExtra(r.uid) ? "an extra character for " : "played by ") + esc(r.name || "a player") + "</small>" +
           '<div class="rsum">' + sumLine(x) + "</div>" + (over ? '<div class="campmsg bad">Above this campaign’s starting Level (' + esc(rulesOf(k).start) + ").</div>" : "") + "</div>" +
           '<span class="pcbtns"><button class="btn sm hotbtn" data-camp="accept" data-uid="' + esc(r.uid) + '">Accept</button>' +
           '<button class="btn sm warn" data-camp="decline" data-uid="' + esc(r.uid) + '">' + (S.armed === "decline" + r.uid ? "Really decline?" : "Decline") + "</button></span></div>";
@@ -36144,8 +36193,11 @@ body.has-logtab #homeWrap .homeinner{padding-left:max(22px,56px)}
     var sorted = S.members.slice().sort(function (a, b) { return (b.uid === u.uid) - (a.uid === u.uid) || String(a.charName).localeCompare(String(b.charName)); });
     var card = A.combat && A.combat._pcard;
     var rows = sorted.map(function (m) {
-      var mine = m.uid === u.uid;
-      var foot = '<div class="pcfoot"><span class="pcago" title="When this sheet last reached the cloud">' + esc(ago(m.updatedAt)) + "</span>" +
+      var mine = m.uid === u.uid || !!(A.seats && A.seats.owns(S.code, m.uid) && !isNpcUid(m.uid));
+      var held = A.seats && !isNpcUid(m.uid) && m.uid !== u.uid ? A.seats.charOf(S.code, m.uid) : null;
+      var played = m.ctl && A.seats ? '<span class="pcplayed" title="Handed over by the GM">Played by ' + esc(A.seats.nameOf(S.code, m.ctl)) + "</span>" : "";
+      var foot = '<div class="pcfoot"><span class="pcago" title="When this sheet last reached the cloud">' + esc(ago(m.updatedAt)) + "</span>" + played +
+        (held && A.seats.controls(S.code, m.uid) ? '<span class="pcbtns"><button class="btn sm hotbtn" data-seat="open" data-id="' + esc(held.id) + '">Open sheet</button></span>' : "") +
         (gm && isNpcUid(m.uid) ? '<span class="pcbtns">' + (npcChar(m.uid) ? '<button class="btn sm hotbtn" data-camp="npcopen" data-uid="' + esc(m.uid) + '">Open sheet</button>' : '<button class="btn sm" data-camp="view" data-uid="' + esc(m.uid) + '">View sheet</button>') +
           '<button class="btn sm warn" data-camp="kick" data-uid="' + esc(m.uid) + '">' + (S.armed === "kick" + m.uid ? "Really remove?" : "Remove") + "</button></span>" :
         gm ? '<span class="pcbtns"><button class="btn sm" data-camp="view" data-uid="' + esc(m.uid) + '">View sheet</button>' +
@@ -36174,7 +36226,8 @@ body.has-logtab #homeWrap .homeinner{padding-left:max(22px,56px)}
     var top = '<div class="homehead"><b class="camptitle">' + esc(k.name) + "</b>" +
       '<span class="headbtns">' +
       (gm && !bigCode ? '<span class="codewrap"><button class="codechip" data-camp="copy" title="Invite code — click to copy">' + (S.hideCode ? "••••-••••" : esc(H.fmtCode(k.code))) + '</button><button class="codeeye" data-camp="eyecode" title="' + (S.hideCode ? "Show the invite code" : "Hide the invite code (for streaming or a shared screen)") + '" aria-label="' + (S.hideCode ? "Show" : "Hide") + ' the invite code">' + (S.hideCode ? "👁" : "🙈") + "</button></span>" : "") +
-      (gm && A.gmset ? '<button class="btn" data-gsbtn title="Creature journal, prepared encounters, Stat Blocks, fight recap">⚙ Campaign settings</button>' : "") +
+      (gm && A.gmset ? '<button class="btn" data-gsbtn title="Creature journal, prepared encounters, Stat Blocks, fight recap, who plays what">⚙ Campaign settings</button>' : "") +
+      (!gm && A.seats ? '<button class="btn" data-seatbtn title="Your characters in this campaign: add another, see who plays what">⚙ Campaign settings</button>' : "") +
       (isLive ? "" : '<button class="btn" data-camp="refresh" title="Fetch the latest from the cloud">⟳ Refresh</button>') + back + "</span></div>";
     var codeBox = bigCode ? '<div class="codebox"><span>Invite code</span>' + (S.hideCode ? '<b class="codemask">••••-••••</b><span id="campCodeTxt" hidden>' + esc(H.fmtCode(k.code)) + "</span>" : '<b id="campCodeTxt">' + esc(H.fmtCode(k.code)) + "</b>") +
       '<button class="btn" data-camp="copy">Copy</button><button class="btn" data-camp="eyecode">' + (S.hideCode ? "Show" : "Hide") + '</button><small>Players join by entering this on the Campaigns screen. You accept each one before they join.</small></div>' : (gm ? '<span id="campCodeTxt" hidden>' + esc(H.fmtCode(k.code)) + "</span>" : "");
@@ -36182,7 +36235,7 @@ body.has-logtab #homeWrap .homeinner{padding-left:max(22px,56px)}
     var meRow = S.members.find(function (m) { return m.uid === u.uid; });
     if (!gm && meRow && !meRow.charId && A.lobby) tableBtn = A.lobby.makeHTML(k, S.members, u);
     var mineRow = !gm ? tableBtn + '<div class="camppanel wide mycharbox"><b>Your character</b><div class="camprow2"><select id="campPick">' + charOptions() + '</select>' +
-      '<button class="btn" data-camp="change"' + (S.busy ? " disabled" : "") + '>Play this one</button>' +
+      '<button class="btn" data-camp="change"' + (S.busy || (A.seats && A.seats.handedOut(k.code, u.uid)) ? " disabled" : "") + (A.seats && A.seats.handedOut(k.code, u.uid) ? ' title="Your character is handed to someone else until the GM gives it back"' : "") + '>Play this one</button>' +
       '<button class="btn warn" data-camp="leave">' + (S.armed === "leave" ? "Really leave?" : "Leave campaign") + "</button></div></div>" : "";
     if (!gm && meRow && !meRow.charId && A.lobby) mineRow = tableBtn + '<div class="gatebtns"><button class="btn warn" data-camp="leave">' + (S.armed === "leave" ? "Really leave?" : "Leave campaign") + "</button></div>";
     var gmFoot = gm ? '<div class="gmfoot"><button class="btn warn" data-camp="destroy">' + (S.armed === "destroy" ? "Really delete this campaign for everyone?" : "Delete campaign") + "</button></div>" : "";
@@ -36295,7 +36348,7 @@ body.has-logtab #homeWrap .homeinner{padding-left:max(22px,56px)}
 
   /* "Create and join": keep the new character, then join with it */
   function qbCreate() { if (A.qb && S.join) A.qb.finish(function (id) { S.pick = id; doAttach(S.join.camp); }); }
-  A.campUI = { refresh: function () { setMsg(""); return refreshCamp().then(function () { rerender(); }); }, _qbCreate: qbCreate, html: html, enter: enter, leave: function () { if (A.qb) A.qb.cancel(); if (A.combat) A.combat.leave(); stopPoll(); }, exitView: exitView, _state: S, _factsOf: factsOf, attachInto: attachInto, openCode: openCamp, npcChar: npcChar, isNpcUid: isNpcUid, pushNow: function () { return pushNow(); },
+  A.campUI = { refresh: function () { setMsg(""); return refreshCamp().then(function () { rerender(); }); }, _qbCreate: qbCreate, html: html, enter: enter, leave: function () { if (A.qb) A.qb.cancel(); if (A.combat) A.combat.leave(); stopPoll(); }, exitView: exitView, _state: S, _factsOf: factsOf, _recordFor: recordFor, viewSheet: viewSheet, attachInto: attachInto, openCode: openCamp, npcChar: npcChar, isNpcUid: isNpcUid, pushNow: function () { return pushNow(); },
     checkRewards: function () { return checkRewards(); },
     reqsChanged: async function (code) {
       var u = user(), c = camp(); if (!u || !c || !c.requests || S.code !== code || !S.camp || S.camp.gm !== u.uid) return;
@@ -36303,6 +36356,345 @@ body.has-logtab #homeWrap .homeinner{padding-left:max(22px,56px)}
     },
     refreshIfOpen: function (code) { if (S.screen === "campaign" && S.code === code && document.body.classList.contains("shellhome")) refreshCamp().then(rerender); } };
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot); else boot();
+})(typeof globalThis !== "undefined" ? globalThis : window);
+
+/* ArchSoul — seats: more than one character per player, and characters handed to someone else (C.J., 17 Nov 2026).
+   ---------------------------------------------------------------------------------------------------------------
+   A campaign member row is a SEAT. Yours is your uid. An extra character the GM let you add is "x_<your uid>_<id>".
+   An NPC is "npc_<id>" and belongs to the GM. The GM can hand any seat to someone else (the row's `ctl`) and give it
+   back (`ctl` cleared, `ret` stamped). While a seat is handed over only the stand-in plays it; the owner sees it read
+   only. When it comes back, the owner's own copy is replaced with the sheet as the stand-in left it.
+
+   On this device a seat is played through a local character carrying `seat: {code, uid, kind}`:
+     kind "extra"   your own extra character
+     kind "borrow"  someone else's character the GM handed to you (a copy, removed when it goes back)
+   NPCs keep their own `npc: {code, uid}` and the GM's path.
+
+   Everything that asks "who am I in this fight" asks here: acting(code) is the seat the open sheet plays, and
+   seats(code) is every seat this device plays (your own first).
+   --------------------------------------------------------------------------------------------------------------- */
+(function (root) {
+  var A = root.ArchCloud = root.ArchCloud || {};
+  var M = {}, inFlight = {}, Z = { open: false, armed: null, msg: "", pick: "" };
+
+  function $(s, r) { return (r || document).querySelector(s); }
+  function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
+  function user() { return A.ui && A.ui._state && A.ui._state.user; }
+  function camp() { var a = A.ui && A.ui.adapter && A.ui.adapter(); return a && a.camp; }
+  function cs() { return A.campUI && A.campUI._state; }
+  function say(m) { try { if (typeof toast === "function") toast(m); } catch (e) {} }
+  function chars() { return typeof DB !== "undefined" && DB && DB.chars ? DB.chars : []; }
+  function rerender() { if (A.shell && A.shell.rerender) A.shell.rerender(); if (A.table && A.table.render) { try { A.table.render(); } catch (e) {} } drawPlayer(); }
+
+  /* ---- who owns, who plays ------------------------------------------------------------------------------- */
+  function isNpc(s) { return /^npc_/.test(String(s || "")); }
+  function isExtra(s) { return /^x_/.test(String(s || "")); }
+  function ownerOf(seat) { return isExtra(seat) ? String(seat).split("_")[1] : isNpc(seat) ? "" : String(seat || ""); }
+  function newExtra() { var u = user(); return "x_" + (u ? u.uid : "") + "_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+  function gmIs(code) {
+    var u = user(), S = cs(); if (!u || !S) return false;
+    if (S.camp && S.code === code) return S.camp.gm === u.uid;
+    return (S.mine || []).some(function (m) { return m.code === code && m.role === "gm"; });
+  }
+  function rows(code) { var S = cs(); if (S && S.code === code && S.members && S.members.length) return S.members; return M[code] || []; }
+  function rowOf(code, seat) { return rows(code).find(function (m) { return m.uid === seat; }) || null; }
+  function ctlOf(code, seat) { var r = rowOf(code, seat); return (r && r.ctl) || ""; }
+  function owns(code, seat) { var u = user(); if (!u) return false; return isNpc(seat) ? gmIs(code) : ownerOf(seat) === u.uid; }
+  function controls(code, seat) { var u = user(); if (!u) return false; var c = ctlOf(code, seat); return c ? c === u.uid : owns(code, seat); }
+  /* your seat, played by someone else for now: their uid */
+  function handedOut(code, seat) { var u = user(), c = ctlOf(code, seat); return u && c && c !== u.uid && owns(code, seat) ? c : ""; }
+  function gmUid(code) { var S = cs(); return S && S.camp && S.code === code ? S.camp.gm : ""; }
+  function nameOf(code, uid) {
+    if (!uid) return "";
+    var S = cs(); if (S && S.camp && S.code === code && S.camp.gm === uid) return S.camp.gmName || "the GM";
+    var r = rowOf(code, uid); return (r && (r.name || r.charName)) || "someone";
+  }
+  function charName(code, seat) { var r = rowOf(code, seat); return (r && r.charName) || "a character"; }
+
+  /* ---- the local characters that play seats ------------------------------------------------------------ */
+  function bound(ch) {
+    if (!ch) return null;
+    if (ch.seat && ch.seat.code && ch.seat.uid) return { code: ch.seat.code, uid: ch.seat.uid, kind: ch.seat.kind || "extra" };
+    if (ch.npc && ch.npc.code && ch.npc.uid) return { code: ch.npc.code, uid: ch.npc.uid, kind: "npc" };
+    return null;
+  }
+  function primaryRec(code) { var S = cs(); return S && (S.mine || []).find(function (m) { return m.code === code && m.role === "player"; }); }
+  function primaryChar(code) { var r = primaryRec(code); return r && r.charId ? chars().find(function (c) { return c.id === r.charId; }) : null; }
+  function boundChar(code, seat, kind) { return chars().find(function (c) { var b = bound(c); return b && b.code === code && b.uid === seat && (!kind || b.kind === kind); }) || null; }
+  /* the character this device holds for a seat: yours, your extra, a borrowed copy, or the GM's NPC */
+  function charOf(code, seat) { var u = user(); if (u && seat === u.uid) return primaryChar(code); return boundChar(code, seat); }
+  /* every seat this device plays in a campaign: your own first (unless it is handed to someone), then the rest */
+  function seats(code) {
+    var u = user(), out = []; if (!u) return out;
+    var pr = primaryRec(code);
+    if (pr && pr.charId && !handedOut(code, u.uid)) out.push({ code: code, uid: u.uid, charId: pr.charId, charName: pr.charName, kind: "own" });
+    chars().forEach(function (ch) {
+      var b = bound(ch); if (!b || b.code !== code || b.kind === "npc" || !controls(code, b.uid)) return;
+      out.push({ code: code, uid: b.uid, charId: ch.id, charName: ch.name, kind: b.kind });
+    });
+    return out;
+  }
+  function extraSeats(code) { return seats(code).filter(function (s) { return s.kind !== "own"; }); }
+  function isMine(code, seat) { return seats(code).some(function (s) { return s.uid === seat; }); }
+  /* the seat the open sheet plays in this campaign; otherwise your own; otherwise the first you hold */
+  function acting(code) {
+    var u = user(); if (!u) return null;
+    if (typeof C !== "undefined" && C) {
+      var b = bound(C);
+      if (b && b.code === code && b.kind !== "npc" && controls(code, b.uid)) return { uid: b.uid, ch: C, kind: b.kind };
+    }
+    var l = seats(code); if (!l.length) return null;
+    var open = typeof C !== "undefined" && C ? l.find(function (s) { return s.charId === C.id; }) : null, s0 = open || l[0];
+    return { uid: s0.uid, ch: chars().find(function (c) { return c.id === s0.charId; }) || null, kind: s0.kind };
+  }
+
+  /* ---- keeping up: called whenever a campaign's member rows arrive -------------------------------------- */
+  function sync(code, list, k) {
+    if (!code || !list) return;
+    M[code] = list;
+    var u = user(); if (!u) return;
+    list.forEach(function (m) {
+      /* a seat handed to you: bring its sheet here */
+      if (m.ctl === u.uid && !owns(code, m.uid) && !boundChar(code, m.uid, "borrow")) borrow(code, m);
+      /* yours, back from a stand-in: take the sheet as they left it */
+      if (!m.ctl && m.ret && owns(code, m.uid)) {
+        var ch = isNpc(m.uid) ? boundChar(code, m.uid, "npc") : charOf(code, m.uid);
+        if (ch && (+ch.seatRet || 0) < m.ret) pull(code, m, ch);
+      }
+    });
+    /* borrowed copies whose seat is no longer yours to play */
+    chars().slice().forEach(function (ch) {
+      var b = bound(ch); if (!b || b.kind !== "borrow" || b.code !== code) return;
+      var r = list.find(function (m) { return m.uid === b.uid; });
+      if (!r || r.ctl !== u.uid) dropBorrow(ch);
+    });
+    checkAsks(code, k);
+    /* the GM's Characters tab and a player's own settings follow the rows */
+    if (A.gmset && A.gmset.redraw && gmIs(code)) { try { A.gmset.redraw(); } catch (e) {} }
+    if (Z.open) drawPlayer();
+  }
+  async function borrow(code, m) {
+    var c = camp(), key = "b|" + code + "|" + m.uid; if (!c || inFlight[key]) return; inFlight[key] = 1;
+    try {
+      var sh = await c.sheet(code, m.uid); if (!sh) return;
+      var ch = JSON.parse(sh.data); try { ch = migrate(ch); } catch (e) {}
+      delete ch.npc; delete ch.seatReq; delete ch.campLock;
+      ch.id = "c" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+      ch.seat = { code: code, uid: m.uid, kind: "borrow", owner: isNpc(m.uid) ? "the GM" : (m.name || "") };
+      ch.crDone = true;
+      if (boundChar(code, m.uid, "borrow")) return;
+      chars().push(ch); try { save(); } catch (e) {}
+      say("The GM handed you " + (ch.name || "a character") + " to play.");
+      rerender();
+    } catch (e) {} finally { delete inFlight[key]; }
+  }
+  function dropBorrow(ch) {
+    var i = chars().indexOf(ch); if (i < 0) return;
+    var wasOpen = typeof C !== "undefined" && C === ch;
+    chars().splice(i, 1);
+    if (wasOpen) { var j = chars().findIndex(function (x) { var b = bound(x); return !b || b.kind !== "borrow"; }); try { setActiveAt(Math.max(0, j)); } catch (e) {} }
+    try { save(); } catch (e) {}
+    say((ch.name || "A character") + " went back to its owner.");
+    rerender();
+  }
+  async function pull(code, m, ch) {
+    var c = camp(), key = "p|" + code + "|" + m.uid; if (!c || inFlight[key]) return; inFlight[key] = 1;
+    try {
+      var sh = await c.sheet(code, m.uid);
+      var i = chars().indexOf(ch); if (i < 0) return;
+      if (!sh) { ch.seatRet = m.ret; try { save(); } catch (e) {} return; }
+      var nc = JSON.parse(sh.data); try { nc = migrate(nc); } catch (e) {}
+      ["id", "seat", "npc", "campLock", "seatReq"].forEach(function (f) { if (ch[f] !== undefined) nc[f] = ch[f]; else delete nc[f]; });
+      nc.seatRet = m.ret; nc.crDone = true;
+      var wasOpen = typeof C !== "undefined" && C === ch;
+      chars()[i] = nc;
+      if (wasOpen) { try { setActiveAt(i); } catch (e) {} }
+      try { save(); } catch (e) {}
+      say((nc.name || "Your character") + " is back — with everything that happened while someone else played it.");
+      rerender();
+    } catch (e) {} finally { delete inFlight[key]; }
+  }
+
+  /* ---- asking for an extra character ---------------------------------------------------------------------- */
+  function recordFor(ch) { return A.campUI && A.campUI._recordFor ? A.campUI._recordFor(ch) : null; }
+  async function ask(code, ch) {
+    var c = camp(), u = user(); if (!c || !u || !c.requestSeat) return;
+    if (!ch) {
+      ch = blank("New Character"); try { ch = migrate(ch); } catch (e) {}
+      ch.name = "New Character"; if (ch.info) ch.info.name = ch.name; ch.crDone = false;
+      var S = cs(), st = S && S.camp && S.code === code ? +((S.camp.rules || {}).start) : 0; if (st > 0 && ch.info) ch.info.level = st;
+      chars().push(ch);
+    }
+    var r = recordFor(ch); if (!r) { Z.msg = "That character is too large to share."; drawPlayer(); return; }
+    var seat = newExtra();
+    try {
+      await c.requestSeat(code, seat, u.name || "", r.rec);
+      ch.seatReq = { code: code, uid: seat }; try { save(); } catch (e) {}
+      Z.msg = "Asked the GM to let you add " + (ch.name || "this character") + ".";
+      var k = await c.get(code); checkAsks(code, k);
+    } catch (e) { Z.msg = "Could not reach the cloud."; }
+    drawPlayer(); if (A.shell && A.shell.rerender) A.shell.rerender();
+  }
+  async function checkAsks(code, k) {
+    var c = camp(), u = user(); if (!c || !u) return;
+    var asking = chars().filter(function (ch) { return ch.seatReq && ch.seatReq.code === code; });
+    for (var i = 0; i < asking.length; i++) {
+      var ch = asking[i], seat = ch.seatReq.uid, key = "a|" + seat; if (inFlight[key]) continue; inFlight[key] = 1;
+      try {
+        var kk = k && k.allow ? k : await c.get(code);
+        if (kk && (kk.allow || []).indexOf(seat) >= 0) {
+          var r = recordFor(ch); if (!r) continue;
+          await c.attachSeat(seat, u.name || "", code, r.rec, r.sheet);
+          delete ch.seatReq; ch.seat = { code: code, uid: seat, kind: "extra" }; try { save(); } catch (e) {}
+          Z.msg = ""; say("The GM let you add " + (ch.name || "your character") + ".");
+          if (A.campUI && A.campUI.refreshIfOpen) A.campUI.refreshIfOpen(code);
+          rerender();
+        } else if (c.myRequest && !(await c.myRequest(code, seat))) {
+          delete ch.seatReq; try { save(); } catch (e) {}
+          Z.msg = ""; say("The GM did not let you add " + (ch.name || "that character") + ".");
+          rerender();
+        }
+      } catch (e) {} finally { delete inFlight[key]; }
+    }
+  }
+  async function withdraw(code, ch) {
+    var c = camp(); if (!c || !ch || !ch.seatReq) return;
+    try { await c.withdraw(code, ch.seatReq.uid); } catch (e) {}
+    delete ch.seatReq; try { save(); } catch (e) {} drawPlayer();
+  }
+  async function removeExtra(code, ch) {
+    var c = camp(), b = bound(ch); if (!c || !b || b.kind !== "extra") return;
+    try { await c.dropMember(code, b.uid); } catch (e) { Z.msg = "Could not reach the cloud."; drawPlayer(); return; }
+    delete ch.seat; try { save(); } catch (e) {}
+    Z.msg = (ch.name || "That character") + " left the campaign. It stays in your characters.";
+    if (A.campUI && A.campUI.refreshIfOpen) A.campUI.refreshIfOpen(code);
+    rerender();
+  }
+  function openChar(ch) {
+    var i = chars().indexOf(ch); if (i < 0) return;
+    try { setActiveAt(i); } catch (e) {}
+    Z.open = false; drawPlayer();
+    if (A.shell && A.shell.go) A.shell.go("characters");
+  }
+
+  /* ---- the GM: hand over and give back ------------------------------------------------------------------- */
+  async function setCtl(code, seat, uid) {
+    var c = camp(); if (!c || !c.setCtl) return;
+    var r = rowOf(code, seat);
+    try {
+      /* handing a seat to its own owner is giving it back */
+      if (uid && uid === (isNpc(seat) ? gmUid(code) : ownerOf(seat))) uid = "";
+      if (!uid && !(r && r.ctl)) return;
+      await c.setCtl(code, seat, uid);
+      say(uid ? (charName(code, seat) + " is now played by " + nameOf(code, uid) + ".") : (charName(code, seat) + " is back with its owner."));
+    } catch (e) { say("Could not reach the cloud."); }
+    if (A.campUI && A.campUI.refresh) await A.campUI.refresh();
+    if (A.gmset && A.gmset.redraw) A.gmset.redraw();
+  }
+  async function answer(code, seat, yes) {
+    var c = camp(); if (!c) return;
+    try { if (yes) await c.accept(code, seat); else await c.decline(code, seat); } catch (e) { say("Could not reach the cloud."); }
+    if (A.campUI && A.campUI.refresh) await A.campUI.refresh();
+    if (A.gmset && A.gmset.redraw) A.gmset.redraw();
+  }
+  /* Campaign settings → Characters */
+  function gmHTML(code) {
+    var S = cs(); if (!S || !S.camp || S.code !== code) return "";
+    var list = (S.members || []).filter(function (m) { return m.charId || m.charName; }), people = [];
+    var gm = S.camp.gm;
+    people.push({ uid: gm, name: (S.camp.gmName || "GM") + " (you)" });
+    (S.members || []).forEach(function (m) { if (!isNpc(m.uid) && !isExtra(m.uid)) people.push({ uid: m.uid, name: m.name || m.charName || "A player" }); });
+    var asks = (S.reqs || []).filter(function (r) { return isExtra(r.uid); });
+    var askBox = '<h4>Asking to add a character</h4>' + (asks.length ? asks.map(function (r) {
+      return '<div class="gsk2"><span><b>' + esc(r.name || "A player") + "</b> wants to add <b>" + esc(r.charName || "a new character") + "</b></span>" +
+        '<span class="gsbtns"><button class="btn sm hotbtn" data-seat="allow" data-uid="' + esc(r.uid) + '">Allow</button><button class="btn sm" data-seat="deny" data-uid="' + esc(r.uid) + '">No</button></span></div>';
+    }).join("") : '<p class="gsp2">Nobody is asking. A player asks from their own Campaign settings; each extra character needs your yes.</p>');
+    var rowsH = list.map(function (m) {
+      var own = isNpc(m.uid) ? gm : ownerOf(m.uid), ctl = m.ctl || own, out = m.ctl && m.ctl !== own;
+      var ownerName = isNpc(m.uid) ? "your NPC" : (nameOf(code, own) + (isExtra(m.uid) ? " (extra)" : ""));
+      var opts = people.map(function (p) { return '<option value="' + esc(p.uid) + '"' + (p.uid === ctl ? " selected" : "") + ">" + esc(p.uid === own ? p.name + " — owner" : p.name) + "</option>"; }).join("");
+      return '<div class="seatrow' + (out ? " seatout" : "") + '"><div><b>' + esc(m.charName || "No character yet") + "</b><small>" + esc(ownerName) + "</small></div>" +
+        '<label class="seatsel"><span>Played by</span><select data-seatctl="' + esc(m.uid) + '" aria-label="Who plays ' + esc(m.charName || "this character") + '">' + opts + "</select></label>" +
+        (out ? '<button class="btn sm" data-seat="back" data-uid="' + esc(m.uid) + '">Give back</button>' : "") + "</div>";
+    }).join("");
+    return '<div class="gsset seatset">' + askBox +
+      "<h4>Who plays what</h4><p class=\"gsp2\">Hand a character to someone else for now — a player who could not come, or you. Only they play it until you give it back; its owner sees it read-only, then gets it back with everything that happened.</p>" +
+      (rowsH || '<p class="gsp2">No characters yet.</p>') + "</div>";
+  }
+
+  /* ---- a player's Campaign settings: My characters --------------------------------------------------------- */
+  function playerHTML(code) {
+    var S = cs(), u = user(); if (!S || !S.camp || S.code !== code || !u) return "";
+    var mineSeats = (S.members || []).filter(function (m) { return owns(code, m.uid); });
+    var borrowed = chars().filter(function (ch) { var b = bound(ch); return b && b.code === code && b.kind === "borrow"; });
+    var asking = chars().filter(function (ch) { return ch.seatReq && ch.seatReq.code === code; });
+    var used = {}; seats(code).forEach(function (s) { used[s.charId] = 1; }); asking.forEach(function (ch) { used[ch.id] = 1; });
+    var pr = primaryRec(code); if (pr && pr.charId) used[pr.charId] = 1;
+    var free = chars().filter(function (ch) { return !used[ch.id] && !ch.npc && !ch.seat && !ch.campLock; });
+    var row = function (m) {
+      var ch = charOf(code, m.uid), out = handedOut(code, m.uid), main = m.uid === u.uid;
+      return '<div class="seatrow' + (out ? " seatout" : "") + '"><div><b>' + esc(m.charName || (ch && ch.name) || "No character yet") + "</b><small>" + (main ? "Your character" : "Extra character") +
+        (out ? " · played by " + esc(nameOf(code, out)) + " for now (read only)" : "") + "</small></div><span class=\"gsbtns\">" +
+        (out ? '<button class="btn sm" data-seat="view" data-uid="' + esc(m.uid) + '">View sheet</button>' : ch ? '<button class="btn sm hotbtn" data-seat="open" data-id="' + esc(ch.id) + '">Open sheet</button>' : "") +
+        (!main && !out && ch ? '<button class="btn sm warn" data-seat="rm" data-id="' + esc(ch.id) + '">' + (Z.armed === "rm:" + ch.id ? "Really remove?" : "Remove") + "</button>" : "") + "</span></div>";
+    };
+    return '<div class="gsset seatset">' + (Z.msg ? '<div class="campmsg">' + esc(Z.msg) + "</div>" : "") +
+      "<h4>My characters</h4>" + (mineSeats.length ? mineSeats.map(row).join("") : '<p class="gsp2">None yet.</p>') +
+      (borrowed.length ? "<h4>Handed to you</h4>" + borrowed.map(function (ch) {
+        return '<div class="seatrow"><div><b>' + esc(ch.name || "A character") + "</b><small>" + esc(ch.seat.owner ? ch.seat.owner + "’s" : "Someone’s") + " — yours to play until the GM gives it back</small></div>" +
+          '<span class="gsbtns"><button class="btn sm hotbtn" data-seat="open" data-id="' + esc(ch.id) + '">Open sheet</button></span></div>';
+      }).join("") : "") +
+      (asking.length ? "<h4>Waiting for the GM</h4>" + asking.map(function (ch) {
+        return '<div class="seatrow"><div><b>' + esc(ch.name || "A character") + "</b><small>The GM has to say yes</small></div>" +
+          '<span class="gsbtns"><button class="btn sm" data-seat="withdraw" data-id="' + esc(ch.id) + '">Cancel</button></span></div>';
+      }).join("") : "") +
+      "<h4>Add another character</h4><p class=\"gsp2\">Play more than one character in this campaign. The GM says yes to each one.</p>" +
+      '<div class="camprow2"><select id="seatPick" aria-label="Which character">' + free.map(function (ch) { return '<option value="' + esc(ch.id) + '"' + (Z.pick === ch.id ? " selected" : "") + ">" + esc(ch.name || "Unnamed") + "</option>"; }).join("") +
+      '<option value=""' + (!free.length || Z.pick === "" && !free.length ? " selected" : "") + ">A new character</option></select>" +
+      '<button class="btn hotbtn" data-seat="ask">Ask the GM</button></div></div>';
+  }
+  function drawPlayer() {
+    var S = cs(), u = user(), dr = $("#seatDrawer");
+    var ok = Z.open && S && S.screen === "campaign" && S.camp && u && S.camp.gm !== u.uid;
+    if (!ok) { if (dr) dr.remove(); return; }
+    var html = '<div class="gsh"><b>Campaign settings</b><span>' + esc(S.camp.name) + '</span><button class="btn sm" data-seat="close" aria-label="Close">✕</button></div>' +
+      '<div class="gsbody">' + playerHTML(S.code) + "</div>";
+    if (!dr) { dr = document.createElement("aside"); dr.id = "seatDrawer"; dr.className = "gsdrawer"; dr.setAttribute("aria-label", "Campaign settings"); document.body.appendChild(dr); }
+    if (dr._h !== html) { dr.innerHTML = html; dr._h = html; }
+  }
+
+  /* ---- events ------------------------------------------------------------------------------------------------ */
+  function onClick(e) {
+    var t = e.target; if (!t || !t.closest) return;
+    if (t.closest("[data-seatbtn]")) { Z.open = !Z.open; Z.msg = ""; drawPlayer(); return; }
+    var b = t.closest("[data-seat]"); if (!b) return;
+    var a = b.getAttribute("data-seat"), S = cs(), code = S && S.code; if (!code) return;
+    var id = b.getAttribute("data-id"), ch = id ? chars().find(function (x) { return x.id === id; }) : null;
+    if (a === "close") { Z.open = false; drawPlayer(); }
+    else if (a === "ask") { var sel = $("#seatPick"), pick = sel ? sel.value : ""; Z.pick = pick; ask(code, pick ? chars().find(function (x) { return x.id === pick; }) : null); }
+    else if (a === "open" && ch) openChar(ch);
+    else if (a === "view") { Z.open = false; drawPlayer(); if (A.campUI && A.campUI.viewSheet) A.campUI.viewSheet(b.getAttribute("data-uid")); }
+    else if (a === "withdraw" && ch) withdraw(code, ch);
+    else if (a === "rm" && ch) { if (Z.armed !== "rm:" + ch.id) { Z.armed = "rm:" + ch.id; drawPlayer(); return; } Z.armed = null; removeExtra(code, ch); }
+    else if (a === "back") setCtl(code, b.getAttribute("data-uid"), "");
+    else if (a === "allow" || a === "deny") answer(code, b.getAttribute("data-uid"), a === "allow");
+  }
+  function onChange(e) {
+    var t = e.target; if (!t || !t.getAttribute) return;
+    var seat = t.getAttribute("data-seatctl"); if (!seat) return;
+    var S = cs(); if (!S || !S.code) return;
+    setCtl(S.code, seat, t.value);
+  }
+  function boot() {
+    if (root.__seatsBooted) return; root.__seatsBooted = 1;
+    document.addEventListener("click", onClick);
+    document.addEventListener("change", onChange);
+  }
+  if (typeof document !== "undefined") { if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot); else boot(); }
+
+  A.seats = { isNpc: isNpc, isExtra: isExtra, ownerOf: ownerOf, owns: owns, controls: controls, handedOut: handedOut, ctlOf: ctlOf, rowOf: rowOf,
+    bound: bound, charOf: charOf, seats: seats, extraSeats: extraSeats, isMine: isMine, acting: acting, primaryChar: primaryChar,
+    sync: sync, gmHTML: gmHTML, playerHTML: playerHTML, drawPlayer: drawPlayer, setCtl: setCtl, ask: ask, nameOf: nameOf, _Z: Z, _M: M };
 })(typeof globalThis !== "undefined" ? globalThis : window);
 
 /* ArchSoul — the quick character builder on the campaign join screen.
@@ -36569,9 +36961,10 @@ body.has-logtab #homeWrap .homeinner{padding-left:max(22px,56px)}
   /* the GM's NPCs: their Action Dice roll on their sheet when it is open, and hits on them land there */
   async function npcTick() {
     if (!G.enc || !A.campUI || !A.campUI.npcChar) return;
-    var npcs = G.enc.order.filter(function (o) { return o.kind === "player" && /^npc_/.test(o.uid); });
+    var npcs = G.enc.order.filter(function (o) { return o.kind === "player" && (/^npc_/.test(o.uid) || (A.seats && A.seats.isMine(G.code, o.uid))); });
     for (var i = 0; i < npcs.length; i++) {
-      var ch = A.campUI.npcChar(npcs[i].uid); if (!ch) continue;
+      if (A.seats && A.seats.handedOut(G.code, npcs[i].uid)) continue;
+      var ch = A.campUI.npcChar(npcs[i].uid) || (A.seats && A.seats.charOf(G.code, npcs[i].uid)); if (!ch) continue;
       try { roundStart(G.code, G.enc, { uid: npcs[i].uid, charId: ch.id }); } catch (e) {}
       if (A.strike && A.strike.npcPoll) { try { await A.strike.npcPoll(G.code, npcs[i].uid, ch.id); } catch (e) {} }
     }
@@ -36603,7 +36996,9 @@ body.has-logtab #homeWrap .homeinner{padding-left:max(22px,56px)}
       var order = st.members.map(function (m) {
         var o = { id: "p" + m.uid, kind: "player", uid: m.uid, name: m.charName || "Player", init: null, hide: false };
         /* an NPC rolls on the GM's device, the way a creature does */
-        var nc = /^npc_/.test(m.uid) && A.campUI && A.campUI.npcChar ? A.campUI.npcChar(m.uid) : null;
+        var nc = /^npc_/.test(m.uid) && A.campUI && A.campUI.npcChar && !(A.seats && A.seats.handedOut(st.code, m.uid)) ? A.campUI.npcChar(m.uid) : null;
+        /* a player's character the GM is playing for now rolls here too */
+        if (!nc && A.seats && A.seats.isMine(st.code, m.uid)) nc = A.seats.charOf(st.code, m.uid);
         if (nc) { var b = 0, prev = C; try { C = nc; b = (typeof initAuto === "function") ? +initAuto() || 0 : 0; } catch (e) {} finally { C = prev; } o.init = d20roll() + b; o.manual = true; }
         return o;
       });
@@ -36819,7 +37214,7 @@ body.has-logtab #homeWrap .homeinner{padding-left:max(22px,56px)}
     var ad = A.ui && A.ui.adapter && A.ui.adapter(), c = ad && ad.camp, p = P[code] || (P[code] = { t: 0, list: [], busy: false });
     if (!c || !c.members || p.busy || (!force && Date.now() - p.t < 8000)) return p.list;
     p.busy = true;
-    try { p.list = await c.members(code); p.t = Date.now(); } catch (e) {} finally { p.busy = false; }
+    try { p.list = await c.members(code); p.t = Date.now(); if (A.seats) A.seats.sync(code, p.list); } catch (e) {} finally { p.busy = false; }
     return p.list;
   }
   /* the GM's device reads everyone's pushed sheet summary and writes it into the encounter, so players get the whole party for the one read they already make */
@@ -36835,7 +37230,10 @@ body.has-logtab #homeWrap .homeinner{padding-left:max(22px,56px)}
     /* in a fight the relayed copy in the encounter is the freshest; a list loaded before it is not */
     if (oe) m = { uid: uid, charName: (m && m.charName) || oe.name, sum: oe.pv };
     if (!m) { var cs = A.campUI && A.campUI._state; if (cs && cs.code === code) m = (cs.members || []).find(function (x) { return x.uid === uid; }); }
-    if (u && uid === u.uid && A.campUI && A.campUI._factsOf && typeof C !== "undefined" && C) {
+    if (u && uid !== u.uid && A.seats && A.seats.isMine(code, uid) && A.campUI && A.campUI._factsOf) {
+      var sc = A.seats.charOf(code, uid); if (sc) return { uid: uid, charName: sc.name || (m && m.charName) || "", sum: A.campUI._factsOf(sc), ctl: m && m.ctl };
+    }
+    if (u && uid === u.uid && A.campUI && A.campUI._factsOf && typeof C !== "undefined" && C && !(A.seats && A.seats.handedOut(code, uid))) {
       var mr = mineRec(code), ch = mr && DB.chars.find(function (x) { return x.id === mr.charId; });
       if (ch) return { uid: uid, charName: ch.name || (m && m.charName) || "You", sum: A.campUI._factsOf(ch) };
     }
@@ -36894,16 +37292,16 @@ body.has-logtab #homeWrap .homeinner{padding-left:max(22px,56px)}
   /* ---- player side -------------------------------------------------------------- */
   var E = {}, rolled = {}, opened = {}, plT = null;
 
-  async function rollMine(code, mine, enc) {
+  async function rollMine(code, mine, enc, seat) {
     var c = api(), u = user(); if (!c || !u) return;
     var ch = (typeof DB !== "undefined") ? DB.chars.find(function (x) { return x.id === mine.charId; }) : null;
     if (!ch) return;
-    var total = 0, note = "";
+    var total = 0, note = "", who = seat || u.uid, rk = seat ? code + "|" + seat : code;
     var prev = C;
     try { C = ch; var r = d20(), iv = initVal(); total = r.val + iv; note = r.note + " + " + iv; } finally { C = prev; }
-    rolled[code] = enc.rollId;
-    try { await c.postRoll(code, u.uid, { rollId: enc.rollId, total: total, note: note }); say("Initiative: " + total); }
-    catch (e) { delete rolled[code]; }
+    rolled[rk] = enc.rollId;
+    try { await c.postRoll(code, who, { rollId: enc.rollId, total: total, note: note }); say((seat ? (ch.name || "Your character") + "’s " : "") + "Initiative: " + total); }
+    catch (e) { delete rolled[rk]; }
   }
   /* encDoc: the encounter as the live push delivered it — only that campaign is handled, with no fetch */
   async function pollPlayer(liveCode, fresh, encDoc) {
@@ -36916,12 +37314,23 @@ body.has-logtab #homeWrap .homeinner{padding-left:max(22px,56px)}
         var enc = pushed ? encDoc : await c.get(mine[i].code);
         if (pushed && !fresh) fresh = [];                  /* strikes come on their own push: no extra fetch for them here */
         E[mine[i].code] = enc && enc.status !== "ended" ? enc : null;
-        if (enc && enc.status === "rolling" && rolled[mine[i].code] !== enc.rollId) await rollMine(mine[i].code, mine[i], enc);
+        var out = A.seats && A.seats.handedOut(mine[i].code, user().uid);
+        if (enc && enc.status === "rolling" && rolled[mine[i].code] !== enc.rollId && !out) await rollMine(mine[i].code, mine[i], enc);
         if (enc && (enc.status === "active" || enc.status === "eor" || enc.status === "rolling") && opened[mine[i].code] !== enc.rollId) { opened[mine[i].code] = enc.rollId; if (A.table) A.table.sit(mine[i].code); else if (activate(mine[i].code) && A.shell && A.shell.hide) A.shell.hide(); }
-        roundStart(mine[i].code, enc);
+        if (!out) roundStart(mine[i].code, enc);
+        /* every other seat this device plays: an extra character, or one the GM handed over */
+        var more = A.seats ? A.seats.extraSeats(mine[i].code) : [];
+        for (var j = 0; j < more.length; j++) {
+          var sm = more[j], asr = { uid: sm.uid, charId: sm.charId };
+          if (!enc || !enc.order.some(function (o) { return o.uid === sm.uid; }) && enc.status !== "rolling") continue;
+          if (enc.status === "rolling" && rolled[mine[i].code + "|" + sm.uid] !== enc.rollId && enc.order.some(function (o) { return o.uid === sm.uid; })) await rollMine(mine[i].code, sm, enc, sm.uid);
+          roundStart(mine[i].code, enc, asr);
+        }
         if (enc && (enc.status === "active" || enc.status === "eor")) {
           var fr = (liveCode === mine[i].code && fresh) ? (A.ann ? A.ann.ingest(mine[i].code, fresh) : fresh) : (A.ann ? await A.ann.poll(mine[i].code) : null);
-          if (A.strike) await A.strike.playerPoll(mine[i].code, user().uid, fr);
+          if (A.strike && !out) await A.strike.playerPoll(mine[i].code, user().uid, fr);
+          for (var q = 0; q < more.length; q++) if (A.strike) await A.strike.playerPoll(mine[i].code, more[q].uid, fr, { uid: more[q].uid, charId: more[q].charId });
+          followTurn(mine[i].code, enc);
         }
       } catch (e) {}
     }
@@ -36954,6 +37363,18 @@ body.has-logtab #homeWrap .homeinner{padding-left:max(22px,56px)}
     if (first) { if (C.combat && typeof root.toggleCombat === "function") root.toggleCombat(); C.vit.actions = 0; if (!C.combat && typeof root.toggleCombat === "function") root.toggleCombat(); }
     root.newRound();
     askState(enc.round);
+  }
+  /* when the turn reaches one of your characters, its sheet opens (once per turn) */
+  var followed = {};
+  function followTurn(code, enc) {
+    if (!enc || enc.status !== "active" || !A.seats) return;
+    var cur = enc.order[enc.turn], k = enc.rollId + ":" + enc.round + ":" + enc.turn; if (!cur || followed[code] === k) return;
+    var mine = A.seats.seats(code).find(function (s) { return s.uid === cur.uid; }); if (!mine) return;
+    followed[code] = k;
+    if (A.seats.seats(code).length < 2 || typeof C === "undefined" || !C || C.id === mine.charId || C._viewonly || A.viewing) return;
+    var i = DB.chars.findIndex(function (x) { return x.id === mine.charId; }); if (i < 0) return;
+    try { setActiveAt(i); } catch (e) {}
+    say("Your turn: " + (mine.charName || "your character") + ".");
   }
   /* seat this campaign's character, so the round is rolled on the right sheet */
   function sitAt(code) {
@@ -36994,7 +37415,7 @@ body.has-logtab #homeWrap .homeinner{padding-left:max(22px,56px)}
     if (!a) { if (bar) bar.remove(); var sp0 = document.getElementById("turnSpacer"); if (sp0) sp0.remove(); return; }
     var u = user(), enc = a.enc, active = enc.status === "active";
     if (!bar) { bar = document.createElement("div"); bar.id = "turnBar"; document.body.appendChild(bar); }
-    var cur = active ? enc.order[enc.turn] : null, mineNow = !!(cur && cur.uid && u && cur.uid === u.uid);
+    var cur = active ? enc.order[enc.turn] : null, mineNow = !!(cur && cur.uid && u && (A.seats ? A.seats.isMine(a.code, cur.uid) : cur.uid === u.uid));
     bar.className = mineNow ? "mine" : "";
     bar.innerHTML = '<span class="tbhd">' + (active ? "Round " + enc.round : "Rolling Initiative…") + "</span>" +
       enc.order.map(function (o, i) {
@@ -37013,8 +37434,10 @@ body.has-logtab #homeWrap .homeinner{padding-left:max(22px,56px)}
   }
   var sor = {}, manaDone = {};
   function mineRec(code) { var st = camp(); return st && st.mine.find(function (m) { return m.code === code && m.role === "player"; }); }
-  function activate(code) { var m = mineRec(code); if (!m) return false; var i = DB.chars.findIndex(function (x) { return x.id === m.charId; }); if (i < 0) return false; if (C.id !== m.charId) setActiveAt(i); return true; }
-  function asMine(code, fn) { var m = mineRec(code), ch = m && DB.chars.find(function (x) { return x.id === m.charId; }); if (!ch) return null; var prev = C; C = ch; try { return fn(); } finally { C = prev; } }
+  /* the character you play here right now: the open sheet if it is one of yours, else your own */
+  function myCharId(code) { var a = A.seats && A.seats.acting(code); if (a && a.ch) return a.ch.id; var m = mineRec(code); return m ? m.charId : ""; }
+  function activate(code) { var id = myCharId(code); if (!id) return false; var i = DB.chars.findIndex(function (x) { return x.id === id; }); if (i < 0) return false; if (C.id !== id) setActiveAt(i); return true; }
+  function asMine(code, fn) { var id = myCharId(code), ch = id && DB.chars.find(function (x) { return x.id === id; }); if (!ch) return null; var prev = C; C = ch; try { return fn(); } finally { C = prev; } }
   /* the prompts only the player can act on, because only their device holds their sheet */
   function myPrompts(a, cur, mineNow) {
     var enc = a.enc, code = a.code, h = "", key = enc.round + ":" + enc.turn;
@@ -37048,12 +37471,13 @@ body.has-logtab #homeWrap .homeinner{padding-left:max(22px,56px)}
     var u = user(), c = api(); if (!u || !c) return;
     for (var code in E) {
       var enc = E[code]; if (!enc || (enc.status !== "active" && enc.status !== "eor")) continue;
-      if (!enc.order.some(function (o) { return o.uid === u.uid; })) continue;
+      var my = A.seats ? A.seats.seats(code).map(function (s) { return s.uid; }) : [u.uid];
+      if (!enc.order.some(function (o) { return my.indexOf(o.uid) >= 0; })) continue;
       try { var f = await c.get(code); if (f) { enc = f; E[code] = f; } } catch (x) {}
       if (enc.status === "eor") { say("The round is over — the GM starts the next one."); continue; }
       var cur = enc.order[enc.turn];
-      if (!cur || cur.uid !== u.uid) { say("It is " + (cur ? (cur.kind === "monster" && cur.hide ? "a creature" : cur.name) : "someone else") + "’s turn — your Resolve ends your own turn."); continue; }
-      try { await c.postTurn(code, u.uid, { round: enc.round, turn: enc.turn }); say("Turn resolved — passing to the next."); } catch (e) { say("Could not reach the GM — try Resolve again."); }
+      if (!cur || my.indexOf(cur.uid) < 0) { say("It is " + (cur ? (cur.kind === "monster" && cur.hide ? "a creature" : cur.name) : "someone else") + "’s turn — your Resolve ends your own turn."); continue; }
+      try { await c.postTurn(code, cur.uid, { round: enc.round, turn: enc.turn }); say("Turn resolved — passing to the next."); } catch (e) { say("Could not reach the GM — try Resolve again."); }
     }
   }
 
@@ -37098,7 +37522,7 @@ body.has-logtab #homeWrap .homeinner{padding-left:max(22px,56px)}
 
   A.combat = { live: live, gmHTML: gmHTML, gmEnter: gmEnter, leave: gmLeave, wire: wire, onResolve: onResolve, _initBonusOf: initBonusOf, _rehydrate: rehydrate, _api: { G: G, privSave: privSave, push: function () { return push(); }, guard: guard, cur: cur, log: log, refreshHw: refreshHw }, _G: G, _E: E, _poll: pollPlayer, _sort: sortOrder,
     _enc: function (code) { return E[code] || null; }, _gmTick: gmTick, _pollLive: pollPlayer, _gmReload: gmReload, _start: start,
-    _addBlock: function (id, n, hide) { var p = G.pick, nn = G.n; G.pick = id; G.n = n; G.addHide = !!hide; G.noPush = true; try { addMonster(); } finally { G.pick = p; G.n = nn; G.addHide = false; G.noPush = false; } }, _party: partyHTML, _pcard: pcard, _memberOf: memberOf, _members: loadMembers, _setMembers: function (code, list) { var p = P[code] || (P[code] = { t: 0, list: [], busy: false }); p.list = list.map(function (m) { var x = {}; for (var k in m) if (k !== "full") x[k] = m[k]; return x; }); p.t = Date.now(); if (G.code === code && G.enc) syncPv(); },
+    _addBlock: function (id, n, hide) { var p = G.pick, nn = G.n; G.pick = id; G.n = n; G.addHide = !!hide; G.noPush = true; try { addMonster(); } finally { G.pick = p; G.n = nn; G.addHide = false; G.noPush = false; } }, _party: partyHTML, _pcard: pcard, _memberOf: memberOf, _members: loadMembers, _setMembers: function (code, list) { var p = P[code] || (P[code] = { t: 0, list: [], busy: false }); p.list = list.map(function (m) { var x = {}; for (var k in m) if (k !== "full") x[k] = m[k]; return x; }); if (A.seats) A.seats.sync(code, p.list); p.t = Date.now(); if (G.code === code && G.enc) syncPv(); },
     _ribbon: ribbonHTML, _timer: timerHTML, _logList: logList, _memberList: function (code) { return (P[code] && P[code].list) || []; }, _prompts: myPrompts, _draw: function () { drawBar(); } };
 })(typeof globalThis !== "undefined" ? globalThis : window);
 
@@ -37239,7 +37663,7 @@ body.has-logtab #homeWrap .homeinner{padding-left:max(22px,56px)}
       S.seen[x.id] = 1; if (x.at > S.since[code]) S.since[code] = x.at;
       if (x.fx === "rxclaim" || x.fx === "call" || x.fx === "rest") return;
       if (x.status === "echo") { show("<span class=\"annres\">" + esc(x.result) + "</span>", 9000); return; }
-      if (x.from === u.uid) return;
+      if (x.from === u.uid || (A.seats && A.seats.isMine(code, x.from))) return;
       var k = x.from + "|" + x.label + "|" + x.acc + "|" + x.at;
       if (!groups[k]) { groups[k] = []; order.push(k); } groups[k].push(x);
     });
@@ -37719,7 +38143,7 @@ body.has-logtab #homeWrap .homeinner{padding-left:max(22px,56px)}
     if (mv.k === "help") ["power", "vigor", "arcane", "agility"].forEach(function (a) { conds.push("h_" + a + ":" + Math.round(num(typeof checkVal === "function" ? checkVal(a) : 0))); });
     var at = Date.now(), sent = 0;
     for (var i = 0; i < tg.length; i++) {
-      var o = tg[i], st = { id: mvRid(), from: u.uid, fromName: who, toId: o.id, toUid: o.kind === "player" ? (o.uid || "") : "", toName: o.name, acc: 0, crit: !!(r && r.n20), fumble: false,
+      var o = tg[i], st = { id: mvRid(), from: (f.as && !/^npc_/.test(f.as) ? f.as : u.uid), fromName: who, toId: o.id, toUid: o.kind === "player" ? (o.uid || "") : "", toName: o.name, acc: 0, crit: !!(r && r.n20), fumble: false,
         phys: 0, soul: 0, tru: 0, fx: "move", label: mv.label, round: f.enc.round || 0, at: at, status: "posted", result: "",
         evAttr: mv.vs || "", evDiff: r ? r.tot : 0, evMode: mv.ck ? "contest" : "", noAcc: true, conds: conds.join(",") };
       try { await c.postStrike(f.code, st); sent++; } catch (e) { say("Could not reach the cloud."); break; }
@@ -37874,7 +38298,7 @@ body.has-logtab #homeWrap .homeinner{padding-left:max(22px,56px)}
       if (S.autoFor !== s.id) { S.autoFor = s.id; var sid0 = s.id; setTimeout(function () { if (S.incoming && S.incoming.s.id === sid0 && !S.applying) takeIncoming(); }, 2500); }
       return;
     }
-    var forNpc = S.incoming.as ? (function () { var ch = DB.chars.find(function (x) { return x.id === S.incoming.as.charId; }); return ch ? '<div class="innpc">Your NPC <b>' + esc(ch.name) + "</b></div>" : ""; })() : "";
+    var forNpc = S.incoming.as ? (function () { var ch = DB.chars.find(function (x) { return x.id === S.incoming.as.charId; }); return ch ? '<div class="innpc">' + (/^npc_/.test(S.incoming.as.uid) ? "Your NPC" : "For") + ' <b>' + esc(ch.name) + "</b></div>" : ""; })() : "";
     box.innerHTML = '<div class="inbox">' + forNpc + "<h4>" + esc(s.fromName) + (s.label ? " — " + esc(s.label) : (S.incoming.as ? " strikes" : " strikes you")) + "</h4>" +
       (heal ? "<p>Restores you.</p>" : (s.noAcc ? "" : "<p>Accuracy <b>" + esc(s.acc) + "</b>" + (s.crit ? " (critical)" : s.fumble ? " (fumble)" : "") + " vs your Armor <b>" + esc(armor) + "</b> → <b>" + (hit ? "HIT" : "MISS") + "</b></p>") + (ev && hit ? "<p>Evade with <b>" + esc(attName(s.evAttr)) + "</b> — Difficulty <b>" + esc(s.evDiff) + "</b>. " + ({ all: "Success negates the damage and Conditions.", cond: "Success negates the Conditions.", half: "Success takes half damage." })[s.evMode || "half"] + "</p>" : "")) + (condsOf(s).length ? "<p>Inflicts " + esc(condsOf(s).map(condName).join(", ")) + ".</p>" : "") +
       "<p>" + [s.phys ? s.phys + " Physical" : "", s.soul ? s.soul + " Soul" + (s.fx && !heal ? " (" + esc(fxName(s.fx)) + ")" : "") : "", s.tru ? s.tru + " True" : ""].filter(Boolean).join(" · ") + "</p>" +
@@ -38053,14 +38477,21 @@ body.has-logtab #homeWrap .homeinner{padding-left:max(22px,56px)}
     for (var code in E) {
       var enc = E[code]; if (!enc || (enc.status !== "active" && enc.status !== "eor")) continue;
       var m = st.mine.find(function (x) { return x.code === code && x.role === "player" && x.charId === C.id; });
-      if (m) return { code: code, enc: enc, mine: m };
+      /* your own character, unless the GM handed it to someone for now (then it is theirs to play) */
+      if (m && !(A.seats && A.seats.handedOut(code, u.uid))) return { code: code, enc: enc, mine: m };
+      /* an extra character of yours, or one handed to you (the GM's too): it acts as its own seat */
+      var sb = A.seats && A.seats.bound(C);
+      if (sb && sb.kind !== "npc" && sb.code === code && A.seats.controls(code, sb.uid) && enc.order.some(function (o) { return o.uid === sb.uid; }))
+        return { code: code, enc: enc, mine: { code: code, role: "player", charId: C.id, charName: C.name }, as: sb.uid };
       /* the GM on one of their NPCs' sheets acts as that NPC */
-      if (C.npc && C.npc.code === code && st.mine.some(function (x) { return x.code === code && x.role === "gm"; }) && enc.order.some(function (o) { return o.uid === C.npc.uid; }))
+      if (C.npc && C.npc.code === code && st.mine.some(function (x) { return x.code === code && x.role === "gm"; }) && !(A.seats && A.seats.handedOut(code, C.npc.uid)) && enc.order.some(function (o) { return o.uid === C.npc.uid; }))
         return { code: code, enc: enc, mine: { code: code, role: "player", charId: C.id, charName: C.name }, as: C.npc.uid };
     }
     return null;
   }
   function meUid(f) { var u = user(); return (f && f.as) || (u && u.uid) || ""; }
+  /* who a strike is from: the seat it acts as (an extra or handed-over character), but an NPC's stays the GM's */
+  function fromId(f) { var u = user(); return f && f.as && !/^npc_/.test(f.as) ? f.as : (u && u.uid) || ""; }
 
   /* ---- reading the ability the way the sheet's own card does ---------------------- */
   var EVMODE = { no: "all", half: "half", full: "cond" };
@@ -38245,7 +38676,7 @@ body.has-logtab #homeWrap .homeinner{padding-left:max(22px,56px)}
       var meO = f.enc.order.find(function (o) { return o.uid === meUid(f); }) || {}, who = meO.name || "Someone";
       var nm = (cap && cap.title) || title || (function () { try { return useItem(base).name; } catch (e) { return ""; } })() || "an ability";
       var txt = who + " uses " + nm + (cap ? " — " + (cap.segs ? cap.segs.map(function (x) { return x.label + " " + x.value + (x.tag ? " (" + x.tag + ")" : ""); }).join(", ") : String(cap.total || "") + (cap.suffix ? " · " + cap.suffix : "")) : "");
-      var ed = { id: rid(), from: u.uid, fromName: who, toId: meO.id || "", toUid: "", toName: who, acc: 0, crit: false, fumble: false, phys: 0, soul: 0, tru: 0, fx: "", label: String(nm).slice(0, 60), round: f.enc.round, at: Date.now(), status: "echo", result: txt, evAttr: "", evDiff: 0, evMode: "", noAcc: true, conds: tg.tokens.join(",") };
+      var ed = { id: rid(), from: fromId(f), fromName: who, toId: meO.id || "", toUid: "", toName: who, acc: 0, crit: false, fumble: false, phys: 0, soul: 0, tru: 0, fx: "", label: String(nm).slice(0, 60), round: f.enc.round, at: Date.now(), status: "echo", result: txt, evAttr: "", evDiff: 0, evMode: "", noAcc: true, conds: tg.tokens.join(",") };
       try { await c.postStrike(f.code, ed); if (A.ann && A.ann._S) A.ann._S.seen[ed.id] = 1; if (A.ann) A.ann.show('<span class="annres">' + String(txt).replace(/[<>&]/g, "") + "</span>", 6000); } catch (e) { say("Could not reach the cloud."); }
       if (A.react) { A.react.ingest(f.code, [ed]); A.react.posted(f.code); }
       if (A.textab && A.textab.afterUse) A.textab.afterUse(base, f, [], null);
@@ -38255,7 +38686,7 @@ body.has-logtab #homeWrap .homeinner{padding-left:max(22px,56px)}
     var me = f.enc.order.find(function (o) { return o.uid === meUid(f); }), at = Date.now(), sent = 0;
     for (var i = 0; i < ids.length; i++) {
       var to = f.enc.order.find(function (o) { return o.id === ids[i]; }); if (!to) continue;
-      var s = { id: rid(), from: u.uid, fromName: (me && me.name) || f.mine.charName || "Someone", toId: to.id, toUid: to.uid || "", toName: to.name, round: f.enc.round, at: at, status: "posted", result: "" };
+      var s = { id: rid(), from: fromId(f), fromName: (me && me.name) || f.mine.charName || "Someone", toId: to.id, toUid: to.uid || "", toName: to.name, round: f.enc.round, at: at, status: "posted", result: "" };
       var dt = kind === "quick" ? data : build(base, cap, kind, to.kind === "monster" ? "enemy" : "ally");
       if (kind !== "quick") {
         var tok = String(dt.conds || "").split(",").filter(Boolean);
@@ -38664,7 +39095,7 @@ body.has-logtab #homeWrap .homeinner{padding-left:max(22px,56px)}
   function ingest(code, docs) {
     var u = user(); if (!u || !C.dominion) return;
     (docs || []).forEach(function (s) {
-      if (s.from !== u.uid || X.sent[s.id] || s.status === "posted") return;
+      if ((s.from !== u.uid && !(A.seats && A.seats.isMine(code, s.from))) || X.sent[s.id] || s.status === "posted") return;
       if (String(s.conds || "").split(",").indexOf("tx_dom") < 0) return;
       X.sent[s.id] = 1;
       if (/critical hit|\bhit\b/i.test(s.result || "")) { C.dominion.hits = (C.dominion.hits || 0) + 1; }
@@ -38828,11 +39259,15 @@ body.has-logtab #homeWrap .homeinner{padding-left:max(22px,56px)}
   /* ---- who am I in this fight ------------------------------------------------- */
   function encOf(code) { return (A.combat && A.combat._enc && A.combat._enc(code)) || (A.combat && A.combat._G && A.combat._G.code === code ? A.combat._G.enc : null); }
   function gmHere(code) { var G = A.combat && A.combat._G; return !!(G && G.code === code && G.enc); }
-  function meIn(code) { var u = user(), e = encOf(code); return u && e ? e.order.find(function (o) { return o.uid === u.uid; }) : null; }
+  /* the seat you react with: the character on your open sheet if it is one of yours here, else your own */
+  function mySeat(code) { var u = user(); if (!u) return ""; var a = A.seats && A.seats.acting(code); return a ? a.uid : u.uid; }
+  function meIn(code) { var e = encOf(code), s = mySeat(code); return s && e ? e.order.find(function (o) { return o.uid === s; }) : null; }
   function myChar(code) {
+    var a = A.seats && A.seats.acting(code); if (a && a.ch) return a.ch;
     var st = A.campUI && A.campUI._state, m = st && (st.mine || []).find(function (x) { return x.code === code && x.role === "player"; });
     return m && typeof DB !== "undefined" ? DB.chars.find(function (x) { return x.id === m.charId; }) : null;
   }
+  function fromMe(code, from) { var u = user(); if (!u) return false; return from === u.uid || !!(A.seats && A.seats.isMine(code, from)); }
   function onMyChar(code, fn) { var ch = myChar(code); if (!ch) return null; var prev = C; try { C = ch; return fn(); } finally { C = prev; } }
   function canReactAt(code) {
     return onMyChar(code, function () {
@@ -38896,14 +39331,14 @@ body.has-logtab #homeWrap .homeinner{padding-left:max(22px,56px)}
     var best = null;
     Object.keys(R.acts).forEach(function (gid) {
       var a = R.acts[gid];
-      if (R.decided[gid] || a.from === u.uid) return;
+      if (R.decided[gid] || fromMe(a.code, a.from)) return;
       if (Date.now() - a.seen > W() + (a.rx ? 2000 : 0)) return;
       if (a.cost === 0 || a.ty === "divination") return;
       var e = encOf(a.code); if (!e || e.status !== "active") return;
       var gm = gmHere(a.code);
       if (!gm && !meIn(a.code)) return;
       if (!gm && !canReactAt(a.code)) return;
-      var w = winner(gid), wardOnly = a.rx || (w && w.from !== u.uid);
+      var w = winner(gid), wardOnly = a.rx || (w && !fromMe(a.code, w.from));
       if (wardOnly && !gm && !hasWards(a.code)) return;
       if (!best || a.seen > best.a.seen) best = { a: a, wardOnly: !!wardOnly };
     });
@@ -38922,7 +39357,7 @@ body.has-logtab #homeWrap .homeinner{padding-left:max(22px,56px)}
     var a = R.acts[p.gid]; if (!a) { if (bar) bar.remove(); return; }
     var left = Math.max(0, W() + (a.rx ? 2000 : 0) - (Date.now() - a.seen)), pct = Math.round(100 * left / (W() + (a.rx ? 2000 : 0)));
     if (!left) { R.decided[p.gid] = 1; R.prompt = null; if (bar) bar.remove(); return; }
-    var w = winner(p.gid), who = w && w.from !== user().uid ? '<small class="rxwho">' + esc(w.name || "Someone") + " is reacting — Wards only</small>" : "";
+    var w = winner(p.gid), who = w && !fromMe(p.code, w.from) ? '<small class="rxwho">' + esc(w.name || "Someone") + " is reacting — Wards only</small>" : "";
     var html = '<div class="rxtext">' + actText(a) + who + '</div><div class="rxbtns"><button class="btn rxgo" data-rx="go">' + (p.wardOnly ? "🛡 Ward" : "⚡ React") + ' <kbd>R</kbd></button><button class="linkbtn" data-rx="pass">Pass</button></div><div class="rxtime"><i style="width:' + pct + '%"></i></div>';
     if (!bar) { bar = document.createElement("div"); bar.id = "rxBar"; bar.setAttribute("role", "alert"); document.body.appendChild(bar); }
     if (bar._h !== html) { bar.innerHTML = html; bar._h = html; }
@@ -38935,7 +39370,8 @@ body.has-logtab #homeWrap .homeinner{padding-left:max(22px,56px)}
     var a = R.acts[p.gid]; if (!a) return;
     R.decided[p.gid] = 1;
     var ward = !!p.wardOnly, gm = gmHere(a.code), me = meIn(a.code);
-    var claim = { id: rid("c"), from: u.uid, fromName: gm ? "GM" : (me && me.name) || "Someone", toId: a.gid, toUid: u.uid, toName: "", acc: 0, crit: false, fumble: false, phys: 0, soul: 0, tru: 0,
+    var sx = gm ? u.uid : mySeat(a.code);
+    var claim = { id: rid("c"), from: sx, fromName: gm ? "GM" : (me && me.name) || "Someone", toId: a.gid, toUid: sx, toName: "", acc: 0, crit: false, fumble: false, phys: 0, soul: 0, tru: 0,
       fx: "rxclaim", label: ward ? "Ward" : "Reaction", round: (encOf(a.code) || {}).round || 0, at: Date.now(), status: "claim", result: "", conds: "rxclaim:" + a.gid + (ward ? ",rxward" : "") };
     R.prompt = null; draw();
     try { await c.postStrike(a.code, claim); } catch (e) { say("Could not reach the cloud."); return; }
@@ -38944,7 +39380,7 @@ body.has-logtab #homeWrap .homeinner{padding-left:max(22px,56px)}
     if (!ward) {
       await new Promise(function (r) { setTimeout(r, CLAIM_SETTLE); });
       var w = winner(a.gid);
-      if (w && w.from !== u.uid) {
+      if (w && !fromMe(a.code, w.from)) {
         await closeClaim(claim.id, "cancel");
         if (!gm && hasWards(a.code)) { say((w.name || "Someone") + " reacted first — you can still cast a Ward."); ward = true; }
         else { say((w.name || "Someone") + " reacted first. One Reaction per action."); return; }
@@ -39152,7 +39588,7 @@ body.has-logtab #homeWrap .homeinner{padding-left:max(22px,56px)}
     var dirty = false;
     (docs || []).forEach(function (s) {
       if (s.fx !== "call" && s.fx !== "rest") return;
-      if (s.toUid === u.uid && s.status === "posted" && !X.done[s.id]) prompt(code, s);
+      if ((s.toUid === u.uid || (A.seats && A.seats.isMine(code, s.toUid))) && s.status === "posted" && !X.done[s.id]) prompt(code, s);
       var key = X.mine[s.id] || ((/(?:^|,)call:([^,]+)/.exec(s.conds || "") || [])[1]);
       var r = key && X.results[key];
       if (r && s.status !== "posted" && r.rows[s.toUid] && !r.rows[s.toUid].res) {
@@ -39170,7 +39606,8 @@ body.has-logtab #homeWrap .homeinner{padding-left:max(22px,56px)}
     if (!(A.live && A.live.any()) && S.code) { var ids = Object.keys(X.mine); for (var j = 0; j < ids.length; j++) { var r = X.results[X.mine[ids[j]]]; if (!r || r.code !== S.code) continue; try { var d = await c.strike(S.code, ids[j]); if (d) ingest(S.code, [d]); } catch (e) {} } }
     X.sweepN = (X.sweepN || 0) + 1;
     for (var i = 0; i < pm.length; i++) { if (A.live && A.live.on && A.live.on(pm[i].code) && X.sweepN % 5) continue;   /* live strikes bring these; back-up once a minute */
-      try { (await c.waiting(pm[i].code, u.uid)).forEach(function (s) { if ((s.fx === "call" || s.fx === "rest") && !X.done[s.id]) prompt(pm[i].code, s); }); } catch (e) {} }
+      var who = A.seats ? A.seats.seats(pm[i].code).map(function (x) { return x.uid; }) : [u.uid];
+      for (var w = 0; w < who.length; w++) { try { (await c.waiting(pm[i].code, who[w])).forEach(function (s) { if ((s.fx === "call" || s.fx === "rest") && !X.done[s.id]) prompt(pm[i].code, s); }); } catch (e) {} } }
   }
 
   /* ---- the player's side ------------------------------------------------------------- */
@@ -39190,14 +39627,16 @@ body.has-logtab #homeWrap .homeinner{padding-left:max(22px,56px)}
       '<div class="clbtns"><button class="btn hotbtn" data-clp="go">' + (rest ? "Rest now" : "Roll " + esc(s.label)) + "</button>" + (rest ? '<button class="btn" data-clp="no">Not yet</button>' : "") + "</div>" +
       (queue.length > 1 ? "<small>" + (queue.length - 1) + " more waiting</small>" : "") + "</div>";
   }
-  function myChar(code) {
+  /* the character the call is for: the seat it was sent to, if it is one you play here */
+  function myChar(code, seat) {
+    var ch = A.seats && seat ? A.seats.charOf(code, seat) : null; if (ch) return DB.chars.indexOf(ch);
     var S = cs(), m = S && (S.mine || []).find(function (x) { return x.code === code && x.role === "player"; });
     return m ? DB.chars.findIndex(function (x) { return x.id === m.charId; }) : -1;
   }
   async function answer(go) {
     var q = queue.shift(); draw(); if (!q) return;
     var c = api(), s = q.s; X.done[s.id] = 1;
-    var i = myChar(q.code); if (i >= 0 && C.id !== DB.chars[i].id) setActiveAt(i);
+    var i = myChar(q.code, s.toUid); if (i >= 0 && C.id !== DB.chars[i].id) setActiveAt(i);
     var name = C.name || "Someone", res = "";
     if (s.fx === "rest") {
       if (!go) res = name + " does not Rest yet.";
@@ -39497,9 +39936,9 @@ body.has-logtab #homeWrap .homeinner{padding-left:max(22px,56px)}
     document.querySelectorAll("[data-gsbtn]").forEach(function (b) { b.classList.toggle("on", D.open); });
     if (!c || !D.open) { if (dr) dr.remove(); document.body.classList.remove("gs-open"); return; }
     if (!D.loaded[c.code]) load(c.code);
-    var body = D.tab === "lobby" && A.lobby ? A.lobby.settingsHTML(c.code) : D.tab === "rules" ? rulesHTML(c.code) : D.tab === "journal" ? journalHTML(c.code) : D.tab === "enc" ? encHTML(c.code) : D.tab === "blocks" ? blocksHTML(c.code) : settingsHTML(c.code);
+    var body = D.tab === "chars" && A.seats ? A.seats.gmHTML(c.code) : D.tab === "lobby" && A.lobby ? A.lobby.settingsHTML(c.code) : D.tab === "rules" ? rulesHTML(c.code) : D.tab === "journal" ? journalHTML(c.code) : D.tab === "enc" ? encHTML(c.code) : D.tab === "blocks" ? blocksHTML(c.code) : settingsHTML(c.code);
     var html = '<div class="gsh"><b>Campaign settings</b><span>' + esc(c.name) + '</span><button class="btn sm" data-gs="close" aria-label="Close">✕</button></div>' +
-      '<div class="gstabs" role="tablist">' + tabBtn("rules", "Rules") + (A.lobby ? tabBtn("lobby", "Lobby & roles") : "") + tabBtn("journal", "Creature journal") + tabBtn("enc", "Encounters") + tabBtn("blocks", "Stat blocks") + tabBtn("set", "Settings") + "</div>" +
+      '<div class="gstabs" role="tablist">' + tabBtn("rules", "Rules") + (A.lobby ? tabBtn("lobby", "Lobby & roles") : "") + (A.seats ? tabBtn("chars", "Characters" + (A.seats && cs() && (cs().reqs || []).some(function (r) { return A.seats.isExtra(r.uid); }) ? " ●" : "")) : "") + tabBtn("journal", "Creature journal") + tabBtn("enc", "Encounters") + tabBtn("blocks", "Stat blocks") + tabBtn("set", "Settings") + "</div>" +
       (D.err ? '<div class="campmsg bad">' + esc(D.err) + "</div>" : "") +
       '<div class="gsbody">' + (D.loaded[c.code] ? body : '<div class="gsempty">Loading…</div>') + "</div>";
     if (!dr) { dr = document.createElement("aside"); dr.id = "gmDrawer"; dr.setAttribute("aria-label", "Campaign settings"); document.body.appendChild(dr); }
@@ -40135,12 +40574,14 @@ body.has-logtab #homeWrap .homeinner{padding-left:max(22px,56px)}
   }
 
   /* ---- writing ---------------------------------------------------------------------------------------------- */
-  async function saveClaim(code, claim) {
+  /* seat: your own uid, or an extra character's seat (each has its own picks) */
+  async function saveClaim(code, claim, seat) {
     var u = user(), c = camp(); if (!u || !c || !c.setClaim) return;
-    var S = cs(), m = S && (S.members || []).find(function (x) { return x.uid === u.uid; });
+    seat = seat || u.uid;
+    var S = cs(), m = S && (S.members || []).find(function (x) { return x.uid === seat; });
     var sum = Object.assign({}, (m && m.sum) || {}, { claim: claim });
     if (m) m.sum = sum;
-    try { await c.setClaim(code, u.uid, sum); } catch (e) { L.msg = "Could not reach the cloud."; L.bad = true; }
+    try { await c.setClaim(code, seat, sum); } catch (e) { L.msg = "Could not reach the cloud."; L.bad = true; }
     rerender();
   }
   async function setLobby(code, patch) {
@@ -40216,13 +40657,14 @@ body.has-logtab #homeWrap .homeinner{padding-left:max(22px,56px)}
     }).join("");
     return '<select data-lbp="' + name + '"' + (lockedTo ? " disabled" : "") + ">" + o + "</select>";
   }
-  function mineHTML(k, members, u) {
-    var meM = (members || []).find(function (m) { return m.uid === u.uid; }); if (!meM) return "";
-    var me = picksOf(meM), C2 = cfg(k), tk = takenFor(k, members, u.uid, me), gf = gapFn(members, u.uid);
-    var probs = problems(k, members, u.uid, me, { lobby: true }), ready = me.ready && !probs.length;
+  function mineHTML(k, members, u, seat) {
+    seat = seat || u.uid;
+    var meM = (members || []).find(function (m) { return m.uid === seat; }); if (!meM) return "";
+    var me = picksOf(meM), C2 = cfg(k), tk = takenFor(k, members, seat, me), gf = gapFn(members, seat);
+    var probs = problems(k, members, seat, me, { lobby: true }), ready = me.ready && !probs.length;
     var as = (me.as || []).concat(["", "", "", ""]).slice(0, 4);
     var asTk = function (i) { return C2.claim.as === "all" || (C2.claim.as === "first" && i === 0) ? tk.as : null; };
-    return '<div class="camppanel wide lbmine"><b>Your picks</b>' +
+    return '<div class="camppanel wide lbmine" data-lbseat="' + esc(seat) + '"><b>' + (seat === u.uid ? "Your picks" : "Your picks — extra character" + (meM.charName && meM.charName !== "New Character" ? ": " + esc(meM.charName) : "")) + "</b>" +
       '<div class="campsub">Claim what you plan to play. Everyone sees it. ' + (C2.locked ? "<b>These are locked in</b> — your character will be made with them." : "You can still change your mind when you make your character.") + "</div>" +
       '<div class="lbgrid">' +
         "<label>Class" + sel("cls", classOpts(), me.cls, "— Class —", tk.cls, function (x) { return gf("cls", x); }) + "</label>" +
@@ -40258,7 +40700,7 @@ body.has-logtab #homeWrap .homeinner{padding-left:max(22px,56px)}
     var roster = '<div class="campsec"><span>Party</span><i class="secount">' + pl.length + "</i>" + chipHTML(k, members) + "</div>" + infoHTML(k, members) + '<div class="lbcards">' + cards + "</div>";
     var leave = !gm ? '<div class="gatebtns"><button class="btn warn" data-camp="leave">' + (pieces.armedLeave ? "Really leave?" : "Leave the lobby") + "</button></div>" : "";
     return '<div class="homeinner lbpage">' + pieces.top + head + (L.msg ? '<div class="campmsg' + (L.bad ? " bad" : "") + '">' + esc(L.msg) + "</div>" : "") + pieces.msg +
-      (gm ? pieces.codeBox + pieces.reqs + start : mineHTML(k, members, u)) + roster + leave + "</div>";
+      (gm ? pieces.codeBox + pieces.reqs + start : mineHTML(k, members, u) + (members || []).filter(function (m) { return m.uid !== u.uid && A.seats && A.seats.isExtra(m.uid) && A.seats.controls(k.code, m.uid); }).map(function (m) { return mineHTML(k, members, u, m.uid); }).join("")) + roster + leave + "</div>";
   }
 
   /* ---- after Start: the player without a character yet ---------------------------------------------------- */
@@ -40364,10 +40806,11 @@ body.has-logtab #homeWrap .homeinner{padding-left:max(22px,56px)}
     else if (a === "infox") { L.info = false; rerender(); }
     else if (a === "settings") { if (A.gmset && A.gmset.openTab) A.gmset.openTab("lobby"); }
     else if (a === "ready" || a === "unready") {
-      var me = (S.members || []).find(function (m) { return m.uid === u.uid; }); if (!me) return;
+      var sp = b.closest("[data-lbseat]"), seat = (sp && sp.getAttribute("data-lbseat")) || u.uid;
+      var me = (S.members || []).find(function (m) { return m.uid === seat; }); if (!me) return;
       var cl = Object.assign({}, (me.sum && me.sum.claim) || {}); cl.ready = a === "ready";
-      if (cl.ready && problems(k, S.members, u.uid, picksOf({ uid: u.uid, sum: { claim: cl } }), { lobby: true }).length) return;
-      saveClaim(k.code, cl);
+      if (cl.ready && problems(k, S.members, seat, picksOf({ uid: seat, sum: { claim: cl } }), { lobby: true }).length) return;
+      saveClaim(k.code, cl, seat);
     }
     else if (a === "start") {
       var pl = party(S.members), nr = pl.filter(function (p) { return !(p.ready && !problems(k, S.members, p.uid, p, { lobby: true }).length); });
@@ -40382,7 +40825,8 @@ body.has-logtab #homeWrap .homeinner{padding-left:max(22px,56px)}
     var S = cs(), u = user(), k = S && S.camp; if (!k || !u) return;
     var p = t.getAttribute("data-lbp");
     if (p) {
-      var me = (S.members || []).find(function (m) { return m.uid === u.uid; }); if (!me) return;
+      var sp0 = t.closest && t.closest("[data-lbseat]"), seat0 = (sp0 && sp0.getAttribute("data-lbseat")) || u.uid;
+      var me = (S.members || []).find(function (m) { return m.uid === seat0; }); if (!me) return;
       var cl = Object.assign({ as: [], t: {} }, clone((me.sum && me.sum.claim) || {})); cl.t = cl.t || {}; cl.as = (cl.as || []).slice(0, 4);
       while (cl.as.length < 4) cl.as.push("");
       var now = Date.now(), v = t.value;
@@ -40393,7 +40837,7 @@ body.has-logtab #homeWrap .homeinner{padding-left:max(22px,56px)}
       else if (/^as\d$/.test(p)) { var i = +p.slice(2); cl.as[i] = v; cl.t["as" + i] = now; }
       /* no gaps in the ArchSoul list: the first is always the primary */
       cl.as = cl.as.filter(Boolean); cl.ready = false;
-      saveClaim(k.code, cl);
+      saveClaim(k.code, cl, seat0);
       return;
     }
     var s = t.getAttribute("data-lbs");
@@ -40436,15 +40880,22 @@ body.has-logtab #homeWrap .homeinner{padding-left:max(22px,56px)}
 
   function mineRec(code) { var s = st(); return s && (s.mine || []).find(function (m) { return m.code === code && m.role === "player"; }); }
   function encOf(code) { return (A.combat && A.combat._enc && A.combat._enc(code)) || null; }
-  function myChar(code) { var m = mineRec(code); return m && typeof DB !== "undefined" ? DB.chars.find(function (x) { return x.id === m.charId; }) : null; }
+  /* the character you play here: the open sheet if it is one of yours in this campaign (an extra, or one handed to
+     you), else your own — or, while yours is handed to someone, the first one you still play */
+  function myChar(code) {
+    var a = A.seats && A.seats.acting(code); if (a && a.ch) return a.ch;
+    var m = mineRec(code); return m && typeof DB !== "undefined" ? DB.chars.find(function (x) { return x.id === m.charId; }) : null;
+  }
+  function mine(code, uid) { var u = user(); return !!uid && (A.seats ? A.seats.isMine(code, uid) : !!(u && uid === u.uid)); }
 
   /* ---- sitting down and standing up ------------------------------------------------ */
   function sit(code) {
     var m = mineRec(code); if (!m || !m.charId) return false;   /* no character yet (lobby): the campaign page, not the table */
-    var i = DB.chars.findIndex(function (x) { return x.id === m.charId; });
+    var sc = myChar(code), cid = sc ? sc.id : m.charId;
+    var i = DB.chars.findIndex(function (x) { return x.id === cid; });
     if (i < 0) { say("The character you joined with is not on this device."); return false; }
     T.code = code; remember();
-    if (C.id !== m.charId && typeof setActiveAt === "function") setActiveAt(i);
+    if (C.id !== cid && typeof setActiveAt === "function") setActiveAt(i);
     if (A.shell && A.shell.hide) A.shell.hide();
     loadMembers(true);
     T.gm = T.gm || {};
@@ -40484,7 +40935,7 @@ body.has-logtab #homeWrap .homeinner{padding-left:max(22px,56px)}
       return;
     }
     var e = encOf(code), active = !!(e && e.status === "active"), rolling = !!(e && e.status === "rolling");
-    var cur = active ? e.order[e.turn] : null, mineNow = !!(cur && cur.uid === u.uid);
+    var cur = active ? e.order[e.turn] : null, mineNow = !!(cur && mine(code, cur.uid));
     var phone = window.matchMedia && window.matchMedia("(max-width: 760px)").matches;
     /* The table shows ONLY during a fight, and only over the sheet of the character you play in it (16 Nov):
        not between fights, not on another character, not in the Book of Life. You stay seated — the turn still
@@ -40513,7 +40964,7 @@ body.has-logtab #homeWrap .homeinner{padding-left:max(22px,56px)}
       status = '<div class="tdstat' + (mineNow ? " mine" : "") + '" role="status" aria-live="polite"><span class="tdround">Round ' + e.round + "</span>" +
         (mineNow ? '<b class="tdyou">Your turn</b>' : '<span class="tdwho">' + esc(cur ? (cur.kind === "monster" && cur.hide ? "???" : cur.name) : "") + "’s turn</span>") + (A.combat._timer ? A.combat._timer(code, e) : "") +
         (function () { var n = e.order.length > 1 ? e.order[(e.turn + 1) % e.order.length] : null; if (!n) return "";
-          var you = n.uid === u.uid; return '<span class="tdnext' + (you ? " you" : "") + '">' + (you ? "you’re up next" : "next: " + esc(n.kind === "monster" && n.hide ? "???" : n.name)) + "</span>"; })() + "</div>";
+          var you = mine(code, n.uid); return '<span class="tdnext' + (you ? " you" : "") + '">' + (you ? "you’re up next" : "next: " + esc(n.kind === "monster" && n.hide ? "???" : n.name)) + "</span>"; })() + "</div>";
     } else if (e && e.status === "eor") {
       status = '<div class="tdstat" role="status" aria-live="polite"><span class="tdround">End of Round ' + e.round + '</span><span class="tdwho">The GM is ending the round — your Action Dice roll when the next one starts</span></div>';
     } else if (rolling) {
@@ -40534,7 +40985,7 @@ body.has-logtab #homeWrap .homeinner{padding-left:max(22px,56px)}
 
     var rows = (e && e.order && e.order.length && A.combat._party) ? A.combat._party(code, e) : calmRows(code);
     var log = (e && e.log && e.log.length) ? '<div class="tdsec">Log</div><div class="tdlog">' + (A.combat._logList ? A.combat._logList(e.log) : "") + "</div>" : "";
-    var ribbon = (e && A.combat._ribbon) ? A.combat._ribbon(code, e, u.uid) : "";
+    var act0 = A.seats && A.seats.acting(code), ribbon = (e && A.combat._ribbon) ? A.combat._ribbon(code, e, act0 ? act0.uid : u.uid) : "";
     var calmNote = (!e) ? '<div class="tdnote">When the GM starts a fight, your Initiative is rolled for you and the turn order appears here.</div>' : "";
 
     var cst = A.campUI && A.campUI._state, gmUid = cst && cst.camp && cst.camp.code === code ? cst.camp.gm : (T.gm && T.gm[code]);
