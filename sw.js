@@ -2,7 +2,7 @@
    The page itself: always asked of the website first, so an upload shows the moment you refresh; the copy kept
    here is only used when there is no connection. Everything else of the site's own (the sound clips, the icons):
    the kept copy at once, refreshed quietly behind it. Firebase and other sites are never touched. */
-var V = "archsoul-25ce9448c3-e28755";
+var V = "archsoul-25ce9448c3-6cf91f";
 var CORE = ["./", "./assets/manifest.webmanifest", "./icons/icon-192.png", "./icons/icon-512.png", "./icons/apple-touch-icon.png"];
 
 self.addEventListener("install", function (e) {
