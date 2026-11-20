@@ -19,7 +19,10 @@
   --vig:#4fb477; --vig-bg:#152e21; --vig-dim:#2a6344;
   --arc:#a878e8; --arc-bg:#251a3a; --arc-dim:#573991;
   --agi:#d9b04c; --agi-bg:#332a14; --agi-dim:#6e5a24;
-  --ink:#e8e4dc; --ink-dim:#9a938a; --ink-faint:#6b655d;
+  /* 19 Nov (C.J.): the quiet greys brightened so labels and notes can be read —
+     colour only, nothing resized. Faint was 3.0:1 on a window, now about 5:1;
+     dim moves up with it so the three steps still read as three. */
+  --ink:#e8e4dc; --ink-dim:#aaa298; --ink-faint:#8f887e;
   --bg:#12100f; --panel:#1c1a18; --panel-2:#242120; --line:#3a3532;
   --sunk:#0f0e0d; --bar:#0d0c0b;
   --hot:#c9a227; --bad:#e0453f; --good:#4fb477; --blue:#4d9de0; --teal:#2fa88a;
@@ -63,7 +66,7 @@
    "Imm"/"Ind" column heads measured 2.98:1 before and 2.75:1 after), so the
    faint ink is lifted with it on exactly these two windows. */
 .panel[data-type="stats"],
-.panel[data-type="conditions"]{background:var(--pbg,var(--p-lift));--ink-faint:#7d766c}
+.panel[data-type="conditions"]{background:var(--pbg,var(--p-lift));--ink-faint:#958e84}
 :root.lightmode .panel[data-type="stats"],
 :root.lightmode .panel[data-type="conditions"]{--ink-faint:#000000}
 /* sunk — the windows you read text and kit off */
@@ -2016,6 +2019,14 @@ select[data-spdom]{width:100%;margin-bottom:4px}
 .fpop .fd{color:var(--ink-dim,var(--ink-dim));max-height:5.6em;overflow:auto;line-height:1.35;font-size:.95em}
 .fpop .fa{margin-top:6px}
 .fpop .fa .mbtn{width:100%}
+/* a group of gains (19 Nov): one name per line, each goes to its feature */
+.fpop .flist{display:flex;flex-direction:column;gap:2px;margin-top:4px;max-height:9.5em;overflow:auto}
+.fpop .fli{all:unset;cursor:pointer;display:flex;gap:.5em;align-items:baseline;padding:.15em .3em;border-radius:3px;
+  font-weight:600;color:var(--ink);line-height:1.3}
+.fpop .fli:hover,.fpop .fli:focus-visible{background:var(--bar);color:#fff}
+.fpop .fli .flv{flex:none;font-size:.8em;font-weight:400;color:var(--ink-dim);min-width:2.6em}
+.fpop .fml{margin:.1em 0}
+.fpop .fml + .fml{border-top:1px solid var(--line);padding-top:.15em}
 
 /* Rune picker */
 .btn.wide{width:100%;margin-bottom:.4em}
@@ -12168,11 +12179,30 @@ function syncHL(el){
     if(need>el.clientHeight+1) el.style.height=(need+2)+"px";
   }
 }
-function hlAll(){ $$(".tawrap textarea").forEach(t=>{
-  const reading=document.activeElement!==t;
-  /* repaint when the text changed OR when the box has just changed face */
-  if(t._hlv===t.value && t._hlr===reading) return;
-  t._hlv=t.value; syncHL(t); }); }
+/* syncHL for every box that needs it, with the writing, the measuring and the
+   writing again done for all of them together, so the page is laid out once
+   rather than once per box (Speed, 19 Nov). Same result as calling syncHL on
+   each in turn. */
+function hlAll(){
+  const todo=[];
+  $$(".tawrap textarea").forEach(t=>{
+    const reading=document.activeElement!==t;
+    /* repaint when the text changed OR when the box has just changed face */
+    if(t._hlv===t.value && t._hlr===reading) return;
+    t._hlv=t.value;
+    const w=t.closest(".tawrap"); if(!w) return;
+    const h=w.querySelector(".hl"); if(!h) return;
+    todo.push({el:t,w,h,reading,fit:reading && !(t.dataset.p && (C.taH||{})[t.dataset.p]>0)});
+  });
+  if(!todo.length) return;
+  todo.forEach(o=>{ o.w.classList.toggle("reading",o.reading);
+    o.h.innerHTML = o.reading ? hlPara(o.el.value||"") : hlHTML(o.el.value||"")+"\n";
+    o.el._hlv=o.el.value; o.el._hlr=o.reading; });
+  todo.forEach(o=>{ o.st=o.el.scrollTop; o.sl=o.el.scrollLeft;
+    if(o.fit){ o.need=o.h.scrollHeight; o.ch=o.el.clientHeight; } });
+  todo.forEach(o=>{ o.h.scrollTop=o.st; o.h.scrollLeft=o.sl;
+    if(o.fit && o.need>o.ch+1) o.el.style.height=(o.need+2)+"px"; });
+}
 </script>
 <script>
 /* Origins — Book 2, updated by C.J. (Sep 2026).
@@ -13835,7 +13865,9 @@ function coarse(){
    back, innerWidth went up with it, and nothing could ever bring it under
    the threshold again. `documentElement.clientWidth` is the initial
    containing block and stayed truthful at 393 through all of it. */
+var SW_MEMO=null;     /* set for the length of one render(), like PH_MEMO */
 function screenW(){
+  if(SW_MEMO!=null) return SW_MEMO;
   const d=typeof document!=="undefined" && document.documentElement;
   const w=d && d.clientWidth;
   return (typeof w==="number"&&w>0) ? w
@@ -13843,7 +13875,12 @@ function screenW(){
 }
 /* Width AND a coarse pointer: a narrow desktop window is still a desktop,
    and the one thing worse than no phone layout is getting one on a laptop. */
+/* Speed (19 Nov): a page draw asked this once per window, and each asking made
+   the browser lay the half-built page out again. render() works it out once
+   and every window in that draw reads the same answer. */
+var PH_MEMO=null;   /* var: phone() may be asked before this line runs */
 function phone(){
+  if(PH_MEMO!=null) return PH_MEMO;
   if(screenW()>PH_MAX) return false;
   return typeof matchMedia!=="function" || coarse();
 }
@@ -15560,6 +15597,12 @@ if(typeof window!=="undefined"){
    still calls it is harmless. */
 function floatUncover(){}
 function render(){
+  const own=PH_MEMO==null;
+  if(own){ SW_MEMO=screenW(); PH_MEMO=phone(); }
+  try{ return renderNow.apply(this,arguments); }
+  finally{ if(own){ PH_MEMO=null; SW_MEMO=null; } }
+}
+function renderNow(){
   dirtyAll();                      // the DOM is about to be rebuilt from scratch
   const pg=page(), n=colCount(), cv=$("#canvas");
   if(floatOn(pg)){
@@ -15633,7 +15676,10 @@ function renderTabs(){
     +`<label class="switch themesw${lightOn()?" lit":""}" id="themeBtn"
         title="${lightOn()?"Light mode — the swatch colours as written":"Dark mode — the swatch colours lifted to read"}">
         <input type="checkbox" id="themeChk" ${lightOn()?"checked":""}><i></i>
-        <span class="tmoon">\u263e</span><span class="tsun">\u2600</span></label>`;
+        <span class="tmoon">\u263e</span><span class="tsun">\u2600</span></label>`
+    /* a phone: the sheet's Size (its column count) one tap away, held at the strip's right edge (19 Nov) */
+    +`<button class="phsize" data-phsize type="button" aria-label="Sheet size: how many columns" aria-haspopup="true">
+        <span class="phsg" aria-hidden="true">▦</span> <b>${phCols()}</b></button>`;
   if(typeof tabIntoView==="function") requestAnimationFrame(tabIntoView);
 }
 /* each page comes back where you left it (19 Nov, C.J.): its own scroll, and its own Size (pageFit) */
@@ -15711,6 +15757,30 @@ if(typeof document!=="undefined") (function(){
   },{passive:true});
   document.addEventListener("scroll",e=>{ if(e.target&&e.target.id==="tabbar") tabFade(); },true);
 })();
+/* ---- a phone: the Size button at the end of the tab strip (19 Nov, C.J.) ----
+   The phone sheet stays at 2 columns by default; this puts the choice one tap
+   away instead of inside Settings. It sets the same Size as the slider there. */
+const PH_COL_Z={1:135,2:100,3:70};
+function phSizeClose(){ const m=document.getElementById("phSizePop"); if(m) m.remove(); }
+function phSizeOpen(btn){
+  phSizeClose();
+  const r=btn.getBoundingClientRect(), n=phCols();
+  const m=document.createElement("div"); m.id="phSizePop"; m.className="menu phsizepop";
+  m.innerHTML=`<div class="phsh">Sheet size</div><div class="phsrow">${[1,2,3].map(k=>`<button type="button" class="btn${k===n?" on":""}" data-phcols="${k}">
+      <span class="phcg">${"▮".repeat(k)}</span>${k} column${k>1?"s":""}</button>`).join("")}</div>`;
+  document.body.appendChild(m);
+  m.style.top=Math.round(r.bottom+6)+"px";
+  m.style.right=Math.max(6,Math.round(innerWidth-r.right))+"px";
+  m.addEventListener("click",e=>{ const b=e.target.closest("[data-phcols]"); if(!b) return;
+    const zi=$("#zoom"); if(zi){ zi.value=PH_COL_Z[+b.dataset.phcols]; zi.dispatchEvent(new Event("input",{bubbles:true})); }
+    save(); $$("[data-phsize] b").forEach(x=>x.textContent=phCols()); phSizeClose(); });
+}
+if(typeof document!=="undefined") document.addEventListener("click",e=>{
+  const b=e.target.closest&&e.target.closest("[data-phsize]");
+  if(b){ e.stopPropagation(); if(document.getElementById("phSizePop")) phSizeClose(); else phSizeOpen(b); return; }
+  if(!(e.target.closest&&e.target.closest("#phSizePop"))) phSizeClose();
+},true);
+
 /* Once, after the first character is made on a touchscreen: a card that says
    the sheet swipes. It waits for the creator and any tutorial to be gone. */
 function swipeTipMaybe(){
@@ -15932,12 +16002,47 @@ function renderLists(){
    switches, until you drag it back to fit. */
 function fitH(el){ const h=el.style.height; el.style.height="auto";
   const n=el.scrollHeight+2; el.style.height=h; return n; }
-function autoGrow(el){
+/* Speed (19 Nov): every refresh used to re-fit all of the text boxes, and
+   each fit made the browser lay the whole page out again. On a phone that was
+   most of a second per keystroke. A box is re-fitted only when something that
+   decides its height changed since it was last fitted: its text, its width,
+   its font, its classes, or a height someone else gave it. AG_GEN throws every
+   fit away at once (fonts arriving late). Returns true when it wrote. */
+let AG_GEN=0;
+function agSig(el,w){ const cs=getComputedStyle(el);
+  return AG_GEN+"|"+w+"|"+cs.font+"|"+cs.paddingTop+"|"+cs.paddingBottom+"|"+el.className; }
+function autoGrow(el,w,sig){
   const k=el.dataset.p, own=k?+((C.taH||{})[k]||0):0;
-  if(own>0){ if(el.style.height!==own+"px") el.style.height=own+"px"; return; }
+  if(own>0){ el._agV=null;
+    if(el.style.height!==own+"px"){ el.style.height=own+"px"; return true; } return false; }
+  if(w===undefined){ w=el.clientWidth; sig=agSig(el,w); }
+  if(el._agV===el.value && el._agS===sig && el._agH===el.style.height) return false;
   el.style.height="auto"; el.style.height=(el.scrollHeight+2)+"px";
+  el._agV=el.value; el._agS=sig; el._agH=el.style.height;
+  return true;
 }
-function autoGrowAll(){ $$(".tawrap textarea, textarea.grow").forEach(autoGrow); }
+function autoGrowAll(){
+  const els=$$(".tawrap textarea, textarea.grow");
+  /* Read everything, then write everything: the page is laid out once to
+     find which boxes changed, and once more to measure the ones that did,
+     instead of once per box. */
+  const ws=els.map(el=>el.clientWidth), ss=els.map((el,i)=>agSig(el,ws[i]));
+  const todo=[];
+  els.forEach((el,i)=>{
+    const k=el.dataset.p, own=k?+((C.taH||{})[k]||0):0;
+    if(own>0){ el._agV=null; if(el.style.height!==own+"px") el.style.height=own+"px"; return; }
+    if(el._agV===el.value && el._agS===ss[i] && el._agH===el.style.height) return;
+    todo.push([el,ss[i]]);
+  });
+  if(!todo.length) return;
+  todo.forEach(([el])=>{ el.style.height="auto"; });
+  const hs=todo.map(([el])=>el.scrollHeight+2);
+  todo.forEach(([el,sig],i)=>{ el.style.height=hs[i]+"px";
+    el._agV=el.value; el._agS=sig; el._agH=el.style.height; });
+}
+try{ if(document.fonts&&document.fonts.addEventListener)
+  document.fonts.addEventListener("loadingdone",()=>{ AG_GEN++; try{ if(typeof C!=="undefined"&&C) autoGrowAll(); }catch(e){} });
+}catch(e){}
 /* remember a height the moment a drag-resize ends */
 function noteSize(el){
   const k=el.dataset.p; if(!k) return;
@@ -17405,7 +17510,7 @@ function spendMenu(kind,anchor){
     <div class="mrow"><label>Available</label><b class="${av>0?"good":"bad"}">${av}</b>
       <label style="margin-left:auto">Max Level</label><b>${+C.info.level||0}</b></div>
     <div class="spgrid tall col">${rows}</div>${doms}
-    <div class="note">Lowering a level refunds its point.
+    <div class="note tipln">Lowering a level refunds its point.
       An ArchSoul levels once your Lineage reaches ${CAP_LIN} <b>and</b> all three of its
       Domains are at ${CAP_DOMAIN}. A Class runs to ${CAP_CLS} on its own; past that is
       Prestige, which needs Lineage ${CAP_LIN} <b>and</b> a Celestial Weapon equipped.
@@ -17916,7 +18021,7 @@ function onLevelChange(){
   let wrote=false;
   gained.forEach(({g,f})=>{ if(featAddQuiet(g,f)) wrote=true; });
   if(wrote && bootDone && typeof sfx==="function") sfx("add");
-  if(bootDone) fresh.forEach(({g,f})=>featPop(g,f));
+  if(bootDone) featPops(fresh);
   /* picks whose source level is gone */
   const lin=+C.info.linLvl||0, cls=+C.info.clsLvl||0;
   C.picks=C.picks.filter(p=>{
@@ -18027,6 +18132,50 @@ function featPop(g,f){
   trimPops();
   el._die=setTimeout(()=>{ el.style.transition="opacity .5s"; el.style.opacity="0";
     setTimeout(()=>{el.remove();trimPops();},520); }, featMs());
+}
+/* 19 Nov (C.J.): gains arrive grouped by kind. A Class Level that brings four
+   features is one pop-up, "New Fighter Class Features", with the four names (each
+   one goes to the feature). Slot Abilities come one pop-up per list. A kind that
+   brings a single thing keeps the full pop-up with its description. */
+function featPops(fresh){
+  if(typeof inArena==="function"&&inArena()) return;
+  const groups=[], byKey={};
+  const add=(key,mk,g,f)=>{ if(!byKey[key]){ byKey[key]=mk(); byKey[key].items=[]; groups.push(byKey[key]); } byKey[key].items.push({g,f}); };
+  fresh.forEach(({g,f})=>{
+    if(g==="cls") add("cls",()=>({g,title:`New ${C.info.cls||"Class"} Class Features`}),g,f);
+    else if(g==="lin") add("lin",()=>({g,title:`New ${C.info.lineage||"Lineage"} Lineage Features`}),g,f);
+    else if(g==="arch") add("arch",()=>({g,title:"New ArchSoul Features"}),g,f);
+    else if(g==="org") add("org",()=>({g,title:"New Origin Features"}),g,f);
+    else if(g==="list"||g==="slot"){
+      /* a list and the abilities in it are one pop-up */
+      const m=/^sablist\|(.+)\|(\d+)$/.exec(f.k)||/^sab\|([^|]+)\|(\d+)\|/.exec(f.k);
+      const key=m?"sab|"+m[1]+"|"+m[2]:"sab";
+      add(key,()=>({g:"slot",title:m?`New Slot Abilities — ${m[1]}, Level ${m[2]}`:"New Slot Abilities"}),g,f);
+    }
+    else add(g,()=>({g,title:"New Features"}),g,f);
+  });
+  groups.forEach(gr=>{
+    const real=gr.items.filter(x=>x.g!=="list");
+    if(gr.items.length===1||(real.length===1&&gr.items.length===1)){ featPop(gr.items[0].g,gr.items[0].f); return; }
+    featPopGroup(gr.g,gr.title,gr.items);
+  });
+}
+function featPopGroup(g,title,items){
+  const box=$("#fpops"); if(!box) return;
+  const el=document.createElement("div");
+  el.className="fpop fgroup g-"+g;
+  const list=items.filter(x=>x.g!=="list");
+  const lead=items.find(x=>x.g==="list");
+  el.innerHTML=`<div class="ft"><b>${esc(title)}</b><button class="x">✕</button></div>
+    ${lead?`<div class="fd">${esc(lead.f.desc||"")}</div>`:""}
+    <div class="flist">${list.map((x,i)=>`<button class="fli" type="button" data-fli="${i}" title="Go to it">
+      <span class="flv">Lv${esc(String(x.f.lvl!=null?x.f.lvl:""))}</span>${esc(x.f.name||"")}</button>`).join("")}</div>`;
+  el.querySelector(".x").onclick=()=>{el.remove();trimPops();};
+  el.querySelectorAll("[data-fli]").forEach(b=>b.onclick=()=>{ const x=list[+b.dataset.fli]; goToFeat(x.g,x.f); el.remove(); trimPops(); });
+  box.appendChild(el);
+  trimPops();
+  el._die=setTimeout(()=>{ el.style.transition="opacity .5s"; el.style.opacity="0";
+    setTimeout(()=>{el.remove();trimPops();},520); }, featMs()+2000*Math.min(3,list.length-1));
 }
 /* never let the stack cover the sheet — 3 at a time, the rest queue behind a counter */
 /* show three at a time; the rest wait their turn and rotate in */
@@ -24843,7 +24992,7 @@ function milestonePop(title,body){
   const el=document.createElement("div");
   el.className="fpop g-mile";
   el.innerHTML=`<div class="ft"><b>Milestone</b><button class="x">✕</button></div>
-    <div class="fn">${esc(title)}</div><div class="fd">${esc(body)}</div>`;
+    <div class="fn">${esc(title)}</div><div class="fd">${Array.isArray(body)?body.map(l=>`<div class="fml">${esc(l)}</div>`).join(""):esc(body)}</div>`;
   el.querySelector(".x").onclick=()=>{el.remove(); if(typeof trimPops==="function") trimPops();};
   box.appendChild(el);
   if(typeof trimPops==="function") trimPops();
@@ -24987,14 +25136,20 @@ REFRESH_HOOKS.push(function watchChoices(){
   C.seenMile=C.seenMile||{};
   const lv=maxLvl();
   void 0;
+  /* 19 Nov (C.J.): what every character gets at a Max Level (Action Dice, Attribute
+     Caps, the reroll) is one "Max Level N" pop-up; an unlock (Runes) stays its own */
+  const common=[];
   MILESTONES.forEach(m=>{
     if(!m.at(lv)) return;
     const key=m.k+"|"+(m.k==="runes"?"":lv);
     if(C.seenMile[key]) return;
     C.seenMile[key]=1;
-    milestonePop(m.t(lv),m.d(lv));
+    if(m.k==="runes") milestonePop(m.t(lv),m.d(lv));
+    else common.push(m);
     saveSoon();
   });
+  if(common.length===1) milestonePop(common[0].t(lv),common[0].d(lv));
+  else if(common.length) milestonePop(`Max Level ${lv}`,common.map(m=>m.t(lv)+" — "+String(m.d(lv)).replace(/^Max Level \d+\.\s*/,"")));
 });
 
 /* ============================================================
@@ -25216,14 +25371,20 @@ function castBlocked(ref,sp){
    divider that separated it from the block on its left. CSS has no
    "first on its line" selector, so this measures it — one offsetLeft read
    per block, only when the Stats window is on screen. */
-REFRESH_HOOKS.push(function refreshSwrapDividers(){
-  $$(".swrap").forEach(w=>{
+/* Speed (19 Nov): all of the reading happens first and all of the writing
+   after, so the page is laid out once here instead of once per window. (It
+   stays inside the refresh: run a frame later, a freshly drawn page showed
+   one frame with the wrong dividers and the rows below jumped.) */
+REFRESH_HOOKS.push(function refreshSwrapDividers(){ swrapDividersNow(); });
+function swrapDividersNow(){
+  const plan=$$(".swrap").map(w=>{
     const kids=[...w.children].filter(e=>e.classList.contains("blk"));
-    if(!kids.length) return;
-    const left=Math.min(...kids.map(e=>e.offsetLeft));
-    kids.forEach((e,i)=>e.classList.toggle("wrapped", i>0 && e.offsetLeft<=left+1));
+    if(!kids.length) return null;
+    const lefts=kids.map(e=>e.offsetLeft), left=Math.min(...lefts);
+    return kids.map((e,i)=>[e, i>0 && lefts[i]<=left+1]);
   });
-});
+  plan.forEach(row=>row&&row.forEach(([e,on])=>e.classList.toggle("wrapped",on)));
+}
 /* ===================== Crafting =====================================
    Recipes for everything a Soul Hunter can make at a table. Flat lists
    (Basic, Consumable, Tool) are written out; Gems, Weapons and Armour are
@@ -30269,10 +30430,13 @@ function wire(){
     toast("Duplicated");};
   $("#bDel").onclick=()=>{const list=charList();
     if(list.length<2){toast("Keep at least one");return;}
-    if(!confirm("Delete "+C.name+"?"))return;
+    const cl=window.ArchCloud&&ArchCloud.ui&&ArchCloud.ui.signedIn&&ArchCloud.ui.signedIn();
+    if(!confirm("Delete "+C.name+"?"+(cl?" Its cloud copy is deleted too.":"")))return;
     const gone=C.id;
     const keep=list.filter(c=>c.id!==gone);
     setCharList(keep);
+    /* the cloud copy goes with it (19 Nov, C.J.) */
+    try{ if(window.ArchCloud&&ArchCloud.ui&&ArchCloud.ui.forget) ArchCloud.ui.forget(gone); }catch(e){}
     setActiveAt(0);
     toast("Deleted");};
   /* ---- Size ------------------------------------------------------------
@@ -34580,6 +34744,23 @@ html.ph,html.ph body{overscroll-behavior-x:none}
 @keyframes swDot{0%,100%{transform:translateX(0);opacity:.0}15%{opacity:.9}45%{transform:translateX(-70px);opacity:.9}55%{opacity:0;transform:translateX(-70px)}
   60%{transform:translateX(0);opacity:0}70%{opacity:.9}95%{transform:translateX(70px);opacity:0}}
 #swipeTip .btn{padding:6px 20px;border-color:var(--hot);color:var(--hot)}
+/* ---- a phone: the Size button pinned at the right end of the tab strip (19 Nov) ---- */
+#tabbar .phsize{display:none}
+html.ph #tabbar .phsize{display:inline-flex;align-items:center;gap:3px;position:sticky;right:0;margin-left:auto;flex:none;
+  padding:5px 9px;font-size:12px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--ink);
+  box-shadow:-10px 0 12px -4px var(--bg)}
+html.ph #tabbar .phsize b{color:var(--hot)}
+.phsizepop{position:fixed;z-index:1800;padding:8px;min-width:0}
+.phsizepop .phsh{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-dim);margin:0 2px 6px}
+.phsizepop .phsrow{display:flex;gap:6px}
+.phsizepop .btn{display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 10px;min-width:74px;font-size:12px}
+.phsizepop .btn.on{border-color:var(--hot);color:var(--hot)}
+.phsizepop .phcg{letter-spacing:2px;font-size:14px;color:var(--ink-dim)}
+/* the Size button sits at the right edge, so the strip fades only on the left; the button's own
+   shadow marks that more tabs run under it */
+html.ph #tabbar.fadeR{-webkit-mask-image:none;mask-image:none}
+html.ph #tabbar.fadeL.fadeR{-webkit-mask-image:linear-gradient(90deg,transparent,#000 34px);mask-image:linear-gradient(90deg,transparent,#000 34px)}
+html.ph #tabbar.fadeR .phsize{box-shadow:-22px 0 16px -6px var(--bg)}
 
 /* ---- Campaigns ---- */
 .camppanels{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin-bottom:22px}
@@ -35861,9 +36042,20 @@ button.rb.combat::before{content:"";--ps:var(--pxs1);--pn:8;--pc:2;--pr:4}
     async function sync(uid) {
       var report = { pushed: [], pulled: [], conflicts: [], tooLarge: [] };
       var cloud = await adapter.list(uid);
+      var m = Object.assign({}, meta.get());
+      /* characters deleted on this device take their cloud copy with them. A delete that could not
+         reach the cloud at the time (offline, signed out) is finished here, and never pulled back. */
+      var gone = Object.assign({}, m.__gone || {}), left = {};
+      /* one brought back since (loaded from a saved file) is wanted again: it is no longer gone */
+      getChars().forEach(function (c) { if (gone[c.id]) delete gone[c.id]; });
+      for (var gid in gone) {
+        try { if (cloud.some(function (r) { return r.id === gid; })) await adapter.remove(uid, gid); delete m[gid]; }
+        catch (e) { left[gid] = gone[gid]; }
+      }
+      m.__gone = left;
+      cloud = cloud.filter(function (r) { return !gone[r.id]; });
       var cloudById = {}; cloud.forEach(function (r) { cloudById[r.id] = r; });
       var local = getChars().slice();
-      var m = Object.assign({}, meta.get());
 
       /* A pristine default character is never uploaded. If it is the only thing
          here and the account already has characters, it steps aside for them. */
@@ -35944,7 +36136,22 @@ button.rb.combat::before{content:"";--ps:var(--pxs1);--pn:8;--pc:2;--pr:4}
       var m = Object.assign({}, meta.get()); delete m[id]; meta.set(m);
     }
 
-    return { sync: sync, pushActive: pushActive, removeFromCloud: removeFromCloud };
+    /* A character deleted from this device (19 Nov, C.J.: "deleting a character deletes the cloud copy").
+       It is marked gone first, so even if the cloud cannot be reached now, the next sync deletes it
+       there instead of bringing it back. */
+    async function forget(uid, id) {
+      var m = Object.assign({}, meta.get()), g = Object.assign({}, m.__gone || {});
+      g[id] = now(); m.__gone = g; meta.set(m);
+      if (!uid) return "later";
+      try {
+        await adapter.remove(uid, id);
+        var m2 = Object.assign({}, meta.get()), g2 = Object.assign({}, m2.__gone || {});
+        delete g2[id]; delete m2[id]; m2.__gone = g2; meta.set(m2);
+        return "ok";
+      } catch (e) { return "later"; }
+    }
+
+    return { sync: sync, pushActive: pushActive, removeFromCloud: removeFromCloud, forget: forget };
   }
 
   ArchCloud.core = { hashChar: hashChar, isPristineBlank: isPristineBlank, makeEngine: makeEngine, MAX_BYTES: MAX_BYTES };
@@ -36751,6 +36958,13 @@ button.rb.combat::before{content:"";--ps:var(--pxs1);--pn:8;--pc:2;--pr:4}
     status: function () { return state.status; },
     adapter: function () { return adapter; },
     onChange: function (f) { listeners.push(f); },
+    /* deleting a character deletes its cloud copy too, now if signed in, or at the next sync */
+    forget: function (id) {
+      if (!engine || !id) return Promise.resolve("none");
+      state.cloud = (state.cloud || []).filter(function (r) { return r.id !== id; });
+      return engine.forget(state.user ? state.user.uid : null, id).then(function (r) { if (state.open) renderBody(); return r; });
+    },
+    signedIn: function () { return !!state.user; },
     _state: state
   };
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot); else boot();
@@ -43489,10 +43703,12 @@ button.rb.combat::before{content:"";--ps:var(--pxs1);--pn:8;--pc:2;--pr:4}
     }
     if (k === "del") {
       if (list.length < 2) { call("toast", "Keep at least one"); return; }
-      if (!confirm("Delete " + (c.name || "this character") + "?")) return;
+      var cl = A.ui && A.ui.signedIn && A.ui.signedIn();
+      if (!confirm("Delete " + (c.name || "this character") + "?" + (cl ? " Its cloud copy is deleted too." : ""))) return;
       var wasCur = typeof C !== "undefined" && C && C.id === id, curId = typeof C !== "undefined" && C ? C.id : null;
       var keep = list.filter(function (x) { return x.id !== id; });
       call("setCharList", keep);
+      try { if (A.ui && A.ui.forget) A.ui.forget(id); } catch (e) {}
       if (wasCur) call("setActiveAt", 0); else if (curId) call("setActive", curId);
       call("save"); call("toast", "Deleted"); renderHome(); return;
     }
@@ -44106,7 +44322,7 @@ button.rb.combat::before{content:"";--ps:var(--pxs1);--pn:8;--pc:2;--pr:4}
       { t: "Home", sel: "#shellHome", b: "The **Home** button always takes you back to the main screen, with its four cards: **Characters**, **Campaigns**, **Monsters** (stat blocks for the GM) and **Tutorials**." },
       { t: "The Characters page", screen: "characters", sel: function () { return [pracCard()]; }, b: "**Characters** on Home opens this page. Every character you have is a card: their figure, name, Level, Class, Lineage and ArchSouls. Press a card to open that character's sheet." },
       { t: "A new character", screen: "characters", sel: "[data-chnew]", b: "The big **+** at the top makes a new character and opens the character creator on it. **Load file** beside it brings back characters you saved to a file." },
-      { t: "The ⋯ on a card", screen: "characters", act: openPracMenu, undo: closeCharMenu, sel: function () { return [pracCard(), $("#chMenu")]; }, b: "Hover over a card and a **⋯** appears in its corner (on a phone, press and hold the card). It holds what you do to one character: open the **Character creator** again, **Duplicate** it to try a build without risking it, **Print** it, **Save to file**, or **Delete** it." },
+      { t: "The ⋯ on a card", screen: "characters", act: openPracMenu, undo: closeCharMenu, sel: function () { return [pracCard(), $("#chMenu")]; }, b: "Hover over a card and a **⋯** appears in its corner (on a phone, press and hold the card). It holds what you do to one character: open the **Character creator** again, **Duplicate** it to try a build without risking it, **Print** it, **Save to file**, or **Delete** it. Deleting also deletes its cloud copy." },
       { t: "Back to Characters", screen: "sheet", page: "Full", sel: "#shellBack", b: "Inside a sheet, this button takes you back to the Characters page, where all your characters are." },
       { t: "Undo and Redo", sel: ["#bUndo", "#bRedo", "#saveState"], b: "**Undo** and **Redo** step back and forward through your changes, one at a time.\n\nThe mark beside them shows your work is saved. It saves by itself as you go; there is no Save button to remember." },
       { t: "Your account", sel: "#shellAcct", b: "Sign in to keep your characters in your account and open them on any device. Without an account, characters stay in this browser on this device." },
